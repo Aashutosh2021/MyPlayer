@@ -28,12 +28,6 @@ MyPlayer is a modern, premium music player application that brings your entire m
 * **Playlist Creation:** Build and manage custom playlists for any mood or occasion.
 * **Favorites:** Mark the songs you love the most for quick and easy access.
 
-### 🎛️ Audio Experience
-
-* **Sound Customization:** Personalize your listening experience to match your unique preferences.
-* **Bass Boost:** Enhance the lower frequencies for a richer, deeper sound.
-* **Audio FX:** Take full control over your audio output with built-in enhancement tools.
-
 ## What You Can Do
 
 * **Commute without Data:** Search for your favorite albums over Wi-Fi, download them with a single tap, and listen on your daily commute without using cellular data.
@@ -63,6 +57,5 @@ MyPlayer is designed for those who refuse to compromise between offline reliabil
 
 * Cross-device playlist synchronization
 * Advanced lyrics integration
-* Sleep timer functionality
 * Enhanced dynamic themes and visualizers
 * Smart auto-generated mixes based on listening habits
