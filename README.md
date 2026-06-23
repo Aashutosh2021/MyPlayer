@@ -43,13 +43,11 @@ MyPlayer is a modern, premium music player application that brings your entire m
 
 ## Screens
 
-<img width="1080" height="2436" alt="Screenshot_20260623-113537" src="https://github.com/user-attachments/assets/69d3fae6-801b-4a57-b4e3-86d2d01f618a" />
-<img width="1080" height="2436" alt="Screenshot_20260623-113546" src="https://github.com/user-attachments/assets/966f5fd6-a381-4da5-808b-637b045afbf6" />
-<img width="1080" height="2436" alt="Screenshot_20260623-113550" src="https://github.com/user-attachments/assets/2f28e3ed-e120-4f58-b404-813e1edb0bcc" />
-<img width="1080" height="2436" alt="Screenshot_20260623-113557" src="https://github.com/user-attachments/assets/1eba9d7b-810e-47b7-aa7d-6872a2f26167" />
-<img width="1080" height="2436" alt="Screenshot_20260623-113600" src="https://github.com/user-attachments/assets/7e14d874-19f5-4de8-85b8-c6820d3b9263" />
-
-
+<img width="1080" height="2436" alt="Screenshot_20260623-113537" src="https://github.com/user-attachments/assets/69d3fae6-801b-4a57-b4e3-86d2d01f618a" width="250" alt="Start Screen" />
+<img width="1080" height="2436" alt="Screenshot_20260623-113546" src="https://github.com/user-attachments/assets/966f5fd6-a381-4da5-808b-637b045afbf6" width="250" alt="Home Screen"/>
+<img width="1080" height="2436" alt="Screenshot_20260623-113550" src="https://github.com/user-attachments/assets/2f28e3ed-e120-4f58-b404-813e1edb0bcc" width="250" alt="Search Screen"/>
+<img width="1080" height="2436" alt="Screenshot_20260623-113557" src="https://github.com/user-attachments/assets/1eba9d7b-810e-47b7-aa7d-6872a2f26167" width="250" alt="Library Screen"/>
+<img width="1080" height="2436" alt="Screenshot_20260623-113600" src="https://github.com/user-attachments/assets/7e14d874-19f5-4de8-85b8-c6820d3b9263" width="250" alt="Download Screen"/>
 
 * **Home:** Your central dashboard for accessing recent tracks, curated suggestions, and quick navigation to your favorite music.
 * **Search:** A blazing-fast gateway to the world's online music library, allowing you to find any song, artist, or album instantly.
