@@ -53,6 +53,8 @@ MyPlayer is a modern, premium music player application that brings your entire m
 
 MyPlayer is designed for those who refuse to compromise between offline reliability and online convenience. It features a modern, premium interface that guarantees smooth navigation and a beautiful browsing experience. Everything is built to be fast, intuitive, and centered entirely around your enjoyment of music.
 
+[📥 Download MyPlayer APK](https://github.com/Aashutosh2021/MyPlayer/releases/tag/FirstOne)
+
 ## Future Improvements
 
 * Cross-device playlist synchronization
