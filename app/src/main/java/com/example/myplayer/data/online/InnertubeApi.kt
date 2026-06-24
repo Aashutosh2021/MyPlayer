@@ -2,6 +2,7 @@ package com.example.myplayer.data.online
 
 import android.util.Log
 import com.example.myplayer.data.online.model.OnlineSong
+import com.example.myplayer.security.StringEncryptionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,7 +25,8 @@ class YouTubeStreamBlockedException(message: String) : Exception(message)
  */
 @Singleton
 class InnertubeApi @Inject constructor(
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val enc: StringEncryptionManager  // Phase 3: runtime key decryption
 ) {
 
     init {
@@ -39,27 +41,35 @@ class InnertubeApi @Inject constructor(
     companion object {
         private const val TAG = "InnertubeApi"
         private val newPipeInitialized = AtomicBoolean(false)
-        private const val BASE_URL = "https://music.youtube.com/youtubei/v1"
-        private const val API_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-KLET5YdneE" // Public YTMusic web key
+        // BASE_URL and API_KEY are no longer hardcoded constants.
+        // They are retrieved at runtime from StringEncryptionManager (Phase 2/3).
         private val MEDIA_TYPE_JSON = "application/json; charset=utf-8".toMediaType()
+    }
 
-        // YouTube Music web client context
-        private val CLIENT_CONTEXT = JSONObject().apply {
+    // Lazy-resolved via enc to avoid plaintext in DEX string table
+    private val BASE_URL: String by lazy { enc.baseUrl }
+    private val API_KEY: String by lazy { enc.ytmApiKey }
+
+    // YouTube Music web client context
+    private val CLIENT_CONTEXT: String by lazy {
+        JSONObject().apply {
             put("context", JSONObject().apply {
                 put("client", JSONObject().apply {
-                    put("clientName", "WEB_REMIX")
-                    put("clientVersion", "1.20241111.01.00")
+                    put("clientName", enc.clientWebName)
+                    put("clientVersion", enc.clientWebVersion)
                     put("hl", "en")
                     put("gl", "US")
                 })
             })
         }.toString()
+    }
 
-        // YouTube VR client context to fetch direct, deciphered streaming URLs
-        private val PLAY_CLIENT_CONTEXT = JSONObject().apply {
+    // YouTube VR client context to fetch direct, deciphered streaming URLs
+    private val PLAY_CLIENT_CONTEXT: String by lazy {
+        JSONObject().apply {
             put("context", JSONObject().apply {
                 put("client", JSONObject().apply {
-                    put("clientName", "ANDROID_VR")
+                    put("clientName", enc.clientVrName)
                     put("clientVersion", "1.65.10")
                     put("hl", "en")
                     put("gl", "US")

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  network_security_config.xml — Phase 13 Network Security
+  
+  This file configures Android's Network Security framework as a SECOND layer
+  of defense alongside OkHttp certificate pinning (NetworkSecurityManager.kt).
+  
+  Key behaviors:
+  - Release: No cleartext traffic, no user-added CAs trusted for our domains
+  - Debug: Allows Charles Proxy / Burp Suite via user CAs for developer testing
+  
+  Note: OkHttp pinning (Phase 13 Kotlin layer) is the STRONGER protection.
+  This XML layer adds OS-level enforcement and is harder to bypass via hooking.
+-->
+<network-security-config>
+
+    <!--
+      Base configuration — applies to all domains not explicitly listed.
+      Trust system CAs + disable cleartext traffic.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system (device manufacturer) certificates -->
+            <certificates src="system" />
+            <!--
+              DO NOT add <certificates src="user" /> here in production!
+              That would allow MITM via user-installed Burp/Charles root CAs.
+            -->
+        </trust-anchors>
+    </base-config>
+
+    <!--
+      YouTube Music API domain — apply specific pinning at the OS level.
+      This provides a second enforcement layer even if the OkHttp pinner is bypassed.
+      
+      NOTE: The <pin-set> here uses the same root CA public key hashes as
+      NetworkSecurityManager.kt. They must be kept in sync.
+      
+      Format: SHA-256 of the DER-encoded Subject Public Key Info (SPKI).
+      expiration: Update this date when you update pins. Android will log a
+                  warning in advance. Set 1 year ahead.
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">music.youtube.com</domain>
+        <domain includeSubdomains="false">www.youtube.com</domain>
+        <domain includeSubdomains="true">googlevideo.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+        <!--
+          Pins are COMMENTED OUT by default because Android's XML pinning
+          requires exact management and can hard-lock users out if Google
+          rotates their CA.
+          
+          RECOMMENDATION: Rely on OkHttp pinning (NetworkSecurityManager.kt)
+          which can be updated via server-driven config or app update.
+          
+          Uncomment ONLY after verifying your pins against live connections:
+          
+          <pin-set expiration="2026-12-31">
+              <pin digest="SHA-256">++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</pin>
+              <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+          </pin-set>
+        -->
+    </domain-config>
+
+    <!--
+      Debug-only overrides — developer machines need proxy tools.
+      This block is only active when the app is built with debuggable=true.
+      It is automatically excluded from release builds by the build system.
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <!-- Allow user-added CAs in debug mode (enables Burp/Charles/mitmproxy) -->
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+</network-security-config>

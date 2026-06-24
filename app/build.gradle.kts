@@ -19,23 +19,58 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Read Play Integrity project number from local.properties (never commit this)
+        val playProjectNumber = project.findProperty("play.integrity.projectNumber")?.toString()
+            ?: "0" // Replace 0 with your Google Cloud project number linked to Play Console
+        buildConfigField("String", "PLAY_INTEGRITY_PROJECT_NUMBER", "\"$playProjectNumber\"")
+
+        // Embed the NDK native library
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-std=c++17", "-fstack-protector-strong", "-O2")
+                arguments += listOf("-DANDROID_STL=c++_static")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // ─── Phase 1: R8 hardening ──────────────────────────────────────
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+        }
     }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true   // needed for PLAY_INTEGRITY_PROJECT_NUMBER
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    buildFeatures {
-        compose = true
     }
 
     sourceSets {
@@ -46,6 +81,12 @@ android {
         getByName("release") {
             java.srcDir("build/generated/ksp/release/kotlin")
             java.srcDir("build/generated/ksp/release/java")
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
@@ -99,7 +140,7 @@ dependencies {
 
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
-    
+
     // NewPipeExtractor
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.3")
 
@@ -109,6 +150,14 @@ dependencies {
     // Paging
     implementation(libs.paging.runtime.ktx)
     implementation(libs.paging.compose)
+
+    // ─── Security Dependencies ──────────────────────────────────────────────
+    // Play Integrity API (Phase 5)
+    implementation(libs.play.integrity)
+    // Encrypted storage (Phase 14)
+    implementation(libs.security.crypto)
+    // Annotations for security code
+    implementation(libs.androidx.annotation)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
