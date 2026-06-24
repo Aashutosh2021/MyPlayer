@@ -1,0 +1,3 @@
+{
+    "systemInstruction": "This is MyPlayer's project. Always use Jetpack Compose with the established Claymorphism aesthetic (neomorphic backgrounds, soft shadows, and a clay-like depth). Keep the brand name as 'MyPlayer'. Never remove existing comments. Before making any changes or edits to the codebase, you MUST first read and refer to the codebase intelligence files located in the root directory: memory.md, architecture.md, routes.md, api-map.md, database-map.md, and dependency-graph.md to understand the structure, styles, and architecture."
+}

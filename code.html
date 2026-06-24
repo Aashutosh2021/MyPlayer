@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MyPlayer - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0057c2",
+                        "surface-container-highest": "#e1e2ec",
+                        "primary-container": "#2c70e2",
+                        "inverse-surface": "#2e3038",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#fffbff",
+                        "primary-fixed-dim": "#afc6ff",
+                        "tertiary": "#006574",
+                        "inverse-primary": "#afc6ff",
+                        "surface-tint": "#0059c6",
+                        "surface-container-low": "#f2f3fd",
+                        "on-background": "#191b22",
+                        "outline": "#727785",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "secondary-container": "#8455ef",
+                        "on-primary-fixed-variant": "#004398",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-tertiary-fixed": "#001f25",
+                        "tertiary-fixed": "#a2eeff",
+                        "surface-dim": "#d8d9e3",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#e7e7f1",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#004e5a",
+                        "on-surface": "#191b22",
+                        "on-primary-fixed": "#001a43",
+                        "surface": "#faf9ff",
+                        "surface-bright": "#faf9ff",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#eff0fa",
+                        "outline-variant": "#c2c6d6",
+                        "on-tertiary": "#ffffff",
+                        "surface-variant": "#e1e2ec",
+                        "background": "#faf9ff",
+                        "on-surface-variant": "#424753",
+                        "on-tertiary-container": "#f8fdff",
+                        "tertiary-fixed-dim": "#2fd9f4",
+                        "secondary": "#6b38d4",
+                        "secondary-fixed": "#e9ddff",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#fefcff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d9e2ff",
+                        "on-secondary-fixed": "#23005c",
+                        "surface-container": "#ecedf7",
+                        "tertiary-container": "#008092"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "element-gap": "16px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "container-padding": "20px",
+                        "md": "16px",
+                        "xs": "8px",
+                        "sm": "12px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Geist"],
+                        "headline-lg-mobile": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "title-md": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "label-md": ["Geist"],
+                        "body-md": ["Geist"]
+                    },
+                    fontSize: {
+                        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "headline-lg-mobile": ["28px", { lineHeight: "36px", fontWeight: "700" }],
+                        "headline-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "700" }],
+                        "title-md": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }]
+                    },
+                    boxShadow: {
+                        'clay-outer': '0 40px 40px rgba(0, 87, 194, 0.1)',
+                        'clay-inner-hi': 'inset 4px 4px 8px rgba(255, 255, 255, 0.8)',
+                        'clay-inner-lo': 'inset -6px -6px 12px rgba(0, 0, 0, 0.05)',
+                        'clay-base': 'inset 4px 4px 8px rgba(255, 255, 255, 0.8), inset -6px -6px 12px rgba(0, 0, 0, 0.05), 0 20px 40px rgba(0, 0, 0, 0.1)',
+                        'clay-pressed': 'inset -2px -2px 4px rgba(255, 255, 255, 1), inset 4px 4px 8px rgba(0, 0, 0, 0.1)',
+                        'clay-concave': 'inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.8)'
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #EEF3FF; /* Specific override per prompt */
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Hide scrollbar for horizontal lists */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .clay-btn:active {
+            box-shadow: inset -2px -2px 4px rgba(255, 255, 255, 1), inset 4px 4px 8px rgba(0, 0, 0, 0.1) !important;
+            transform: scale(0.95);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface antialiased min-h-screen relative pb-[160px]">
+<!-- TopAppBar -->
+<header class="bg-transparent w-full px-container-padding pt-xs pb-xs flex items-center justify-between w-full max-w-7xl mx-auto sticky top-0 z-40 bg-[#EEF3FF]/80 backdrop-blur-md">
+<div class="flex items-center gap-sm">
+<div class="w-12 h-12 rounded-full overflow-hidden shadow-clay-base border-2 border-surface-container-lowest">
+<img class="w-full h-full object-cover" data-alt="A close-up portrait of a stylish young person wearing fashionable sunglasses, shot in a bright, high-key studio with soft lighting. The aesthetic is clean, modern, and high-end, utilizing a pristine color palette with vibrant blue accents, perfect for an elegant avatar image in a premium music application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxvjFM23ehWb9lBCOGQX7sPEhfBfbX_mtKr024qLawSsLMZfCAvCRW-IjKWTAbt_aXJNSELmr_8TLM0tjqH4bx0pr4q22KAlrhGSgiEvQi4AuDfomgJMBcdi6GHrTAh54edOuG9aL4o7GxWaIBiRn8TSdTKjjzc4gVz3EdrPgeWpxRB9KvOMM4AaADha_GFsePi4S4zYaSUVyEWtsB5NYUKDJ-h6v7DBGp4LLxfo8kxWi4t8GiyjBdr8Dq0Mh6Tbpoh_m-3xnY7rw"/>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary tracking-tight">Welcome</h1>
+</div>
+<button class="w-12 h-12 rounded-full bg-surface-container-lowest shadow-clay-base flex items-center justify-center text-on-surface-variant hover:opacity-80 transition-all clay-btn">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+</header>
+<main class="max-w-7xl mx-auto px-container-padding pt-lg space-y-xl">
+<!-- Recently Played (Horizontal Scroll) -->
+<section>
+<h2 class="font-title-md text-title-md text-primary mb-md px-base">Recently Played</h2>
+<div class="flex overflow-x-auto hide-scrollbar gap-element-gap pb-lg -mx-container-padding px-container-padding">
+<!-- Card 1 -->
+<div class="min-w-[160px] w-[160px] bg-surface rounded-xl shadow-clay-base border border-surface-variant/50 p-sm flex flex-col gap-sm">
+<div class="w-full aspect-square rounded-lg overflow-hidden shadow-clay-concave p-1 bg-surface-variant">
+<img class="w-full h-full object-cover rounded-md" data-alt="An artistic, abstract album cover featuring fluid, flowing gradients in electric blue and soft purple hues, resembling liquid plastic or soft clay. The image is brightly lit, modern, and stylized, designed to look like a premium music cover art piece within a tactile, 3D user interface environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfG0I1qPQUVfP0OudKSzsd0b9Vo2ZyswdyiF8bM_Vatkkg8iUCfTvY7rMCBgtLQXzd_cGdVxS86yxxc7WNr7QS9sHXZezjV_HkR40WEQDc7iAMRPLJczjrq4Uk3DGHZtLc_13U7z3yXxvctYaCZQ6GtybdQlRjKkUN4hksB-kUQdjKEKAXpo0vZFS3kqaxHg5ApMR3msG63YgkwrBmakN8Rm4VGhOyny4RnqbQ0lkoZCGUsBXgUAklHxLoAVG6FJqngVaq_e8MS-0"/>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface truncate font-semibold">Midnight City</p>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">M83</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="min-w-[160px] w-[160px] bg-surface rounded-xl shadow-clay-base border border-surface-variant/50 p-sm flex flex-col gap-sm">
+<div class="w-full aspect-square rounded-lg overflow-hidden shadow-clay-concave p-1 bg-surface-variant">
+<img class="w-full h-full object-cover rounded-md" data-alt="A minimalist, high-contrast album cover displaying simple geometric shapes, specifically a glossy white sphere intersecting a soft blue cube. The lighting is pristine and high-key, creating soft, realistic shadows that perfectly match a premium 3D claymorphic interface design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDV6dPU8nUb8Z5PaB-2NsgobvtfEudpcUSMeyzlqGzqZPm52grOWoqUEU2uWItMczjGRhkq12XfAh3QmgMSiEWyBipD7XfGwLgT8bWjwo1mz2AObamjGrYDKbUp6QMoinqwk5oSQ7uM8Okr7ngdHZ-vzYoOw3RIsloihX9x7YoVMEi1TCt0XIhiWbuobh2YbMaQIrPaQwHflhR4gyPph5H7beQhh5L0OZ6Z8yTdLbge-pU-SzsHgq5wAuEJWyG18H5fSGs6uS-1pPo"/>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface truncate font-semibold">Starboy</p>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">The Weeknd</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="min-w-[160px] w-[160px] bg-surface rounded-xl shadow-clay-base border border-surface-variant/50 p-sm flex flex-col gap-sm">
+<div class="w-full aspect-square rounded-lg overflow-hidden shadow-clay-concave p-1 bg-surface-variant">
+<img class="w-full h-full object-cover rounded-md" data-alt="A vivid, surreal landscape album cover featuring floating, soft-edged clouds in a bright blue sky above a tranquil, mirror-like ocean. The aesthetic is dreamy, high-end, and deeply atmospheric, utilizing a soft pastel palette with bright lighting suitable for modern digital art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHVZ0XiVrT5_2ffU_6ZNwhMLWEIA7hCPII7g8DRUds4pqJteyadfGpAUahIhSqIRTyYmsxLk0R0isXxnQYDnxCa1foqtbak2HnaqJoqM9M-SpVqAni7HKu7SpuEniUEohatbZiF9zbVW6LyFjaY1XBex59tPfpuy39K_f6f3gDZOirZFTOTQzIOLVq3efGPMYUjbd4gZfDVWch7SUtOkrOXWY3uuFzBCzDikn43FXFRiFLluXXh3W2EqsFFQdL5RZSgByQ-keZ8f8"/>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface truncate font-semibold">Closer</p>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">The Chainsmokers</p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="min-w-[160px] w-[160px] bg-surface rounded-xl shadow-clay-base border border-surface-variant/50 p-sm flex flex-col gap-sm">
+<div class="w-full aspect-square rounded-lg overflow-hidden shadow-clay-concave p-1 bg-surface-variant">
+<img class="w-full h-full object-cover rounded-md" data-alt="A sleek, futuristic album cover with glowing neon blue lines forming a soundwave pattern on a pristine matte white background. The overall look is clean, tactile, and sophisticated, perfectly aligned with a light-mode, 3D claymorphic UI aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLzADcgtoanznJIZEp8dvuqEGT7O4fPC1JL396EwEgL4ge64lqaVRS1azhZSyzHRQ6mvzUfMPH40kRbuTfZwCRoHHjL-anZjK5tDgIoKvB1t6h-brENN9562NAewYdTcMN_UO_QCCNp3BttQ9P2zp9fo2F7QE_l1SH3MbIaBq8btdCSRNS-m09OGJvtW3ArPBPSTldpNSHAPPEbKZ8goEzkpWoFBiGj5ywnMSLX8jAPTp8MWN8XzDFqjw_AQT3pDvkkDDJR1_MCS4"/>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface truncate font-semibold">Blinding Lights</p>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">The Weeknd</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Layout for Playlists & Trending -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Favorite Songs List -->
+<section class="bg-surface rounded-xl shadow-clay-base p-md border border-surface-variant/50 flex flex-col h-[400px]">
+<div class="flex items-center justify-between mb-md px-base">
+<h2 class="font-title-md text-title-md text-primary">Favorite Songs</h2>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div class="flex-1 overflow-y-auto hide-scrollbar space-y-sm pr-xs">
+<!-- List Item 1 -->
+<div class="flex items-center gap-md p-sm rounded-lg bg-surface-container-lowest shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05),0_4px_10px_rgba(0,0,0,0.05)] hover:shadow-clay-pressed transition-all cursor-pointer">
+<div class="w-12 h-12 rounded bg-surface-variant shadow-clay-concave overflow-hidden p-0.5">
+<img class="w-full h-full object-cover rounded-sm" data-alt="A close-up abstract texture of soft, matte white clay with subtle ripples, resembling a soundwave frozen in physical form. High-key lighting creates gentle highlights and shadows, fitting perfectly in a premium, light-mode music app UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuClyZUCriklOJ_rnTlikrqKgsWkcyXImT61kEYVtKjOTJ55ihHDzUZVeM5MqRSaJ_PQpJhOdqK-0WBhpnm6DmS_PKulEKlnl9cBBthZq2n3YzdRfkLc_YWo6iW9RnwePWNmZBH4-MNa_qcQ7ZOOewPvExxsXxLXhYXzwHxFOKRr5zwfzI-bIqS6KZ9Me7w1AF9QrRNd5bQZoGFs5csGASnl3tBHemnQlQSyHWiD1y019oVeiz2JcAba0NRMxFsWFBvEt9TLsrp-l3c"/>
+</div>
+<div class="flex-1">
+<p class="font-body-md text-body-md font-semibold text-on-surface">Levitating</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Dua Lipa</p>
+</div>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center gap-md p-sm rounded-lg bg-surface-container-lowest shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05),0_4px_10px_rgba(0,0,0,0.05)] hover:shadow-clay-pressed transition-all cursor-pointer">
+<div class="w-12 h-12 rounded bg-surface-variant shadow-clay-concave overflow-hidden p-0.5">
+<img class="w-full h-full object-cover rounded-sm" data-alt="A vibrant macro shot of glossy blue liquid droplets on a pristine white surface, catching the bright studio lighting. The image evokes a fresh, modern pop music vibe, utilizing a sophisticated color palette of whites and electric blues." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYLUHoAOguJ8ZModXrpd3WZ0Nwkrz7X2mQ-LRsB82CyEYr7DRoW2UrE7AfW6OMc-22o0QV-fB1bD_7-g_i70o_cC7U_6u9ftYY5wbeBFSdHeHjnHN7NoA5TlsV9cE72wISe76-N84XZEp2af2J_vOMozsh7YAXaJFuXGrrBIbRUmfaf5CKWZvbhebCIaDjRxSI7Lv01BsJDXBBD8j_81jaS2w6FYWigxSvatzOXI80tsrP9j0z1QQyzfAD8HlnxiIa4FNX0KimePM"/>
+</div>
+<div class="flex-1">
+<p class="font-body-md text-body-md font-semibold text-on-surface">As It Was</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Harry Styles</p>
+</div>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center gap-md p-sm rounded-lg bg-surface-container-lowest shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05),0_4px_10px_rgba(0,0,0,0.05)] hover:shadow-clay-pressed transition-all cursor-pointer">
+<div class="w-12 h-12 rounded bg-surface-variant shadow-clay-concave overflow-hidden p-0.5">
+<img class="w-full h-full object-cover rounded-sm" data-alt="A sleek, minimalist illustration of a vinyl record half-emerging from a pure white, puffy sleeve. The design is highly stylized, utilizing soft pastel shadows to create a 3D effect consistent with a light-mode claymorphism aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxAKonZ3eQhnicWCiCQTiWG2Rf4L0i4_yR6W-kycuovnNZUfODfyvxMalhy9N0aIS_LUvEbHJgKppgBrQfqiPP-hEBLtr7ElXy-0jb6xfHAF9lZT9nbUz0bVOL9zYz5mi3rtVJgWrFYsqePtngXpppcZieWidjQ7U5LSHsysEbKT-o1Vshe9pzgN1VB2U3TUM-LQa-k8CgcoHQh-hGPbz-COWR_JfurhM4_4Sq6uSG_W1Di3fazTh_zhcLUoZ4tXN8uYKdiKFNSe0"/>
+</div>
+<div class="flex-1">
+<p class="font-body-md text-body-md font-semibold text-on-surface">Good 4 U</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Olivia Rodrigo</p>
+</div>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<!-- List Item 4 -->
+<div class="flex items-center gap-md p-sm rounded-lg bg-surface-container-lowest shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05),0_4px_10px_rgba(0,0,0,0.05)] hover:shadow-clay-pressed transition-all cursor-pointer">
+<div class="w-12 h-12 rounded bg-surface-variant shadow-clay-concave overflow-hidden p-0.5">
+<img class="w-full h-full object-cover rounded-sm" data-alt="An abstract, high-end 3D rendering of soft, interlocking matte cylinders in varying shades of light blue and white. The lighting is soft and diffused, creating deep, elegant shadows that convey volume and premium quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYNrxq841Mj5Er5HSdbQqtfRkwTx7wLrk63VQ07Q9Jsr6slSEL01Hbd_t2Y-gTS_0PROOCmRvTCbFCNxpjDLGPqYshOvMWv1rZYeMhOiTgifngoDC-7K2Qhk-DZLyVrbHLu_kZKEkrGTh2YNJ4MmvtjH78sVXW-tY_wmufv2RzSXuDj4Y-aeyP1CbXWA1Xk88nk65Xequ2xJUYEcBd0ZguOEJ7jAUbSOHLP2732IVYw0tDF5AxhE1Ilt4JiCN04zBExazSbzKjK8Q"/>
+</div>
+<div class="flex-1">
+<p class="font-body-md text-body-md font-semibold text-on-surface">Stay</p>
+<p class="font-label-md text-label-md text-on-surface-variant">The Kid LAROI, Justin Bieber</p>
+</div>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+</div>
+</section>
+<!-- Trending / Discovery Grid -->
+<section class="bg-surface rounded-xl shadow-clay-base p-md border border-surface-variant/50 flex flex-col h-[400px]">
+<div class="flex items-center justify-between mb-md px-base">
+<h2 class="font-title-md text-title-md text-primary">Trending Now</h2>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+</div>
+<div class="grid grid-cols-2 gap-md flex-1 overflow-y-auto hide-scrollbar pb-xs">
+<!-- Trending Card 1 -->
+<div class="bg-primary/5 rounded-lg p-sm shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05)] flex flex-col items-center text-center gap-xs hover:bg-primary/10 transition-colors cursor-pointer">
+<div class="w-16 h-16 rounded-full bg-surface-container-lowest shadow-clay-base flex items-center justify-center mb-1 border border-white">
+<span class="material-symbols-outlined text-primary text-[32px]">album</span>
+</div>
+<p class="font-body-md text-body-md font-semibold text-on-surface leading-tight">Global Top 50</p>
+<p class="font-label-md text-label-md text-primary">Playlist</p>
+</div>
+<!-- Trending Card 2 -->
+<div class="bg-tertiary/5 rounded-lg p-sm shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05)] flex flex-col items-center text-center gap-xs hover:bg-tertiary/10 transition-colors cursor-pointer">
+<div class="w-16 h-16 rounded-full bg-surface-container-lowest shadow-clay-base flex items-center justify-center mb-1 border border-white">
+<span class="material-symbols-outlined text-tertiary text-[32px]">mic</span>
+</div>
+<p class="font-body-md text-body-md font-semibold text-on-surface leading-tight">Pop Rising</p>
+<p class="font-label-md text-label-md text-tertiary">New Releases</p>
+</div>
+<!-- Trending Card 3 -->
+<div class="bg-secondary/5 rounded-lg p-sm shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05)] flex flex-col items-center text-center gap-xs hover:bg-secondary/10 transition-colors cursor-pointer">
+<div class="w-16 h-16 rounded-full bg-surface-container-lowest shadow-clay-base flex items-center justify-center mb-1 border border-white">
+<span class="material-symbols-outlined text-secondary text-[32px]">headset</span>
+</div>
+<p class="font-body-md text-body-md font-semibold text-on-surface leading-tight">Chill Vibes</p>
+<p class="font-label-md text-label-md text-secondary">Mood</p>
+</div>
+<!-- Trending Card 4 -->
+<div class="bg-primary-container/20 rounded-lg p-sm shadow-[inset_2px_2px_4px_rgba(255,255,255,0.8),inset_-2px_-2px_4px_rgba(0,0,0,0.05)] flex flex-col items-center text-center gap-xs hover:bg-primary-container/30 transition-colors cursor-pointer">
+<div class="w-16 h-16 rounded-full bg-surface-container-lowest shadow-clay-base flex items-center justify-center mb-1 border border-white">
+<span class="material-symbols-outlined text-primary-container text-[32px]">podcasts</span>
+</div>
+<p class="font-body-md text-body-md font-semibold text-on-surface leading-tight">Top Podcasts</p>
+<p class="font-label-md text-label-md text-primary-container">Talks</p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Mini Player -->
+<div class="fixed bottom-[100px] left-container-padding right-container-padding max-w-7xl mx-auto z-40">
+<div class="bg-primary rounded-xl shadow-clay-outer p-sm flex items-center gap-md border border-primary-container shadow-[inset_2px_2px_4px_rgba(255,255,255,0.3),inset_-4px_-4px_8px_rgba(0,0,0,0.2),0_20px_40px_rgba(0,87,194,0.3)]">
+<div class="w-12 h-12 rounded bg-surface shadow-clay-concave overflow-hidden p-0.5 flex-shrink-0">
+<img class="w-full h-full object-cover rounded-sm" data-alt="A vivid, bright graphic representing a playing song, featuring bold neon pink and blue geometric waves on a crisp white background. The image is rendered with a glossy, high-end 3D finish, perfectly suited for a premium music app interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDS0J7GhNfpLhNum15ZVeEuEKH5D_WgIZOjZxPmCiDcKR1gYaJ69Bl__HiCxKyVFKsm7Q3y1FUHVH3jofRlpzIE4Z_nksPjKokyfbkE6wlxo5EBQu69Px6anKBfIuDQRkqhD87M9poPUGV9Ovyx_ac-sAqpVsgOCWbQOSIj7246R3gKVpa2hFbO35TgDKy7Kfrh3EpiLycvzy66ykAZVM3YWEj5QurCYM4EyEzyJ9TBn0MiJSlm41wODd474Ng5F4EXNHKNqVuIi0s"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md font-semibold text-on-primary truncate">Blinding Lights</p>
+<p class="font-label-md text-label-md text-primary-fixed-dim truncate">The Weeknd</p>
+</div>
+<div class="flex items-center gap-xs flex-shrink-0">
+<button class="w-10 h-10 rounded-full bg-primary-container shadow-[inset_2px_2px_4px_rgba(255,255,255,0.4),inset_-2px_-2px_4px_rgba(0,0,0,0.2)] flex items-center justify-center text-on-primary hover:bg-primary-container/80 transition-all clay-btn">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-primary shadow-[inset_2px_2px_4px_rgba(255,255,255,0.2),inset_-2px_-2px_4px_rgba(0,0,0,0.2)] flex items-center justify-center text-primary-fixed-dim hover:text-on-primary transition-all clay-btn">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">skip_next</span>
+</button>
+</div>
+</div>
+<!-- Progress Bar Indicator -->
+<div class="absolute bottom-0 left-md right-md h-1 bg-primary-container rounded-b-lg overflow-hidden opacity-50">
+<div class="h-full bg-on-primary w-1/3 rounded-full"></div>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-lg left-container-padding right-container-padding rounded-xl h-20 bg-surface-container-low dark:bg-surface-container-low shadow-[inset_4px_4px_8px_rgba(255,255,255,0.8),inset_-6px_-6px_12px_rgba(0,0,0,0.05),0_20px_40px_rgba(0,0,0,0.1)] fixed bottom-0 w-full z-50 flex justify-around items-center px-lg pb-lg max-w-7xl mx-auto border border-surface-variant/30">
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-surface-container-high transition-all rounded-lg group">
+<span class="material-symbols-outlined group-hover:-translate-y-1 transition-transform">library_music</span>
+<span class="font-label-md text-label-md mt-1">Library</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary shadow-[inset_-2px_-2px_4px_rgba(255,255,255,1),inset_4px_4px_8px_rgba(0,0,0,0.1)] bg-surface-container-high rounded-lg p-3 hover:bg-surface-container-high transition-all scale-90 duration-300 ease-out">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-label-md text-label-md mt-1">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-surface-container-high transition-all rounded-lg group">
+<span class="material-symbols-outlined group-hover:-translate-y-1 transition-transform">radio</span>
+<span class="font-label-md text-label-md mt-1">Radio</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-surface-container-high transition-all rounded-lg group">
+<span class="material-symbols-outlined group-hover:-translate-y-1 transition-transform">search</span>
+<span class="font-label-md text-label-md mt-1">Search</span>
+</button>
+</nav>
+</body></html>
