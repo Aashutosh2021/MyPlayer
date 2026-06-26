@@ -17,6 +17,7 @@ class MusicRepository @Inject constructor(
 ) {
     // Songs
     fun getAllSongs(): Flow<List<SongEntity>> = songDao.getAllSongs()
+    fun getTrendingSongs(): Flow<List<SongEntity>> = songDao.getTrendingSongs()
     fun getRecentlyAddedSongs(): Flow<List<SongEntity>> = songDao.getRecentlyAddedSongs()
     fun getMostPlayedSongs(): Flow<List<SongEntity>> = songDao.getMostPlayedSongs()
     fun searchSongs(query: String): Flow<List<SongEntity>> = songDao.searchSongs(query)

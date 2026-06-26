@@ -12,6 +12,9 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY title ASC")
     fun getAllSongs(): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM songs ORDER BY id ASC LIMIT 15")
+    fun getTrendingSongs(): Flow<List<SongEntity>>
+
     @Query("SELECT * FROM songs WHERE id = :id")
     fun getSongById(id: String): SongEntity?
 

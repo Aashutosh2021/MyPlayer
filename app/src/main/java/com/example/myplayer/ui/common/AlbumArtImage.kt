@@ -1,9 +1,5 @@
 package com.example.myplayer.ui.common
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -12,24 +8,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.Image
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 
 /**
- * Loads embedded album art from an audio file URI (SAF content URI).
- * Uses MediaMetadataRetriever to extract the embedded picture bytes on IO dispatcher.
- * Falls back to a placeholder icon if no art is found.
+ * Loads embedded album art from an audio file URI or HTTP url.
+ * Offloads loading and memory caching to Coil.
  */
 @Composable
 fun AlbumArtImage(
@@ -40,26 +34,6 @@ fun AlbumArtImage(
     iconSize: Dp = 24.dp
 ) {
     val context = LocalContext.current
-    val isHttp = uri?.startsWith("http") == true
-
-    // Only attempt to extract metadata if it's not an HTTP URL
-    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = uri) {
-        value = null
-        if (uri.isNullOrBlank() || isHttp) return@produceState
-        value = withContext(Dispatchers.IO) {
-            try {
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(context, Uri.parse(uri))
-                val bytes = retriever.embeddedPicture
-                retriever.release()
-                if (bytes != null && bytes.isNotEmpty()) {
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                } else null
-            } catch (e: Exception) {
-                null
-            }
-        }
-    }
 
     Box(
         modifier = modifier
@@ -68,23 +42,23 @@ fun AlbumArtImage(
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
-        if (isHttp && !uri.isNullOrBlank()) {
-            coil.compose.AsyncImage(
-                model = uri,
+        if (!uri.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(uri)
+                    .crossfade(true)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .build(),
                 contentDescription = "Album art",
                 modifier = Modifier
                     .size(size)
                     .clip(shape),
-                contentScale = ContentScale.Crop
-            )
-        } else if (bitmap != null) {
-            Image(
-                bitmap = bitmap!!.asImageBitmap(),
-                contentDescription = "Album art",
-                modifier = Modifier
-                    .size(size)
-                    .clip(shape),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                error = coil.compose.rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(context).data("").build(), // Empty triggers error state cleanly
+                    fallback = coil.compose.rememberAsyncImagePainter(model = null)
+                )
             )
         } else {
             Icon(

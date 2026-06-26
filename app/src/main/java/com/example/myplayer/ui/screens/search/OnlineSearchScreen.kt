@@ -21,9 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import coil.compose.AsyncImage
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.local.entity.RecentSearchEntity
@@ -37,12 +39,12 @@ fun OnlineSearchScreen(
     bottomPadding: Dp = 100.dp,
     viewModel: OnlineSearchViewModel = hiltViewModel() // parent can pass its own instance
 ) {
-    val query by viewModel.query.collectAsState()
-    val recentSearches by viewModel.recentSearches.collectAsState()
-    val isLoadingStream by viewModel.isLoadingStream.collectAsState()
-    val downloadedIds by viewModel.downloadedIds.collectAsState()
-    val downloadProgress by viewModel.downloadProgress.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
+    val isLoadingStream by viewModel.isLoadingStream.collectAsStateWithLifecycle()
+    val downloadedIds by viewModel.downloadedIds.collectAsStateWithLifecycle()
+    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     val searchResults = viewModel.searchResults.collectAsLazyPagingItems()
 
@@ -127,7 +129,7 @@ fun RecentSearchesSection(
                 color = OnSurfaceVariant
             )
         }
-        items(searches.size) { i ->
+        items(searches.size, key = { i -> searches[i].query }) { i ->
             val s = searches[i]
             Row(
                 modifier = Modifier
@@ -206,7 +208,7 @@ fun OnlineResultsList(
             }
         }
 
-        items(results.itemCount) { index ->
+        items(results.itemCount, key = results.itemKey { it.videoId }) { index ->
             val song = results[index] ?: return@items
             val isDownloaded = song.videoId in downloadedIds
             val isStreaming = isLoadingStream == song.videoId

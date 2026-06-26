@@ -56,12 +56,7 @@ class AudioAlbumArtFetcher(
     class Factory(private val context: Context) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
             if (data.scheme == "content") {
-                val uriString = data.toString().lowercase()
-                if (uriString.contains(".mp3") || uriString.contains(".m4a") || 
-                    uriString.contains(".flac") || uriString.contains(".wav") || 
-                    uriString.contains(".ogg")) {
-                    return AudioAlbumArtFetcher(data, options, context)
-                }
+                return AudioAlbumArtFetcher(data, options, context)
             }
             return null
         }

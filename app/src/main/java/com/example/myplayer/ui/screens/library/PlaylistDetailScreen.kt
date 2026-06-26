@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
@@ -123,8 +124,8 @@ fun PlaylistDetailScreen(
 ) {
     LaunchedEffect(playlistId) { viewModel.setPlaylistId(playlistId) }
 
-    val playlist by viewModel.playlist.collectAsState()
-    val songs by viewModel.songs.collectAsState()
+    val playlist by viewModel.playlist.collectAsStateWithLifecycle()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
     var showAddSheet by remember { mutableStateOf(false) }
 
     // Drag state
@@ -448,8 +449,8 @@ fun AddSongsSheet(
     onAddSongs: (List<PlayableSong>) -> Unit,
     viewModel: PlaylistDetailViewModel
 ) {
-    val library by viewModel.libraryForPicker.collectAsState()
-    val playlistSongs by viewModel.songs.collectAsState()
+    val library by viewModel.libraryForPicker.collectAsStateWithLifecycle()
+    val playlistSongs by viewModel.songs.collectAsStateWithLifecycle()
     val playlistSongIds = remember(playlistSongs) { playlistSongs.map { it.id }.toSet() }
 
     var searchQuery by remember { mutableStateOf("") }

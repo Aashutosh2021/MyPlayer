@@ -15,7 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -114,7 +114,10 @@ fun NowPlayingScreen(
             Box(
                 modifier = Modifier
                     .size(300.dp)
-                    .scale(artScale)
+                    .graphicsLayer {
+                        scaleX = artScale
+                        scaleY = artScale
+                    }
                     .clayConcave(borderRadius = 32.dp, backgroundColor = SurfaceLight)
                     .padding(8.dp),
                 contentAlignment = Alignment.Center

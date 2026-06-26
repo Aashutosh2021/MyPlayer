@@ -27,7 +27,7 @@ class HomeViewModel @Inject constructor(
     val favoriteSongs: StateFlow<List<SongEntity>> = repository.getFavoriteSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allSongs: StateFlow<List<SongEntity>> = repository.getAllSongs()
+    val allSongs: StateFlow<List<SongEntity>> = repository.getTrendingSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val currentSong = musicController.currentSong

@@ -42,10 +42,10 @@ fun LibraryScreen(
     bottomPadding: Dp = 100.dp,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
-    val folders by viewModel.folders.collectAsState()
-    val playlists by viewModel.playlists.collectAsState()
-    val hybridLibrary by viewModel.hybridLibrary.collectAsState()
-    val isScanning by viewModel.isScanning.collectAsState()
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val hybridLibrary by viewModel.hybridLibrary.collectAsStateWithLifecycle()
+    val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // SAF folder picker

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.screens.home.formatDurationHome
 import com.example.myplayer.ui.theme.*
@@ -31,10 +32,10 @@ fun SearchScreen(
     localViewModel: SearchViewModel = hiltViewModel(),
     onlineViewModel: OnlineSearchViewModel = hiltViewModel()
 ) {
-    val localQuery by localViewModel.query.collectAsState()
-    val onlineQuery by onlineViewModel.query.collectAsState()
-    val results by localViewModel.searchResults.collectAsState()
-    val currentSong by localViewModel.currentSong.collectAsState()
+    val localQuery by localViewModel.query.collectAsStateWithLifecycle()
+    val onlineQuery by onlineViewModel.query.collectAsStateWithLifecycle()
+    val results by localViewModel.searchResults.collectAsStateWithLifecycle()
+    val currentSong by localViewModel.currentSong.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
 
     // The single shared search bar drives whichever VM is active
