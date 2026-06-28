@@ -27,7 +27,7 @@ The application uses **Room (SQLite)** for persistent local storage. All data ac
 `OnlineSong (API)` $\rightarrow$ `DownloadWorker` $\rightarrow$ `DownloadedSongEntity (Room)` $\rightarrow$ `PlayableSong.Downloaded (Domain Model)`.
 
 ## 3. DAO Layer Responsibilities
-- `SongDao`: Complex queries for searching, sorting by play count, and retrieving recently added songs.
+- `SongDao`: Complex queries for searching, sorting by play count, retrieving recently added songs, and optimized trending songs fetching.
 - `PlaylistDao`: Manages playlist lifecycle and song ordering within playlists.
 - `FavoriteDao`: Quick checks for "isFavorite" status and listing all favorites.
 - `FolderDao`: Syncs local directory structures into the database.

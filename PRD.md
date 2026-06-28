@@ -37,3 +37,4 @@ MyPlayer is a comprehensive Android music player application designed to handle 
 - **Stability**: Background playback must remain stable via a foreground service.
 - **Efficiency**: Efficient database queries using Room and optimized network calls.
 - **Reliability**: Background downloads must be handled by WorkManager to ensure completion even if the app is closed.
+- **Security & Integrity**: The application must be hardened against reverse engineering, tampering, repackaging, and runtime hooking (Frida) to protect its core streaming logic. Sensitive strings must be encrypted and not present in plain text.

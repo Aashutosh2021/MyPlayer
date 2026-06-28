@@ -6,6 +6,7 @@ MyPlayer follows the **MVVM (Model-View-ViewModel)** architectural pattern with 
 - **Domain/Repository Layer**: Repositories that abstract data sources (local vs. online).
 - **Data Layer**: Room Database, Preferences DataStore, and Network APIs.
 - **Service Layer**: A foreground `MediaSessionService` for persistent audio playback.
+- **Security Layer**: Native C++ bridge, environment integrity checks, string encryption, and R8/ProGuard obfuscation to prevent reverse engineering and tampering.
 
 ## 2. Technical Stack
 - **Language**: Kotlin
@@ -16,6 +17,7 @@ MyPlayer follows the **MVVM (Model-View-ViewModel)** architectural pattern with 
 - **Playback Engine**: Media3 (ExoPlayer)
 - **Concurrency**: Kotlin Coroutines & Flow
 - **Background Tasks**: WorkManager
+- **Security & Obfuscation**: R8/ProGuard, Android Keystore, JNI/NDK (C++)
 
 ## 3. Detailed Component Analysis
 
@@ -45,7 +47,14 @@ MyPlayer follows the **MVVM (Model-View-ViewModel)** architectural pattern with 
     - **FloatingNavBar**: Bottom navigation for core app sections.
     - **Glass Components**: Custom `GlassCard`, `NeonButton`, and `NeonProgressBar` implementing a Glassmorphism aesthetic.
 - **Styling**: Custom modifiers in `Modifiers.kt` (e.g., `glassMorphism`, `antigravityGlow`) provide consistent visual effects.
-- **State Management**: ViewModels use `collectAsState` to bind repository flows to the UI.
+- **State Management**: ViewModels use `collectAsStateWithLifecycle` to bind repository flows to the UI safely.
+
+### 3.5 Security Layer
+- **Anti-Tampering**: Native C++ bridge (`SecurityNativeBridge`) detecting Frida, rooted environments, and emulators via standard heuristics.
+- **Application Integrity**: `SignatureVerifier` validates the APK signature at runtime against the expected release signing certificate.
+- **Obfuscation**: Aggressive R8/ProGuard rules are applied, renaming classes, shrinking resources, and stripping metadata.
+- **Data Encryption**: `StringEncryptionManager` uses XOR and Android Keystore AES-GCM to hide sensitive API URLs and keys from the DEX strings table.
+- **Anti-Debugging**: Prevents attaching debuggers via `Debug.isDebuggerConnected()` and checking `ApplicationInfo` flags.
 
 ## 4. Dependency Injection (Hilt)
 - **Modules**:

@@ -24,21 +24,24 @@ The application solves the problem of fragmented music libraries by allowing use
 - **API Integration**: YouTube Music Innertube API
 - **Stream Extraction**: NewPipeExtractor (Bypasses bot detection/poToken)
 - **Image Loading**: Coil
+- **Security & Obfuscation**: R8/ProGuard, Keystore AES-GCM, JNI/NDK (C++) for Anti-Tampering
 
 ## Repository Structure
-```text
 .
 ├── app/
-│   ├── src/main/java/com/example/myplayer/
-│   │   ├── data/
-│   │   │   ├── download/         # DownloadWorker, DownloadService
-│   │   │   ├── local/            # Room DB, Entities, DAOs, DataStore
-│   │   │   ├── online/           # InnertubeApi, NewPipeDownloader, OnlineSong model
-│   │   │   └── repository/       # Music, Download, HybridLibrary, OnlineSearch Repos
-│   │ la/di/                      # Hilt Modules (Database, Network, Player, Cache)
-│   │   ├── playback/             # MusicService, MusicController, DSP Managers
-│   │   └── ui/                   # Compose UI (Common, Components, Navigation, Screens, Theme)
-│   └── build.gradle.kts          # App-level dependencies and config
+│   ├── src/main/
+│   │   ├── cpp/                  # Native C++ code for anti-tampering (SecurityNativeBridge)
+│   │   ├── java/com/example/myplayer/
+│   │   │   ├── data/
+│   │   │   │   ├── download/         # DownloadWorker, DownloadService
+│   │   │   │   ├── local/            # Room DB, Entities, DAOs, DataStore
+│   │   │   │   ├── online/           # InnertubeApi, NewPipeDownloader, OnlineSong model
+│   │   │   │   └── repository/       # Music, Download, HybridLibrary, OnlineSearch Repos
+│   │   │   ├── di/                   # Hilt Modules (Database, Network, Player, Cache)
+│   │   │   ├── playback/             # MusicService, MusicController, DSP Managers
+│   │   │   ├── security/             # Security Managers, AntiDebug, FridaDetection, StringEncryption
+│   │   │   └── ui/                   # Compose UI (Common, Components, Navigation, Screens, Theme)
+│   ├── build.gradle.kts          # App-level dependencies and config
 ├── gradle/
 │   └── libs.versions.toml        # Centralized dependency management
 └── structure.md                 # Project tree overview
@@ -72,6 +75,7 @@ Since there is no custom server, the "backend" consists of:
 2. **Innertube API**: The remote data provider for YouTube Music.
 3. **NewPipeExtractor**: The logic layer that resolves YouTube's obfuscated stream URLs.
 4. **WorkManager**: The background orchestration layer for file downloads.
+5. **SecurityNativeBridge (C++)**: Validates the runtime environment integrity to prevent modification of the offline library and streaming APIs.
 
 ## Database Architecture
 - **Core Entity**: `SongEntity` (Local songs).
@@ -114,6 +118,7 @@ Since there is no custom server, the "backend" consists of:
 | **DSP** | Audio effects (EQ, Bass) | `playback/dsp/` directory |
 | **Sleep Timer** | Stop playback after delay | `MusicController.kt`, `NowPlayingScreen.kt` |
 | **Local Scanning** | Import device music | `MediaScanner.kt` |
+| **Security Hardening** | Obfuscation, Anti-Tamper, Encryption | `security/` package, `native-lib.cpp` |
 
 ## Dependency Graph
 - **Critical Path**: `MusicController` $\rightarrow$ `MusicService` $\rightarrow$ `ExoPlayer`.

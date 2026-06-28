@@ -5,6 +5,7 @@ MyPlayer follows the **MVVM (Model-View-ViewModel)** pattern. The architecture i
 
 ### Layer Map
 `UI Layer (Compose)` $\rightarrow$ `ViewModel Layer` $\rightarrow$ `Repository Layer` $\rightarrow$ `Data Source Layer`
+*(Parallel)* $\rightarrow$ `Security Layer (JNI/C++)`
 
 #### UI Layer
 - **Responsibility**: Rendering the state provided by ViewModels and capturing user interactions.
@@ -28,6 +29,11 @@ MyPlayer follows the **MVVM (Model-View-ViewModel)** pattern. The architecture i
 - **Local**: Room Database (`AppDatabase`) and Preferences DataStore.
 - **Remote**: YouTube Music Innertube API via `InnertubeApi`.
 - **Resolution**: `NewPipeExtractor` used to resolve obfuscated stream URLs.
+
+#### Security Layer (Native)
+- **Responsibility**: Environment validation and runtime integrity, protecting data flows from tampering and reverse engineering.
+- **Key Components**: `SecurityNativeBridge` (C++), `SecurityManager`, `StringEncryptionManager`, `SignatureVerifier`.
+- **Communication**: Interacts heavily at application startup to establish trust; provides decrypted strings to the Data Source layer.
 
 ---
 
@@ -65,3 +71,5 @@ The download system is designed to be resilient, using a combination of a foregr
 - **Room**: Provides a reactive data layer via `Flow`.
 - **Paging 3**: Handles the efficient loading of large online search results.
 - **Media3**: Standardizes media session and playback across Android versions.
+- **JNI / NDK**: Powers the security features, isolating integrity checks in native memory rather than managed Dalvik memory.
+- **R8 / ProGuard**: Provides structural obfuscation, stripping metadata and renaming execution paths during release builds.

@@ -3,8 +3,8 @@
 Since MyPlayer does not have a custom backend, its "API Layer" consists of interactions with the YouTube Music Innertube API and the NewPipeExtractor library.
 
 ## 1. YouTube Music Innertube API
-**Base URL**: `https://music.youtube.com/youtubei/v1`
-**Auth**: Public Web Client Credentials (No API Key needed for basic search).
+**Base URL**: `https://music.youtube.com/youtubei/v1` (Decrypted dynamically via `StringEncryptionManager`)
+**Auth**: Public Web Client Credentials (API Key & Contexts decrypted dynamically via XOR/Keystore).
 
 ### Endpoints
 | Method | Endpoint | Purpose | Input | Output |

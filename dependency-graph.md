@@ -19,6 +19,11 @@ This document maps the critical dependencies and the flow of logic across the ap
 - **Impact**: Affects offline availability and storage management.
 - **Critical File**: `DownloadWorker.kt`.
 
+### Security Initialization Chain
+`MyPlayerApplication` $\rightarrow$ `SecurityManager` $\rightarrow$ Various Detection Managers (Frida, Root, Hook, Emulator, etc.) $\rightarrow$ `SecurityNativeBridge` (JNI/C++)
+- **Impact**: Dictates if the app is allowed to run. A failure here gracefully crashes the app.
+- **Critical File**: `SecurityManager.kt`, `native-lib.cpp`.
+
 ---
 
 ## 2. Dependency Hierarchy
@@ -43,6 +48,8 @@ These files are "core" and should not be modified lightly as they affect multipl
 | `InnertubeApi.kt` | API Protocol & Stream Resolver | High - Can break all online features. |
 | `MusicController.kt` | State Bridge for Playback | High - Can cause UI/Playback desync. |
 | `AppDatabase.kt` | Schema Definition | High - Requires migrations; affects all local data. |
+| `SecurityManager.kt` | Security entry point | High - Mistakes can lead to false-positive crashes or vulnerable apps. |
+| `StringEncryptionManager.kt`| Decrypts API Keys and URLs | High - Failing to XOR correctly breaks the entire network layer. |
 | `MainScreen.kt` | Root Navigation & Layout | Medium - Affects app-wide navigation and overlay. |
 | `DownloadWorker.kt` | File I/O & Stream Saving | Medium - Can cause storage leaks or corrupted files. |
 
