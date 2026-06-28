@@ -25,4 +25,10 @@ abstract class RecommendationModule {
     abstract fun bindRecommendationStrategy(
         defaultRankingStrategy: DefaultRankingStrategy
     ): RecommendationStrategy
+    
+    @Binds
+    @Singleton
+    abstract fun bindRecommendationQueuePolicy(
+        defaultQueuePolicy: com.example.myplayer.data.recommendation.queue.DefaultQueuePolicy
+    ): com.example.myplayer.data.recommendation.queue.RecommendationQueuePolicy
 }

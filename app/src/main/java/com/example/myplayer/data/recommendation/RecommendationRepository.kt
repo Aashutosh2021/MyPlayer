@@ -1,10 +1,9 @@
 package com.example.myplayer.data.recommendation
 
-import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.cache.RecommendationCache
 import com.example.myplayer.data.recommendation.engine.RecommendationEngine
-import com.example.myplayer.data.recommendation.logging.RecommendationLogger
-import com.example.myplayer.data.recommendation.logging.RecommendationMetrics
+import com.example.myplayer.data.recommendation.model.RecommendationResult
+import com.example.myplayer.data.recommendation.model.RecommendationSeed
 import com.example.myplayer.data.recommendation.model.RecommendationSong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,58 +13,33 @@ import javax.inject.Singleton
 @Singleton
 class RecommendationRepository @Inject constructor(
     private val engine: RecommendationEngine,
-    private val cache: RecommendationCache,
-    private val logger: RecommendationLogger,
-    private val metrics: RecommendationMetrics
+    private val cache: RecommendationCache
 ) {
-    suspend fun getRecommendations(song: OnlineSong): List<RecommendationSong> = withContext(Dispatchers.IO) {
-        val cached = cache.get(song.videoId)
+    suspend fun getRecommendations(seed: RecommendationSeed): List<RecommendationSong> = withContext(Dispatchers.IO) {
+        val cached = cache.get(seed.songId)
         if (cached != null) {
-            metrics.recordCacheHit()
             return@withContext cached
         }
-        
-        metrics.recordCacheMiss()
 
-        val result = engine.generateRecommendations(song)
-        val recommendations = result.getSongsOrEmpty()
-
-        if (recommendations.isNotEmpty()) {
-            cache.put(song.videoId, recommendations)
+        val result = engine.generateRecommendations(seed)
+        if (result is RecommendationResult.Success) {
+            cache.put(seed.songId, result.songs)
+            return@withContext result.songs
         }
         
-        return@withContext recommendations
+        return@withContext emptyList()
     }
 
-    suspend fun preloadRecommendations(song: OnlineSong): Unit = withContext(Dispatchers.IO) {
-        logger.log("Preload Started")
-        
-        if (cache.isCached(song.videoId)) {
-             logger.log("Cache Hit")
-             return@withContext
+    suspend fun preloadRecommendations(seed: RecommendationSeed) = withContext(Dispatchers.IO) {
+        if (cache.get(seed.songId) == null) {
+            val result = engine.generateRecommendations(seed)
+            if (result is RecommendationResult.Success) {
+                cache.put(seed.songId, result.songs)
+            }
         }
-
-        getRecommendations(song)
     }
 
     fun clearCache() {
         cache.clear()
-    }
-    
-    fun invalidate(videoId: String) {
-        cache.invalidate(videoId)
-    }
-    
-    suspend fun refresh(song: OnlineSong): List<RecommendationSong> = withContext(Dispatchers.IO) {
-        invalidate(song.videoId)
-        return@withContext getRecommendations(song)
-    }
-    
-    fun isCached(videoId: String): Boolean {
-        return cache.isCached(videoId)
-    }
-    
-    fun setStrategy(strategy: com.example.myplayer.data.recommendation.strategy.RecommendationStrategy) {
-        engine.strategy = strategy
     }
 }

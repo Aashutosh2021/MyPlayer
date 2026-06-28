@@ -15,7 +15,7 @@ import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
-import com.example.myplayer.data.recommendation.RecommendationManager
+import com.example.myplayer.data.recommendation.RecommendationCoordinator
 import kotlinx.coroutines.flow.firstOrNull
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -31,7 +31,7 @@ import javax.inject.Singleton
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val musicRepository: MusicRepository,
-    private val recommendationManager: RecommendationManager
+    private val recommendationCoordinator: RecommendationCoordinator
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -232,10 +232,9 @@ class MusicController @Inject constructor(
         _currentPosition.value = 0L
         _isPlaying.value = true
 
-        // Phase 1.5: Safely integrate RecommendationManager for silent preloading
-        scope.launch {
-            recommendationManager.preloadRecommendations(song)
-        }
+        // Phase 4.5: Recommendation Validation & Stability Sprint
+        // Coordinator handles all background dispatch and queue management
+        recommendationCoordinator.onPlaybackStarted(song)
     }
 
     fun playDownloadedSong(song: DownloadedSongEntity) {

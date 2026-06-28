@@ -1,17 +1,20 @@
 package com.example.myplayer.data.recommendation.engine
 
-import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.logging.RecommendationLogger
+import com.example.myplayer.data.recommendation.logging.RecommendationMetrics
+import com.example.myplayer.data.recommendation.model.RecommendationSeed
 import com.example.myplayer.data.recommendation.model.RecommendationSong
+import com.example.myplayer.data.recommendation.utils.RecommendationConstants
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class RecommendationValidator @Inject constructor(
-    private val logger: RecommendationLogger
+    private val logger: RecommendationLogger,
+    private val metrics: RecommendationMetrics
 ) {
     fun filterAndValidate(
-        seedSong: OnlineSong,
+        seed: RecommendationSeed,
         candidates: List<RecommendationSong>
     ): List<RecommendationSong> {
         val seenIds = mutableSetOf<String>()
@@ -25,7 +28,7 @@ class RecommendationValidator @Inject constructor(
             }
 
             // Reject: Current playing song
-            if (candidate.videoId == seedSong.videoId) {
+            if (candidate.videoId == seed.songId) {
                 // This is expected, no need to log as failure unless verbose
                 continue
             }

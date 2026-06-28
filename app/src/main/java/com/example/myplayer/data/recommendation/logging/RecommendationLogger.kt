@@ -20,4 +20,11 @@ class RecommendationLogger @Inject constructor() {
             Log.e(TAG, "[RECOMMENDATION] $message", throwable)
         }
     }
+
+    fun logEvent(eventName: String, params: Map<String, Any>) {
+        if (BuildConfig.DEBUG) {
+            val formattedParams = params.entries.joinToString(", ") { "${it.key}=${it.value}" }
+            Log.d(TAG, "[RECOMMENDATION] [EVENT: $eventName] $formattedParams")
+        }
+    }
 }
