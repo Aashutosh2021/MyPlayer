@@ -2,6 +2,7 @@ package com.example.myplayer.data.recommendation
 
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.model.RecommendationSong
+import com.example.myplayer.data.recommendation.strategy.RecommendationStrategy
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +28,7 @@ class RecommendationManager @Inject constructor(
     /**
      * Explicitly preloads recommendations for a given song.
      */
-    suspend fun preloadFor(song: OnlineSong) {
+    suspend fun preloadRecommendations(song: OnlineSong) {
         repository.preloadRecommendations(song)
     }
 
@@ -36,5 +37,12 @@ class RecommendationManager @Inject constructor(
      */
     fun reset() {
         repository.clearCache()
+    }
+    
+    /**
+     * Set a new active ranking strategy.
+     */
+    fun setStrategy(strategy: RecommendationStrategy) {
+        repository.setStrategy(strategy)
     }
 }
