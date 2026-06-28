@@ -8,6 +8,7 @@ import javax.inject.Singleton
 @Singleton
 class RecommendationFilter @Inject constructor(
     private val history: RecommendationHistory,
+    private val recentPlaybackWindow: RecentPlaybackWindow,
     private val metrics: QueueMetrics
 ) {
     fun filter(
@@ -33,6 +34,12 @@ class RecommendationFilter @Inject constructor(
 
             // Current seed song
             if (seed?.songId == song.videoId) {
+                metrics.recordRejected()
+                continue
+            }
+
+            // Recently played in this continuous session
+            if (recentPlaybackWindow.contains(song.videoId)) {
                 metrics.recordRejected()
                 continue
             }

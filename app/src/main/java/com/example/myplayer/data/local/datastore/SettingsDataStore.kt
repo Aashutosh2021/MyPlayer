@@ -17,4 +17,18 @@ class SettingsDataStore @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val dataStore = context.dataStore
+
+    companion object {
+        val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
+    }
+
+    val isAutoplayEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[AUTOPLAY_ENABLED] ?: true
+    }
+
+    suspend fun setAutoplayEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AUTOPLAY_ENABLED] = enabled
+        }
+    }
 }

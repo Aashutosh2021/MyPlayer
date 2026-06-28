@@ -24,6 +24,8 @@ class RecommendationQueueManager @Inject constructor(
     private val validator: RecommendationValidator,
     private val strategy: RecommendationStrategy,
     private val metrics: QueueMetrics,
+    private val recentPlaybackWindow: RecentPlaybackWindow,
+    private val health: RecommendationQueueHealth,
     private val logger: RecommendationLogger
 ) {
     private var session: RecommendationSession? = null
@@ -39,6 +41,7 @@ class RecommendationQueueManager @Inject constructor(
             session = RecommendationSession(seedSong = seed)
             queue.clear()
             history.clear()
+            recentPlaybackWindow.clear()
         } else {
             logger.logEvent("SessionUpdated", mapOf("newSeedSongId" to seed.songId))
             session?.seedSong = seed
@@ -46,10 +49,13 @@ class RecommendationQueueManager @Inject constructor(
             // Validate TTL
             if (queue.isExpired(QUEUE_TTL_MS)) {
                 logger.logEvent("QueueExpired", mapOf("ttlMs" to QUEUE_TTL_MS))
+                val sizeBeforeClear = queue.size()
                 queue.clear()
+                health.recordExpiredEntries(sizeBeforeClear)
             }
         }
         
+        recentPlaybackWindow.add(seed.songId)
         history.recordState(seed.songId, RecommendationHistoryState.PLAYED)
         checkAndRefillQueue(seed)
     }
@@ -65,7 +71,10 @@ class RecommendationQueueManager @Inject constructor(
         if (nextSong != null) {
             history.recordState(nextSong.videoId, RecommendationHistoryState.RECOMMENDED)
             session?.let { it.recommendationsPlayed++ }
+            health.recordQueueSize(queue.size())
             logger.log("Dequeued next recommendation: ${nextSong.videoId}. Queue size is now ${queue.size()}")
+        } else {
+            health.recordEmptyQueue()
         }
         checkAndRefillQueue(session?.seedSong)
         return nextSong
@@ -109,6 +118,7 @@ class RecommendationQueueManager @Inject constructor(
     fun clearQueue() {
         queue.clear()
         history.clear()
+        recentPlaybackWindow.clear()
         session?.endedAt = System.currentTimeMillis()
         session = null
     }
@@ -116,6 +126,35 @@ class RecommendationQueueManager @Inject constructor(
     fun size(): Int = queue.size()
 
     fun isEmpty(): Boolean = queue.isEmpty()
+
+    /**
+     * Performs a synchronous fetch to recover an empty queue.
+     * Returns true if songs were successfully enqueued.
+     */
+    suspend fun recoverQueueSynchronously(): Boolean {
+        val seed = session?.seedSong ?: return false
+        logger.logEvent("RecoveryStarted", mapOf("seedId" to seed.songId))
+        
+        try {
+            val recommendations = repository.getRecommendations(seed)
+            val filtered = filter.filter(recommendations, seed, queue.getQueuedIds())
+            val valid = validator.filterAndValidate(seed, filtered)
+            val ranked = strategy.scoreAndRank(seed, valid)
+
+            if (ranked.isNotEmpty()) {
+                queue.enqueue(ranked)
+                health.recordRefill()
+                logger.logEvent("RecoverySucceeded", mapOf("recoveredSize" to ranked.size))
+                return true
+            } else {
+                logger.logEvent("RecoveryFailed", mapOf("reason" to "No valid recommendations after filter/rank"))
+                return false
+            }
+        } catch (e: Exception) {
+            logger.logEvent("RecoveryFailed", mapOf("reason" to (e.message ?: "Unknown Exception")))
+            return false
+        }
+    }
 
     private fun checkAndRefillQueue(seed: RecommendationSeed?) {
         if (seed == null) return
@@ -147,6 +186,7 @@ class RecommendationQueueManager @Inject constructor(
 
                         if (ranked.isNotEmpty()) {
                             queue.enqueue(ranked)
+                            health.recordRefill()
                             session?.let { 
                                 it.queueRefills++
                                 it.recommendationsGenerated += recommendations.size

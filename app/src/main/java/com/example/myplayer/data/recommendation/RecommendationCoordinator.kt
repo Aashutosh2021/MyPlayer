@@ -4,6 +4,7 @@ import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.logging.RecommendationLogger
 import com.example.myplayer.data.recommendation.model.RecommendationSeed
 import com.example.myplayer.data.recommendation.queue.RecommendationQueueManager
+import com.example.myplayer.data.recommendation.playback.RecommendationPlaybackRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 class RecommendationCoordinator @Inject constructor(
     private val recommendationManager: RecommendationManager,
     private val queueManager: RecommendationQueueManager,
+    private val playbackRepository: RecommendationPlaybackRepository,
     private val logger: RecommendationLogger
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -51,8 +53,49 @@ class RecommendationCoordinator @Inject constructor(
 
             } catch (e: Exception) {
                 logger.error("RecommendationCoordinator failed to handle playback started", e)
+                logger.logEvent("PlaybackFailed", mapOf("reason" to (e.message ?: "Unknown")))
             }
         }
+    }
+
+    /**
+     * Resolves the next recommendation from the queue and fetches its stream URL.
+     * Keeps dequeuing if stream URLs fail to resolve.
+     */
+    suspend fun getNextAutoplaySong(): OnlineSong? {
+        while (!queueManager.isEmpty()) {
+            val rec = queueManager.dequeue() ?: break
+
+            val song = playbackRepository.resolveStreamUrl(rec)
+            if (song != null) {
+                logger.logEvent("AutoplayRecommendationSelected", mapOf(
+                    "videoId" to rec.videoId,
+                    "score" to rec.recommendationScore
+                ))
+                return song
+            }
+        }
+        
+        logger.logEvent("QueueEmpty", mapOf("action" to "Attempting recovery"))
+        
+        // Queue empty, attempt one synchronous recovery
+        val recovered = queueManager.recoverQueueSynchronously()
+        if (recovered) {
+            while (!queueManager.isEmpty()) {
+                val rec = queueManager.dequeue() ?: break
+                val song = playbackRepository.resolveStreamUrl(rec)
+                if (song != null) {
+                    logger.logEvent("AutoplayRecommendationSelected", mapOf(
+                        "videoId" to rec.videoId,
+                        "score" to rec.recommendationScore,
+                        "context" to "Recovered"
+                    ))
+                    return song
+                }
+            }
+        }
+
+        return null
     }
 
     /**

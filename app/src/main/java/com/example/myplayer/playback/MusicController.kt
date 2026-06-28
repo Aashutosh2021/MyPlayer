@@ -10,8 +10,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.example.myplayer.playback.PlaybackCompletionGuard
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
@@ -31,7 +33,9 @@ import javax.inject.Singleton
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val musicRepository: MusicRepository,
-    private val recommendationCoordinator: RecommendationCoordinator
+    private val recommendationCoordinator: RecommendationCoordinator,
+    private val settingsDataStore: SettingsDataStore,
+    private val playbackCompletionGuard: PlaybackCompletionGuard
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -79,6 +83,7 @@ class MusicController @Inject constructor(
                 updateCurrentSong()
                 _currentPosition.value = 0L
                 _currentDuration.value = 0L
+                playbackCompletionGuard.reset()
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -90,9 +95,34 @@ class MusicController @Inject constructor(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
                     _currentDuration.value = mediaController?.duration ?: 0L
+                } else if (playbackState == Player.STATE_ENDED) {
+                    val mediaId = mediaController?.currentMediaItem?.mediaId
+                    if (!playbackCompletionGuard.isAlreadyHandled(mediaId)) {
+                        handlePlaybackEnded()
+                    } else {
+                        Log.d("MusicController", "PlaybackCompletionGuard rejected duplicate completion for $mediaId")
+                    }
                 }
             }
         })
+    }
+
+    private fun handlePlaybackEnded() {
+        scope.launch {
+            val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
+            if (isAutoplayEnabled) {
+                val nextSong = recommendationCoordinator.getNextAutoplaySong()
+                if (nextSong != null) {
+                    Log.d("MusicController", "Autoplay: Playing recommendation ${nextSong.videoId}")
+                    playOnlineSong(nextSong)
+                } else {
+                    Log.d("MusicController", "Autoplay: No recommendation available, stopping.")
+                    _isPlaying.value = false
+                }
+            } else {
+                _isPlaying.value = false
+            }
+        }
     }
 
     private fun startPositionUpdater() {
