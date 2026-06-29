@@ -75,18 +75,18 @@ fun SettingsScreen(
         }
 
         // Section: Storage
-        item { SettingsSectionHeader(title = "Storage") }
+        // item { SettingsSectionHeader(title = "Storage") }
 
-        item {
-            SettingsInfoRow(
-                icon = Icons.Filled.Folder,
-                title = "Download Folder",
-                subtitle = downloadFolderUri?.let { uri ->
-                    // Show just the last segment of the path for readability
-                    uri.split("/").lastOrNull() ?: uri
-                } ?: "Not set"
-            )
-        }
+        // item {
+        //     SettingsInfoRow(
+        //         icon = Icons.Filled.Folder,
+        //         title = "Download Folder",
+        //         subtitle = downloadFolderUri?.let { uri ->
+        //             // Show just the last segment of the path for readability
+        //             uri.split("/").lastOrNull() ?: uri
+        //         } ?: "Not set"
+        //     )
+        // }
 
         // Section: About
         item { SettingsSectionHeader(title = "About") }
@@ -95,7 +95,7 @@ fun SettingsScreen(
             SettingsInfoRow(
                 icon = Icons.Filled.Info,
                 title = "Version",
-                subtitle = "1.0.0 (RC-1)"
+                subtitle = "1.2"
             )
         }
 

@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest 
+    
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    
+    
     xmlns:tools="http://schemas.android.com/tools">
-
     <!-- Network access for online search and streaming -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
     <!-- Foreground service for music playback -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
     <!-- Write to /Music/AIRA/ for downloads (API < 29) -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"
         tools:ignore="ScopedStorage" />
-
     <application
         android:name=".MyPlayerApplication"
         android:allowBackup="true"
@@ -30,7 +30,6 @@
         android:theme="@style/Theme.MyPlayer"
         android:networkSecurityConfig="@xml/network_security_config"
         android:debuggable="false">
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -41,7 +40,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <service
             android:name=".playback.MusicService"
             android:foregroundServiceType="mediaPlayback"
@@ -50,7 +48,6 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
-
         <!-- Disable WorkManager's auto-init so we can provide our own
              Hilt-aware Configuration.Provider in MyPlayerApplication. -->
         <provider
@@ -62,16 +59,9 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 tools:node="remove" />
         </provider>
-
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
-
-
-
-
-
     </application>
-
 </manifest>
