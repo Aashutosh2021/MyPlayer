@@ -298,9 +298,9 @@ Built with a modern Android design philosophy.
 <img width="250"  alt="Screenshot_20260623-113550" src="https://github.com/user-attachments/assets/2f28e3ed-e120-4f58-b404-813e1edb0bcc"  alt="Search Screen"/>
 <img width="250"  alt="Screenshot_20260623-113557" src="https://github.com/user-attachments/assets/1eba9d7b-810e-47b7-aa7d-6872a2f26167"  alt="Library Screen"/>
 <img width="250"  alt="Screenshot_20260623-113600" src="https://github.com/user-attachments/assets/7e14d874-19f5-4de8-85b8-c6820d3b9263" alt="Download Screen"/>
-<img width="250" height="2436" alt="Screenshot_20260629-164947" src="https://github.com/user-attachments/assets/e009a6dd-f55a-440e-abe5-fe127ff5efd6" />
-<img width="250" height="2436" alt="Screenshot_20260629-165021" src="https://github.com/user-attachments/assets/e9a0b5da-ca5d-4855-9796-dbca5868e3d3" />
-<img width="250" height="2436" alt="Screenshot_20260629-164952" src="https://github.com/user-attachments/assets/f183c1ca-572e-4b2f-9e44-552f5777cb87" />
+<img width="250"  alt="Screenshot_20260629-164947" src="https://github.com/user-attachments/assets/e009a6dd-f55a-440e-abe5-fe127ff5efd6" />
+<img width="250"  alt="Screenshot_20260629-165021" src="https://github.com/user-attachments/assets/e9a0b5da-ca5d-4855-9796-dbca5868e3d3" />
+<img width="250"  alt="Screenshot_20260629-164952" src="https://github.com/user-attachments/assets/f183c1ca-572e-4b2f-9e44-552f5777cb87" />
 
 
 # 💡 Why MyPlayer?
