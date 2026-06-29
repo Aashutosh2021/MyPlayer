@@ -22,6 +22,7 @@ import com.example.myplayer.ui.screens.library.LibraryScreen
 import com.example.myplayer.ui.screens.library.PlaylistDetailScreen
 import com.example.myplayer.ui.screens.nowplaying.NowPlayingScreen
 import com.example.myplayer.ui.screens.search.SearchScreen
+import com.example.myplayer.ui.screens.settings.SettingsScreen
 
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
@@ -35,6 +36,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
+    val isShuffleOn by viewModel.isShuffleOn.collectAsState()
+    val repeatMode by viewModel.repeatMode.collectAsState()
 
     val hasAnySong = currentSong != null || currentOnlineSong != null
     val displayTitle = currentSong?.title ?: currentOnlineSong?.title
@@ -44,7 +47,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, "playlist_detail/{playlistId}", Screen.Settings.route)
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -103,7 +106,14 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             }
             composable(Screen.NowPlaying.route) {
                 val durationMs = currentSong?.duration ?: viewModel.currentDuration.collectAsState().value
+                val canDownload by viewModel.isCurrentSongOnline.collectAsState()
+                val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsState()
+                val isDownloading by viewModel.isCurrentSongDownloading.collectAsState()
                 NowPlayingScreen(
+                    canDownload = canDownload,
+                    isDownloaded = isDownloaded,
+                    isDownloading = isDownloading,
+                    onDownloadClick = { viewModel.downloadCurrentSong() },
                     title = displayTitle,
                     artist = displayArtist,
                     artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
@@ -119,7 +129,17 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onToggleFavorite = { viewModel.toggleFavorite() },
                     sleepTimerRemaining = sleepTimerRemaining,
                     onStartSleepTimer = { viewModel.startSleepTimer(it) },
-                    onCancelSleepTimer = { viewModel.cancelSleepTimer() }
+                    onCancelSleepTimer = { viewModel.cancelSleepTimer() },
+                    isShuffleOn = isShuffleOn,
+                    onToggleShuffle = { viewModel.toggleShuffle() },
+                    repeatMode = repeatMode,
+                    onCycleRepeatMode = { viewModel.cycleRepeatMode() },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
+                )
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

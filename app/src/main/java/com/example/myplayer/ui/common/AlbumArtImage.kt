@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.CachePolicy
+import androidx.compose.runtime.remember
 
 /**
  * Loads embedded album art from an audio file URI or HTTP url.
@@ -43,20 +44,26 @@ fun AlbumArtImage(
         contentAlignment = Alignment.Center
     ) {
         if (!uri.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
+            val imageRequest = remember(context, uri) {
+                ImageRequest.Builder(context)
                     .data(uri)
                     .crossfade(true)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .build(),
+                    .build()
+            }
+            val errorRequest = remember(context) {
+                ImageRequest.Builder(context).data("").build()
+            }
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = "Album art",
                 modifier = Modifier
                     .size(size)
                     .clip(shape),
                 contentScale = ContentScale.Crop,
                 error = coil.compose.rememberAsyncImagePainter(
-                    model = ImageRequest.Builder(context).data("").build(), // Empty triggers error state cleanly
+                    model = errorRequest,
                     fallback = coil.compose.rememberAsyncImagePainter(model = null)
                 )
             )

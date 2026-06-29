@@ -48,15 +48,18 @@ class RecommendationQueueManagerTest {
         val strategy = DefaultRankingStrategy()
         val validator = RecommendationValidator(logger, metrics)
 
+        val recentPlaybackWindow = RecentPlaybackWindow()
+        val health = RecommendationQueueHealth(logger)
+        
         queueManager = RecommendationQueueManager(
-            queue, policy, history, RecommendationFilter(history, queueMetrics), repository, validator, strategy, queueMetrics, logger
+            queue, policy, history, RecommendationFilter(history, recentPlaybackWindow, queueMetrics), repository, validator, strategy, queueMetrics, recentPlaybackWindow, health, logger
         )
     }
 
     @Test
     fun testConcurrentEnqueueAndDequeue() = runBlocking(Dispatchers.Default) {
         val seed = RecommendationSeed("seed1", "artist1")
-        queueManager.startSession(seed)
+        queueManager.updateSession(seed)
 
         val enqueueCount = 1000
         val dequeueCount = 500

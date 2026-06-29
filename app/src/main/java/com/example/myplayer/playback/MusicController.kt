@@ -60,6 +60,13 @@ class MusicController @Inject constructor(
     private val _currentDuration = MutableStateFlow(0L)
     val currentDuration: StateFlow<Long> = _currentDuration.asStateFlow()
 
+    // --- Shuffle & Repeat ---
+    private val _isShuffleOn = MutableStateFlow(false)
+    val isShuffleOn: StateFlow<Boolean> = _isShuffleOn.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
+
     // --- Sleep Timer ---
     private val _sleepTimerRemainingSeconds = MutableStateFlow<Long>(-1L)
     val sleepTimerRemainingSeconds: StateFlow<Long> = _sleepTimerRemainingSeconds.asStateFlow()
@@ -103,6 +110,16 @@ class MusicController @Inject constructor(
                         Log.d("MusicController", "PlaybackCompletionGuard rejected duplicate completion for $mediaId")
                     }
                 }
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+                _isShuffleOn.value = shuffleModeEnabled
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                super.onRepeatModeChanged(repeatMode)
+                _repeatMode.value = repeatMode
             }
         })
     }
@@ -181,9 +198,13 @@ class MusicController @Inject constructor(
         controller.prepare()
         controller.play()
 
-        _currentSong.value = songs.getOrNull(startIndex)
+        val startedSong = songs.getOrNull(startIndex)
+        _currentSong.value = startedSong
         _currentPosition.value = 0L
         _isPlaying.value = true
+
+        // Seed the recommendation engine from local/downloaded playback too.
+        startedSong?.let { recommendationCoordinator.onPlaybackStarted(it) }
     }
 
     /**
@@ -340,5 +361,26 @@ class MusicController @Inject constructor(
         sleepTimerJob?.cancel()
         sleepTimerJob = null
         _sleepTimerRemainingSeconds.value = -1L
+    }
+
+    // ── Shuffle & Repeat ──────────────────────────────────────────────────────
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        mediaController?.shuffleModeEnabled = enabled
+        _isShuffleOn.value = enabled
+    }
+
+    /**
+     * Cycles through: OFF → ALL → ONE
+     * Maps to Player.REPEAT_MODE_OFF / REPEAT_MODE_ALL / REPEAT_MODE_ONE
+     */
+    fun cycleRepeatMode() {
+        val next = when (mediaController?.repeatMode ?: Player.REPEAT_MODE_OFF) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        mediaController?.repeatMode = next
+        _repeatMode.value = next
     }
 }

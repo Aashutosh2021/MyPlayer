@@ -1,5 +1,6 @@
 package com.example.myplayer.data.recommendation
 
+import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.logging.RecommendationLogger
 import com.example.myplayer.data.recommendation.model.RecommendationSeed
@@ -30,19 +31,43 @@ class RecommendationCoordinator @Inject constructor(
      * Starts or updates the continuous session and fetches recommendations.
      */
     fun onPlaybackStarted(song: OnlineSong) {
+        val seed = RecommendationSeed(
+            songId = song.videoId,
+            artist = song.artist,
+            title = song.title,
+            album = "", // OnlineSong doesn't map album directly here
+            durationMs = song.durationMs,
+            source = "youtube"
+        )
+        startRecommendationSession(seed)
+    }
+
+    /**
+     * Called whenever a local or downloaded song starts playing.
+     * Builds a seed from the local metadata so recommendations can still be
+     * generated (sourced from YouTube via artist/title matching).
+     */
+    fun onPlaybackStarted(song: SongEntity) {
+        // A local song id is not a YouTube videoId, so we leave songId distinct
+        // from the search query (which is built from artist/title).
+        val seed = RecommendationSeed(
+            songId = song.id,
+            artist = song.artist,
+            title = song.title,
+            album = song.album,
+            durationMs = song.duration,
+            source = "local"
+        )
+        startRecommendationSession(seed)
+    }
+
+    private fun startRecommendationSession(seed: RecommendationSeed) {
         scope.launch {
             try {
-                val seed = RecommendationSeed(
-                    songId = song.videoId,
-                    artist = song.artist,
-                    album = "", // OnlineSong doesn't map album directly here
-                    durationMs = song.durationText.toLongOrNull() ?: 0L,
-                    source = "youtube"
-                )
-
                 logger.logEvent("PlaybackStarted", mapOf(
-                    "songId" to song.videoId,
-                    "artist" to song.artist
+                    "songId" to seed.songId,
+                    "artist" to seed.artist,
+                    "source" to seed.source
                 ))
 
                 // 1. Explicitly fetch raw data into repo cache
@@ -98,6 +123,8 @@ class RecommendationCoordinator @Inject constructor(
         return null
     }
 
+    val queueState = queueManager.queueState
+
     /**
      * Terminate the session entirely (e.g., app close or service death).
      */
@@ -105,5 +132,31 @@ class RecommendationCoordinator @Inject constructor(
         logger.logEvent("SessionEnded", emptyMap())
         queueManager.clearQueue()
         recommendationManager.reset()
+    }
+
+    /**
+     * Plays a specific recommendation from the UI.
+     * Resolves stream URL and returns an OnlineSong for playback.
+     */
+    suspend fun playRecommendation(song: com.example.myplayer.data.recommendation.model.RecommendationSong): OnlineSong? {
+        val resolved = playbackRepository.resolveStreamUrl(song)
+        if (resolved != null) {
+            queueManager.acceptSong(song.videoId)
+        }
+        return resolved
+    }
+
+    /**
+     * Rejects a recommendation from the queue.
+     */
+    fun rejectRecommendation(videoId: String) {
+        queueManager.rejectSong(videoId)
+    }
+
+    /**
+     * Refreshes the recommendation queue.
+     */
+    fun refreshQueue() {
+        queueManager.refreshQueue()
     }
 }

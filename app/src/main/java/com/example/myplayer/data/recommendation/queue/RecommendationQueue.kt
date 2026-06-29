@@ -5,8 +5,15 @@ import java.util.PriorityQueue
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 @Singleton
 class RecommendationQueue @Inject constructor() {
+
+    private val _queueState = MutableStateFlow<List<RecommendationSong>>(emptyList())
+    val queueState: StateFlow<List<RecommendationSong>> = _queueState.asStateFlow()
 
     private var lastUpdated: Long = System.currentTimeMillis()
 
@@ -24,17 +31,23 @@ class RecommendationQueue @Inject constructor() {
     fun enqueue(songs: List<RecommendationSong>) {
         queue.addAll(songs)
         lastUpdated = System.currentTimeMillis()
+        _queueState.value = getSnapshot()
     }
 
     @Synchronized
     fun enqueue(song: RecommendationSong) {
         queue.add(song)
         lastUpdated = System.currentTimeMillis()
+        _queueState.value = getSnapshot()
     }
 
     @Synchronized
     fun dequeue(): RecommendationSong? {
-        return queue.poll()
+        val result = queue.poll()
+        if (result != null) {
+            _queueState.value = getSnapshot()
+        }
+        return result
     }
 
     @Synchronized
@@ -57,6 +70,7 @@ class RecommendationQueue @Inject constructor() {
     fun clear() {
         queue.clear()
         lastUpdated = System.currentTimeMillis()
+        _queueState.value = getSnapshot()
     }
 
     @Synchronized
@@ -80,6 +94,7 @@ class RecommendationQueue @Inject constructor() {
         while (iterator.hasNext()) {
             if (iterator.next().videoId == videoId) {
                 iterator.remove()
+                _queueState.value = getSnapshot()
                 return true
             }
         }

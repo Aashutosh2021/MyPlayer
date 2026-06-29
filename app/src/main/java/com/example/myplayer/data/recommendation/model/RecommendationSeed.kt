@@ -3,6 +3,7 @@ package com.example.myplayer.data.recommendation.model
 data class RecommendationSeed(
     val songId: String,
     val artist: String,
+    val title: String = "",
     val album: String = "",
     val genre: String = "",
     val language: String = "",

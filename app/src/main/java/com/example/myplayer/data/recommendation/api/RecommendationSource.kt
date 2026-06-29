@@ -18,7 +18,17 @@ class YouTubeRecommendationSource @Inject constructor(
     override val sourceName: String = "YouTube"
 
     override suspend fun fetchRawRecommendations(seed: RecommendationSeed): List<OnlineSong> {
-        val query = "${seed.artist} ${seed.songId}" // Or whatever search logic makes sense
+        // Build a meaningful search query from human-readable metadata.
+        // NOTE: seed.songId is an opaque id (e.g. YouTube videoId), so it must
+        // never be used directly in the search query.
+        val query = listOf(seed.artist, seed.title)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .ifBlank { seed.album }
+            .trim()
+
+        if (query.isBlank()) return emptyList()
+
         val searchPage = innertubeApi.search(query)
         return searchPage.songs
     }

@@ -225,7 +225,7 @@ fun PremiumLocalSearchContent(
                 Text("${results.size} result(s)", style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
             }
-            itemsIndexed(results) { index, song ->
+            itemsIndexed(results, key = { _, song -> song.id }) { index, song ->
                 val isPlaying = currentSong?.id == song.id
                 Row(
                     modifier = Modifier
@@ -241,7 +241,7 @@ fun PremiumLocalSearchContent(
                             .clayConcave(borderRadius = 14.dp)
                             .padding(2.dp)
                     ) {
-                        AlbumArtImage(uri = song.path, size = 48.dp, shape = RoundedCornerShape(12.dp), iconSize = 20.dp)
+                        AlbumArtImage(uri = song.albumArt, size = 48.dp, shape = RoundedCornerShape(12.dp), iconSize = 20.dp)
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {

@@ -84,6 +84,7 @@ class RecommendationQueueManager @Inject constructor(
     
     fun peekNext(count: Int): List<RecommendationSong> = queue.peekNext(count)
     
+    val queueState = queue.queueState
     fun getQueueSnapshot(): List<RecommendationSong> = queue.getSnapshot()
 
     fun rejectSong(videoId: String) {

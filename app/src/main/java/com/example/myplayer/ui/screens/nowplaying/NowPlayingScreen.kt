@@ -24,6 +24,16 @@ import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.verticalScroll
+import com.example.myplayer.ui.screens.recommendation.RecommendationViewModel
+import com.example.myplayer.ui.components.recommendation.RecommendationQueuePreview
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
@@ -42,13 +52,22 @@ fun NowPlayingScreen(
     isFavorite: Boolean = false,
     onToggleFavorite: () -> Unit = {},
     onStartSleepTimer: (Int) -> Unit = {},
-    onCancelSleepTimer: () -> Unit = {}
+    onCancelSleepTimer: () -> Unit = {},
+    isShuffleOn: Boolean = false,
+    onToggleShuffle: () -> Unit = {},
+    repeatMode: Int = 0,
+    onCycleRepeatMode: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    canDownload: Boolean = false,
+    isDownloaded: Boolean = false,
+    isDownloading: Boolean = false,
+    onDownloadClick: () -> Unit = {},
+    recommendationViewModel: RecommendationViewModel = hiltViewModel(),
+    lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekPosition by remember { mutableFloatStateOf(0f) }
-    var isShuffleOn by remember { mutableStateOf(false) }
-    var repeatMode by remember { mutableStateOf(0) }
 
     val hasSong = !title.isNullOrBlank()
     val displayPosition = if (isSeeking) seekPosition.toLong() else currentPosition
@@ -75,11 +94,16 @@ fun NowPlayingScreen(
             .fillMaxSize()
             .background(CloudBlueBackground)
     ) {
+        val scrollState = androidx.compose.foundation.rememberScrollState()
+        val windowInfo = androidx.compose.ui.platform.LocalConfiguration.current
+        val screenHeight = windowInfo.screenHeightDp.dp
+        
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(16.dp))
@@ -98,17 +122,22 @@ fun NowPlayingScreen(
                     Text("Now Playing", style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
                 }
 
-                ClayIconButton(onClick = { showSleepTimer = true }, size = 48.dp) {
-                    Icon(
-                        if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
-                        null,
-                        tint = if (sleepTimerRemaining > 0) ClayPrimary else OnSurface,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Row {
+                    ClayIconButton(onClick = { showSleepTimer = true }, size = 48.dp) {
+                        Icon(
+                            if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
+                            null,
+                            tint = if (sleepTimerRemaining > 0) ClayPrimary else OnSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    ClayIconButton(onClick = onNavigateToSettings, size = 48.dp) {
+                        Icon(Icons.Filled.Settings, null, tint = OnSurface, modifier = Modifier.size(22.dp))
+                    }
                 }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(screenHeight * 0.05f))
 
             // ── Album Art ────────────────────────────────────────────────────
             Box(
@@ -142,7 +171,7 @@ fun NowPlayingScreen(
                 }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(screenHeight * 0.05f))
 
             // ── Song Info ────────────────────────────────────────────────────
             Row(
@@ -167,6 +196,32 @@ fun NowPlayingScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                // Download button (only for online/downloadable songs)
+                if (canDownload) {
+                    Spacer(Modifier.width(12.dp))
+                    when {
+                        isDownloaded -> Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Downloaded",
+                            tint = ClayPrimary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        isDownloading -> CircularProgressIndicator(
+                            color = ClayPrimary,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        else -> Icon(
+                            imageVector = Icons.Filled.Download,
+                            contentDescription = "Download",
+                            tint = OnSurfaceVariant,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clickable { onDownloadClick() }
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = "Favorite",
@@ -215,7 +270,7 @@ fun NowPlayingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Shuffle
-                IconButton(onClick = { isShuffleOn = !isShuffleOn }) {
+                IconButton(onClick = onToggleShuffle) {
                     Icon(
                         Icons.Filled.Shuffle,
                         null,
@@ -261,13 +316,66 @@ fun NowPlayingScreen(
                 }
                 
                 // Repeat
-                IconButton(onClick = { repeatMode = (repeatMode + 1) % 3 }) {
+                IconButton(onClick = onCycleRepeatMode) {
                     Icon(
                         imageVector = if (repeatMode == 2) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                         null,
                         tint = if (repeatMode > 0) ClayPrimary else TextMuted,
                         modifier = Modifier.size(28.dp)
                     )
+                }
+            }
+
+            Spacer(Modifier.height(48.dp))
+
+            // ── Lyrics / Queue Tabs ─────────────────────────────────────
+            var bottomTab by remember { mutableIntStateOf(0) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayConcave(borderRadius = 20.dp, backgroundColor = SurfaceContainerLow)
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("Lyrics", "Up Next").forEachIndexed { index, label ->
+                    val active = bottomTab == index
+                    val tabMod = if (active)
+                        Modifier.weight(1f).claySurface(borderRadius = 14.dp, backgroundColor = SurfaceLight).padding(vertical = 10.dp)
+                    else
+                        Modifier.weight(1f).clickable { bottomTab = index }.padding(vertical = 10.dp)
+                    Box(tabMod, contentAlignment = Alignment.Center) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (active) ClayPrimary else OnSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+            val lyricsPosition by lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+
+            AnimatedContent(
+                targetState = bottomTab,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "bottom_tab"
+            ) { tab ->
+                when (tab) {
+                    0 -> LyricsTab(
+                        lyricsState = lyricsState,
+                        currentPositionMs = lyricsPosition,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp)
+                    )
+                    else -> {
+                        val recs by recommendationViewModel.recommendations.collectAsStateWithLifecycle()
+                        RecommendationQueuePreview(
+                            recommendations = recs,
+                            onSongClick = { song -> recommendationViewModel.playNow(song) }
+                        )
+                    }
                 }
             }
 

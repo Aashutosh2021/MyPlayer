@@ -64,7 +64,7 @@ fun MiniPlayer(
                     .padding(2.dp)
             ) {
                 AlbumArtImage(
-                    uri = song.path,
+                    uri = song.albumArt,
                     size = 44.dp,
                     shape = RoundedCornerShape(10.dp),
                     iconSize = 20.dp
