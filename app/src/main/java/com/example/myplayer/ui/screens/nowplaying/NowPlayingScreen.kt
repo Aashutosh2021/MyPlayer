@@ -356,7 +356,6 @@ fun NowPlayingScreen(
             Spacer(Modifier.height(16.dp))
 
             val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
-            val lyricsPosition by lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
 
             AnimatedContent(
                 targetState = bottomTab,
@@ -364,11 +363,16 @@ fun NowPlayingScreen(
                 label = "bottom_tab"
             ) { tab ->
                 when (tab) {
-                    0 -> LyricsTab(
-                        lyricsState = lyricsState,
-                        currentPositionMs = lyricsPosition,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp)
-                    )
+                    0 -> {
+                        // Only collect position updates when Lyrics tab is actually visible.
+                        // Avoids 120 recompositions/min from the position clock while on Up Next.
+                        val lyricsPosition by lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+                        LyricsTab(
+                            lyricsState = lyricsState,
+                            currentPositionMs = lyricsPosition,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp)
+                        )
+                    }
                     else -> {
                         val recs by recommendationViewModel.recommendations.collectAsStateWithLifecycle()
                         RecommendationQueuePreview(

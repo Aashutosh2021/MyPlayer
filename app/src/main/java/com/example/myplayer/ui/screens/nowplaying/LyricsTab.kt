@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -108,26 +109,28 @@ private fun SyncedLyricsView(
     lines: List<Pair<Long, String>>,
     currentPositionMs: Long
 ) {
-    // Find the current active line index
-    val activeIndex = remember(currentPositionMs) {
-        var idx = -1
-        for (i in lines.indices) {
-            if (lines[i].first <= currentPositionMs) idx = i else break
+    // Use derivedStateOf: only recomputes when currentPositionMs changes the active *line*,
+    // not on every identical tick. This prevents scroll-animation spam.
+    val activeIndex by remember(lines) {
+        derivedStateOf {
+            var idx = -1
+            for (i in lines.indices) {
+                if (lines[i].first <= currentPositionMs) idx = i else break
+            }
+            idx
         }
-        idx
     }
 
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
-    // Auto-scroll to keep active line in view
+    // Auto-scroll: only fires when activeIndex *value* actually changes, not every tick.
+    // LaunchedEffect(activeIndex) already handles this correctly when activeIndex
+    // is a stable derived state.
     LaunchedEffect(activeIndex) {
         if (activeIndex >= 0) {
-            scope.launch {
-                listState.animateScrollToItem(
-                    index = (activeIndex - 2).coerceAtLeast(0)
-                )
-            }
+            listState.animateScrollToItem(
+                index = (activeIndex - 2).coerceAtLeast(0)
+            )
         }
     }
 

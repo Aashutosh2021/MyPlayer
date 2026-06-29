@@ -148,7 +148,8 @@ fun HomeScreen(
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.height(156.dp)
                 ) {
                     itemsIndexed(recentSongs.take(10), key = { _, song -> song.id }) { index, song ->
                         RecentlyPlayedCard(
@@ -194,7 +195,8 @@ fun HomeScreen(
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.height(156.dp)
                 ) {
                     itemsIndexed(mostPlayed.take(10), key = { _, song -> song.id }) { index, song ->
                         RecentlyPlayedCard(

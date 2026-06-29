@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.data.lyrics
+package com.example.myplayer.data.lyrics
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +34,13 @@ class LyricsRepository @Inject constructor(
     companion object {
         private const val TAG = "LyricsRepository"
         private const val BASE_URL = "https://lrclib.net/api"
+        // Compiled once at class-load time — avoids per-call regex compilation cost.
+        private val LRC_LINE_REGEX = Regex("""^\[(\d+):(\d+)\.(\d+)]\s*(.*)$""")
+        private val BRACKET_NOISE_REGEX = Regex("""[\(\[].*?[\)\]]""")
+        private val KEYWORD_NOISE_REGEX = Regex(
+            """(?i)\b(official|video|audio|lyrics?|lyrical|full song|song|hd|4k|mv|m/v|remix|reprise|cover|live|version|feat\.?|ft\.?)\b"""
+        )
+        private val WHITESPACE_REGEX = Regex("""\s+""")
     }
 
     /**
@@ -163,18 +170,13 @@ class LyricsRepository @Inject constructor(
         if (text.isBlank()) return ""
         var cleaned = text
         // Remove bracketed/parenthesised segments
-        cleaned = cleaned.replace(Regex("""[\(\[].*?[\)\]]"""), " ")
+        cleaned = cleaned.replace(BRACKET_NOISE_REGEX, " ")
         // Drop anything after a separator like |, -, • (often "| Movie", "- Audio")
         cleaned = cleaned.split('|', '•').first()
         // Remove common noise keywords
-        cleaned = cleaned.replace(
-            Regex(
-                """(?i)\b(official|video|audio|lyrics?|lyrical|full song|song|hd|4k|mv|m/v|remix|reprise|cover|live|version|feat\.?|ft\.?)\b"""
-            ),
-            " "
-        )
+        cleaned = cleaned.replace(KEYWORD_NOISE_REGEX, " ")
         // Collapse whitespace
-        return cleaned.replace(Regex("""\s+"""), " ").trim()
+        return cleaned.replace(WHITESPACE_REGEX, " ").trim()
     }
 
     /**
@@ -184,7 +186,7 @@ class LyricsRepository @Inject constructor(
     fun parseSyncedLyrics(lrc: String): List<Pair<Long, String>> {
         return lrc.lines()
             .mapNotNull { line ->
-                val match = Regex("""^\[(\d+):(\d+)\.(\d+)]\s*(.*)$""").matchEntire(line.trim())
+                val match = LRC_LINE_REGEX.matchEntire(line.trim())
                 match?.let {
                     val mins = it.groupValues[1].toLongOrNull() ?: return@let null
                     val secs = it.groupValues[2].toLongOrNull() ?: return@let null

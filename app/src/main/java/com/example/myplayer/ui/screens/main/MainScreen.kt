@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,13 +32,13 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
 
-    val currentSong by viewModel.currentSong.collectAsState()
-    val currentOnlineSong by viewModel.currentOnlineSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsState()
-    val isFavorite by viewModel.isFavorite.collectAsState()
-    val isShuffleOn by viewModel.isShuffleOn.collectAsState()
-    val repeatMode by viewModel.repeatMode.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val currentOnlineSong by viewModel.currentOnlineSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsStateWithLifecycle()
+    val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
+    val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()
+    val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
 
     val hasAnySong = currentSong != null || currentOnlineSong != null
     val displayTitle = currentSong?.title ?: currentOnlineSong?.title
@@ -154,17 +155,20 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             ) {
                 // Mini player above nav bar
                 if (hasAnySong) {
-                    val miniSong = currentSong
-                        ?: com.example.myplayer.data.local.entity.SongEntity(
-                            id = currentOnlineSong?.videoId ?: "",
-                            title = displayTitle ?: "",
-                            artist = displayArtist ?: "",
-                            album = "",
-                            duration = 0,
-                            path = displayArt ?: "",
-                            albumArt = displayArt,
-                            dateAdded = 0
-                        )
+                    // Memoize synthetic SongEntity: only rebuild when the online song reference
+                // changes, not on every isPlaying / position / any-state recomposition.
+                val miniSong = currentSong ?: remember(currentOnlineSong) {
+                    com.example.myplayer.data.local.entity.SongEntity(
+                        id = currentOnlineSong?.videoId ?: "",
+                        title = displayTitle ?: "",
+                        artist = displayArtist ?: "",
+                        album = "",
+                        duration = 0,
+                        path = displayArt ?: "",
+                        albumArt = displayArt,
+                        dateAdded = 0
+                    )
+                }
                     MiniPlayer(
                         song = miniSong,
                         isPlaying = isPlaying,

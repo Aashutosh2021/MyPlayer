@@ -37,6 +37,10 @@ class MusicController @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val playbackCompletionGuard: PlaybackCompletionGuard
 ) {
+    // IMPORTANT: MediaController.verifyApplicationThread() enforces that ALL MediaController
+    // API calls (currentPosition, duration, seekTo, play, pause, setMediaItem, etc.) must
+    // be made from the application (Main) thread. This scope must stay on Dispatchers.Main.
+    // Heavy background work (DB, network) inside coroutines uses withContext(Dispatchers.IO).
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
@@ -126,9 +130,15 @@ class MusicController @Inject constructor(
 
     private fun handlePlaybackEnded() {
         scope.launch {
-            val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
+            // DataStore read and recommendation resolution are IO-bound.
+            // Run them on IO, then return to Main (scope) to call playOnlineSong.
+            val isAutoplayEnabled = withContext(Dispatchers.IO) {
+                settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
+            }
             if (isAutoplayEnabled) {
-                val nextSong = recommendationCoordinator.getNextAutoplaySong()
+                val nextSong = withContext(Dispatchers.IO) {
+                    recommendationCoordinator.getNextAutoplaySong()
+                }
                 if (nextSong != null) {
                     Log.d("MusicController", "Autoplay: Playing recommendation ${nextSong.videoId}")
                     playOnlineSong(nextSong)
@@ -316,12 +326,15 @@ class MusicController @Inject constructor(
         if (controller.hasNextMediaItem()) {
             controller.seekToNext()
         } else {
-            // Fallback: Play a random song from the local library
+            // Fallback: Play a random song from the local library.
+            // DB query runs on IO; playSongs() is called back on Main (scope dispatcher).
             scope.launch {
-                musicRepository.getAllSongs().firstOrNull()?.let { songs ->
-                    if (songs.isNotEmpty()) {
-                        val randomSong = songs.random()
-                        playSongs(listOf(randomSong), 0)
+                val songs = withContext(Dispatchers.IO) {
+                    musicRepository.getAllSongs().firstOrNull()
+                }
+                songs?.let {
+                    if (it.isNotEmpty()) {
+                        playSongs(listOf(it.random()), 0)
                     }
                 }
             }
