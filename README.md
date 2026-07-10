@@ -1,25 +1,11 @@
 <div align="center">
 
-# MyPlayer
-
-**A Premium, Local & Online Hybrid Android Music Player**
-
-[![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](#)
-[![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white)](#)
-[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4?logo=android&logoColor=white)](#)
-[![Media3](https://img.shields.io/badge/Audio-Media3_ExoPlayer-FF0000)](#)
-[![License](https://img.shields.io/badge/License-MIT-blue)](#)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen)](#)
-
-*An elegant, high-performance music application featuring a bespoke "Clay/Glassmorphism" design system, real-time synced lyrics, and an intelligent YouTube-powered Recommendation Autoplay Engine.*
-
-</div>
 
 ---
 
 ## 📖 Overview
 
-MyPlayer is an advanced Android music player built with a modern technology stack. It seamlessly blends local library playback with online YouTube streaming, powered by a robust MVVM architecture, Media3, and Jetpack Compose. 
+MyPlayer is an advanced Android music player built with a modern technology stack. It seamlessly blends local library playback with online YouTube streaming, powered by a robust MVVM architecture, Media3, and Jetpack Compose.
 
 The application is heavily optimized for performance, boasting 120fps scrolling, zero main-thread blocking, and sub-50ms touch latency.
 
@@ -49,29 +35,31 @@ MyPlayer follows a strict **MVVM (Model-View-ViewModel)** pattern with unidirect
 
 ### Technology Stack & Libraries
 
-| Category | Technology |
-|---|---|
-| **Language** | Kotlin |
-| **UI Toolkit** | Jetpack Compose (Material3) |
-| **Audio Engine** | AndroidX Media3 (ExoPlayer, MediaSession) |
-| **Architecture** | MVVM, Hilt (Dependency Injection) |
-| **Concurrency** | Kotlin Coroutines, Flow / StateFlow |
-| **Local Data** | Room Database, Jetpack DataStore |
-| **Network** | OkHttp3, YouTube InnerTube API (Reverse Engineered) |
-| **Lyrics API** | LRCLIB (Open Source, No API Key) |
-| **Image Loading** | Coil |
+| Category                | Technology                                          |
+| ----------------------- | --------------------------------------------------- |
+| **Language**      | Kotlin                                              |
+| **UI Toolkit**    | Jetpack Compose (Material3)                         |
+| **Audio Engine**  | AndroidX Media3 (ExoPlayer, MediaSession)           |
+| **Architecture**  | MVVM, Hilt (Dependency Injection)                   |
+| **Concurrency**   | Kotlin Coroutines, Flow / StateFlow                 |
+| **Local Data**    | Room Database, Jetpack DataStore                    |
+| **Network**       | OkHttp3, YouTube InnerTube API (Reverse Engineered) |
+| **Lyrics API**    | LRCLIB (Open Source, No API Key)                    |
+| **Image Loading** | Coil                                                |
 
 ---
 
 ## 🚀 Installation & Build Instructions
 
 ### Prerequisites
+
 - Android Studio Koala (or newer)
 - JDK 17+
 - Minimum SDK: **24 (Android 7.0)**
 - Target SDK: **34 (Android 14)**
 
 ### Building from Source
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/MyPlayer.git
@@ -84,6 +72,7 @@ MyPlayer follows a strict **MVVM (Model-View-ViewModel)** pattern with unidirect
    ```
 
 ### Permissions Required
+
 - `android.permission.INTERNET`: For streaming music, fetching recommendations, and downloading lyrics.
 - `android.permission.FOREGROUND_SERVICE`: For background audio playback.
 - `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK`: Required in Android 14+ for Media3.
@@ -105,17 +94,20 @@ com.example.myplayer
 │   └── theme/          # Clay Design System modifiers, Colors, Typography
 └── MainActivity.kt
 ```
+
 *(For a full breakdown, see [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md))*
 
 ---
 
 ## 🚧 Known Limitations
+
 - Background offline syncing of playlists is not currently supported.
 - YouTube API (InnerTube) integration is unofficial and may be subject to undocumented rate limits if abused.
 
 ---
 
 ## 🔮 Future Roadmap
+
 - Android Auto Support
 - Wear OS Companion App
 - Cross-device Playback Sync
@@ -131,7 +123,7 @@ com.example.myplayer
 Dive deeper into the engineering of MyPlayer:
 
 - [Features Detail](FEATURES.md)
-- [Architecture & Diagrams](ARCHITECTURE.md)
+- [Architecture &amp; Diagrams](ARCHITECTURE.md)
 - [Performance Optimizations](PERFORMANCE.md)
 - [Recommendation Engine](RECOMMENDATION_ENGINE.md)
 - [Security](SECURITY.md)

@@ -42,7 +42,9 @@ fun NowPlayingScreen(
     artUri: String?,
     durationMs: Long,
     isPlaying: Boolean,
-    currentPosition: Long,
+    // State (not raw Long): only the seek bar / time labels / lyrics read it,
+    // so position ticks no longer recompose the whole screen.
+    positionState: State<Long>,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onPreviousClick: () -> Unit,
@@ -66,13 +68,9 @@ fun NowPlayingScreen(
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
-    var isSeeking by remember { mutableStateOf(false) }
-    var seekPosition by remember { mutableFloatStateOf(0f) }
 
     val hasSong = !title.isNullOrBlank()
-    val displayPosition = if (isSeeking) seekPosition.toLong() else currentPosition
     val duration = durationMs.coerceAtLeast(1L)
-    val progress = (displayPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
     val artScale by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0.94f,
@@ -235,31 +233,12 @@ fun NowPlayingScreen(
             Spacer(Modifier.height(32.dp))
 
             // ── Seek Bar ─────────────────────────────────────────────────────
-            Slider(
-                value = progress,
-                onValueChange = { v ->
-                    isSeeking = true
-                    seekPosition = (v * duration).toLong().toFloat()
-                },
-                onValueChangeFinished = {
-                    onSeek(seekPosition.toLong())
-                    isSeeking = false
-                },
-                valueRange = 0f..1f,
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = ClayPrimary,
-                    activeTrackColor = ClayPrimary,
-                    inactiveTrackColor = SurfaceContainerHigh
-                )
+            // Extracted composable: position ticks recompose only this section.
+            SeekBarSection(
+                positionState = positionState,
+                duration = duration,
+                onSeek = onSeek
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(formatDuration(displayPosition), style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                Text(formatDuration(duration), style = MaterialTheme.typography.labelSmall, color = TextMuted)
-            }
 
             Spacer(Modifier.height(32.dp))
 
@@ -366,10 +345,10 @@ fun NowPlayingScreen(
                     0 -> {
                         // Only collect position updates when Lyrics tab is actually visible.
                         // Avoids 120 recompositions/min from the position clock while on Up Next.
-                        val lyricsPosition by lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+                        val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
                         LyricsTab(
                             lyricsState = lyricsState,
-                            currentPositionMs = lyricsPosition,
+                            positionMs = lyricsPositionState,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp)
                         )
                     }
@@ -459,4 +438,45 @@ fun SleepTimerDialog(
 fun formatDuration(durationMs: Long): String {
     val s = durationMs / 1000
     return "%d:%02d".format(s / 60, s % 60)
+}
+
+@Composable
+private fun SeekBarSection(
+    positionState: State<Long>,
+    duration: Long,
+    onSeek: (Long) -> Unit
+) {
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekPosition by remember { mutableFloatStateOf(0f) }
+
+    val currentPosition = if (isSeeking) seekPosition.toLong() else positionState.value
+    val progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+
+    Column {
+        Slider(
+            value = progress,
+            onValueChange = { v ->
+                isSeeking = true
+                seekPosition = (v * duration).toLong().toFloat()
+            },
+            onValueChangeFinished = {
+                onSeek(seekPosition.toLong())
+                isSeeking = false
+            },
+            valueRange = 0f..1f,
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = ClayPrimary,
+                activeTrackColor = ClayPrimary,
+                inactiveTrackColor = SurfaceContainerHigh
+            )
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(formatDuration(currentPosition), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+            Text(formatDuration(duration), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        }
+    }
 }

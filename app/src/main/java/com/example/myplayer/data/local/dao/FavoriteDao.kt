@@ -25,4 +25,10 @@ interface FavoriteDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE songId = :songId)")
     fun isFavorite(songId: String): Flow<Boolean>
+
+    @Query("SELECT * FROM favorites")
+    fun getAllFavoritesSync(): List<FavoriteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertFavorites(favorites: List<FavoriteEntity>)
 }

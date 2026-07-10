@@ -1,6 +1,10 @@
 package com.example.myplayer.ui.screens.nowplaying
 
-import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,11 +30,14 @@ import kotlinx.coroutines.launch
  * Lyrics tab for NowPlayingScreen.
  * Displays synced lyrics with real-time line highlighting,
  * or falls back to plain text.
+ *
+ * [positionMs] is passed as State (not a raw Long) so only the composables
+ * that actually read it recompose on each position tick.
  */
 @Composable
 fun LyricsTab(
     lyricsState: LyricsUiState,
-    currentPositionMs: Long,
+    positionMs: State<Long>,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -94,7 +102,7 @@ fun LyricsTab(
                 if (lyricsState.syncedLines.isNotEmpty()) {
                     SyncedLyricsView(
                         lines = lyricsState.syncedLines,
-                        currentPositionMs = currentPositionMs
+                        positionMs = positionMs
                     )
                 } else {
                     PlainLyricsView(text = lyricsState.result.plainLyrics ?: "")
@@ -107,30 +115,36 @@ fun LyricsTab(
 @Composable
 private fun SyncedLyricsView(
     lines: List<Pair<Long, String>>,
-    currentPositionMs: Long
+    positionMs: State<Long>
 ) {
-    // Use derivedStateOf: only recomputes when currentPositionMs changes the active *line*,
-    // not on every identical tick. This prevents scroll-animation spam.
-    val activeIndex by remember(lines) {
+    // Read positionMs.value INSIDE derivedStateOf so Compose tracks it as a
+    // dependency and re-derives on every tick \u2014 but only notifies readers when
+    // the active *line index* actually changes. (Capturing a raw Long parameter
+    // here would freeze the calculation at composition time.)
+    val activeIndexState = remember(lines) {
         derivedStateOf {
+            val pos = positionMs.value
+            // Binary search: last line with timestamp <= pos
+            var lo = 0
+            var hi = lines.size - 1
             var idx = -1
-            for (i in lines.indices) {
-                if (lines[i].first <= currentPositionMs) idx = i else break
+            while (lo <= hi) {
+                val mid = (lo + hi) / 2
+                if (lines[mid].first <= pos) { idx = mid; lo = mid + 1 } else hi = mid - 1
             }
             idx
         }
     }
+    val activeIndex by activeIndexState
 
     val listState = rememberLazyListState()
 
-    // Auto-scroll: only fires when activeIndex *value* actually changes, not every tick.
-    // LaunchedEffect(activeIndex) already handles this correctly when activeIndex
-    // is a stable derived state.
-    LaunchedEffect(activeIndex) {
-        if (activeIndex >= 0) {
-            listState.animateScrollToItem(
-                index = (activeIndex - 2).coerceAtLeast(0)
-            )
+    // Auto-scroll only when the active line changes (snapshotFlow deduplicates).
+    LaunchedEffect(lines) {
+        snapshotFlow { activeIndexState.value }.collect { index ->
+            if (index >= 0) {
+                listState.animateScrollToItem(index = (index - 2).coerceAtLeast(0))
+            }
         }
     }
 
@@ -144,27 +158,40 @@ private fun SyncedLyricsView(
             val isActive = index == activeIndex
             val isPast = index < activeIndex
 
-            AnimatedContent(
-                targetState = isActive,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "lyric_line_$index"
-            ) { active ->
-                Text(
-                    text = lyricLine.ifBlank { "\u2022" }, // bullet for empty lines
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = if (active) 20.sp else 16.sp,
-                        lineHeight = if (active) 28.sp else 24.sp
-                    ),
-                    color = when {
-                        active -> OnSurface
-                        isPast -> OnSurfaceVariant.copy(alpha = 0.5f)
-                        else -> OnSurfaceVariant.copy(alpha = 0.35f)
-                    },
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            // Animate color + scale instead of swapping font size via AnimatedContent:
+            // scale runs in the draw phase (graphicsLayer) \u2014 no relayout, no
+            // composition churn, buttery on every frame.
+            val scale by animateFloatAsState(
+                targetValue = if (isActive) 1.12f else 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                label = "lyricScale"
+            )
+            val color by animateColorAsState(
+                targetValue = when {
+                    isActive -> OnSurface
+                    isPast -> OnSurfaceVariant.copy(alpha = 0.5f)
+                    else -> OnSurfaceVariant.copy(alpha = 0.35f)
+                },
+                animationSpec = tween(300),
+                label = "lyricColor"
+            )
+
+            Text(
+                text = lyricLine.ifBlank { "\u2022" }, // bullet for empty lines
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 17.sp,
+                    lineHeight = 26.sp
+                ),
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+            )
         }
     }
 }

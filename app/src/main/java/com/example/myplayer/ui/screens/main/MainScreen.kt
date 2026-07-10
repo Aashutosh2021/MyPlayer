@@ -110,6 +110,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val canDownload by viewModel.isCurrentSongOnline.collectAsState()
                 val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsState()
                 val isDownloading by viewModel.isCurrentSongDownloading.collectAsState()
+                val positionState = viewModel.currentPosition.collectAsState()
                 NowPlayingScreen(
                     canDownload = canDownload,
                     isDownloaded = isDownloaded,
@@ -120,7 +121,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
                     durationMs = durationMs,
                     isPlaying = isPlaying,
-                    currentPosition = viewModel.currentPosition.collectAsState().value,
+                    positionState = positionState,
                     onPlayPauseClick = { viewModel.playPause() },
                     onNextClick = { viewModel.skipToNext() },
                     onPreviousClick = { viewModel.skipToPrevious() },

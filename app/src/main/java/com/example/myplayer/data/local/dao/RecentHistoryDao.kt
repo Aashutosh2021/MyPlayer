@@ -19,4 +19,10 @@ interface RecentHistoryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun addRecent(history: RecentHistoryEntity): Unit
+
+    @Query("SELECT * FROM recent_history")
+    fun getAllRecentHistorySync(): List<RecentHistoryEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertRecentHistory(recent: List<RecentHistoryEntity>)
 }

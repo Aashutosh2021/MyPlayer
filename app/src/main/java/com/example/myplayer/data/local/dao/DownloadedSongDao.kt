@@ -10,6 +10,12 @@ interface DownloadedSongDao {
     @Query("SELECT * FROM downloaded_songs ORDER BY downloadedAt DESC")
     fun getAllDownloads(): Flow<List<DownloadedSongEntity>>
 
+    @Query("SELECT * FROM downloaded_songs")
+    fun getAllDownloadsSync(): List<DownloadedSongEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertDownloads(downloads: List<DownloadedSongEntity>)
+
     @Query("SELECT * FROM downloaded_songs WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): DownloadedSongEntity?
 

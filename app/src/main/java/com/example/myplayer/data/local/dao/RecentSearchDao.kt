@@ -21,4 +21,10 @@ interface RecentSearchDao {
 
     @Query("DELETE FROM recent_searches")
     suspend fun clearAll()
+
+    @Query("SELECT * FROM recent_searches")
+    fun getAllRecentSearchesSync(): List<RecentSearchEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertRecentSearches(searches: List<RecentSearchEntity>)
 }

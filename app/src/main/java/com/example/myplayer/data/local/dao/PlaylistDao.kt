@@ -31,4 +31,13 @@ interface PlaylistDao {
 
     @Query("UPDATE playlist_songs SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun updateSongPosition(playlistId: Long, songId: String, position: Int)
+
+    @Query("SELECT * FROM playlist_songs")
+    fun getAllPlaylistSongsSync(): List<PlaylistSongCrossReference>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertPlaylistSongs(songs: List<PlaylistSongCrossReference>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertPlaylists(playlists: List<PlaylistEntity>)
 }

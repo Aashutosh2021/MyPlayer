@@ -1,5 +1,8 @@
 package com.example.myplayer.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,6 +31,99 @@ fun SettingsScreen(
 ) {
     val isAutoplayEnabled by viewModel.isAutoplayEnabled.collectAsStateWithLifecycle()
     val downloadFolderUri by viewModel.downloadFolderUri.collectAsStateWithLifecycle()
+
+    val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+    val restoreState by viewModel.restoreState.collectAsStateWithLifecycle()
+
+    var showDialogText by remember { mutableStateOf<String?>(null) }
+    var isLoadingDialog by remember { mutableStateOf(false) }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { viewModel.exportBackup(it) }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importBackup(it) }
+    }
+
+    LaunchedEffect(backupState) {
+        when (val state = backupState) {
+            is BackupRestoreState.Loading -> {
+                isLoadingDialog = true
+                showDialogText = "Creating backup file..."
+            }
+            is BackupRestoreState.Success -> {
+                isLoadingDialog = false
+                showDialogText = state.message
+            }
+            is BackupRestoreState.Error -> {
+                isLoadingDialog = false
+                showDialogText = "Error: ${state.error}"
+            }
+            BackupRestoreState.Idle -> {}
+        }
+    }
+
+    LaunchedEffect(restoreState) {
+        when (val state = restoreState) {
+            is BackupRestoreState.Loading -> {
+                isLoadingDialog = true
+                showDialogText = "Restoring database & downloads..."
+            }
+            is BackupRestoreState.Success -> {
+                isLoadingDialog = false
+                showDialogText = state.message
+            }
+            is BackupRestoreState.Error -> {
+                isLoadingDialog = false
+                showDialogText = "Error: ${state.error}"
+            }
+            BackupRestoreState.Idle -> {}
+        }
+    }
+
+    if (showDialogText != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isLoadingDialog) {
+                    showDialogText = null
+                    viewModel.resetStates()
+                }
+            },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = {
+                Text(if (isLoadingDialog) "Please Wait" else "Backup & Restore")
+            },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoadingDialog) {
+                        CircularProgressIndicator(color = ClayPrimary)
+                        Spacer(Modifier.width(16.dp))
+                    }
+                    Text(showDialogText!!)
+                }
+            },
+            confirmButton = {
+                if (!isLoadingDialog) {
+                    TextButton(
+                        onClick = {
+                            showDialogText = null
+                            viewModel.resetStates()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    ) {
+                        Text("OK")
+                    }
+                }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -74,19 +170,26 @@ fun SettingsScreen(
             )
         }
 
-        // Section: Storage
-        // item { SettingsSectionHeader(title = "Storage") }
+        // Section: Backup & Restore
+        item { SettingsSectionHeader(title = "Backup & Restore") }
 
-        // item {
-        //     SettingsInfoRow(
-        //         icon = Icons.Filled.Folder,
-        //         title = "Download Folder",
-        //         subtitle = downloadFolderUri?.let { uri ->
-        //             // Show just the last segment of the path for readability
-        //             uri.split("/").lastOrNull() ?: uri
-        //         } ?: "Not set"
-        //     )
-        // }
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Backup,
+                title = "Create Backup",
+                subtitle = "Export your library, playlists, and settings to JSON",
+                onClick = { backupLauncher.launch("myplayer_backup.json") }
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.SettingsBackupRestore,
+                title = "Restore Backup",
+                subtitle = "Import playlists and auto-restore downloaded music",
+                onClick = { restoreLauncher.launch(arrayOf("application/json")) }
+            )
+        }
 
         // Section: About
         item { SettingsSectionHeader(title = "About") }
