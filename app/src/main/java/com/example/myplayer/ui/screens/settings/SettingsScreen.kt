@@ -198,7 +198,7 @@ fun SettingsScreen(
             SettingsInfoRow(
                 icon = Icons.Filled.Info,
                 title = "Version",
-                subtitle = "1.2"
+                subtitle = "2.0"
             )
         }
 
