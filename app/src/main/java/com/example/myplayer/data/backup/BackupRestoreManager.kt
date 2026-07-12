@@ -34,7 +34,8 @@ data class BackupData(
     val playlists: List<BackupPlaylist>,
     val playlistSongs: List<BackupPlaylistSong>,
     val recentHistory: List<BackupRecentHistory>,
-    val recentSearches: List<BackupRecentSearch>
+    val recentSearches: List<BackupRecentSearch>,
+    val cachedLyrics: List<BackupCachedLyrics> = emptyList()
 )
 
 @Serializable
@@ -86,6 +87,16 @@ data class BackupRecentHistory(val songId: String, val playedAt: Long)
 @Serializable
 data class BackupRecentSearch(val query: String, val timestamp: Long)
 
+@Serializable
+data class BackupCachedLyrics(
+    val songId: String,
+    val plainLyrics: String?,
+    val syncedLyrics: String?,
+    val trackName: String,
+    val artistName: String,
+    val cachedAt: Long
+)
+
 @Singleton
 class BackupRestoreManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -132,6 +143,9 @@ class BackupRestoreManager @Inject constructor(
 
         val recentHistory = db.recentHistoryDao().getAllRecentHistorySync().map { BackupRecentHistory(it.songId, it.playedAt) }
         val recentSearches = db.recentSearchDao().getAllRecentSearchesSync().map { BackupRecentSearch(it.query, it.timestamp) }
+        val cachedLyrics = db.cachedLyricsDao().getAllCachedLyricsSync().map {
+            BackupCachedLyrics(it.songId, it.plainLyrics, it.syncedLyrics, it.trackName, it.artistName, it.cachedAt)
+        }
 
         val backupData = BackupData(
             settings = settings,
@@ -142,7 +156,8 @@ class BackupRestoreManager @Inject constructor(
             playlists = playlists,
             playlistSongs = playlistSongs,
             recentHistory = recentHistory,
-            recentSearches = recentSearches
+            recentSearches = recentSearches,
+            cachedLyrics = cachedLyrics
         )
 
         jsonHelper.encodeToString(backupData)
@@ -258,6 +273,21 @@ class BackupRestoreManager @Inject constructor(
             }
             if (downloadsToInsert.isNotEmpty()) {
                 db.downloadedSongDao().insertDownloads(downloadsToInsert)
+            }
+
+            // Restore cached lyrics
+            val lyricsToInsert = backupData.cachedLyrics.map {
+                CachedLyricsEntity(
+                    songId = it.songId,
+                    plainLyrics = it.plainLyrics,
+                    syncedLyrics = it.syncedLyrics,
+                    trackName = it.trackName,
+                    artistName = it.artistName,
+                    cachedAt = it.cachedAt
+                )
+            }
+            if (lyricsToInsert.isNotEmpty()) {
+                db.cachedLyricsDao().insertCachedLyrics(lyricsToInsert)
             }
         }
 

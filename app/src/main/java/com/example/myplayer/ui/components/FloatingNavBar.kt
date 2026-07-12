@@ -30,6 +30,7 @@ val bottomNavItems = listOf(
     NavItem(Screen.Search.route,    "Search",    Icons.Filled.Search),
     NavItem(Screen.Library.route,   "Library",   Icons.Filled.LibraryMusic),
     NavItem(Screen.Downloads.route, "Downloads", Icons.Filled.Download),
+    NavItem(Screen.Settings.route,  "Settings",  Icons.Filled.Settings),
 )
 
 @Composable

@@ -10,6 +10,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.example.myplayer.data.local.dao.DownloadedSongDao
+import com.example.myplayer.data.local.dao.SongDao
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.local.prefs.PreferencesManager
 import dagger.assisted.Assisted
@@ -29,7 +30,9 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val okHttpClient: OkHttpClient,
     private val downloadedSongDao: DownloadedSongDao,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val lyricsRepository: com.example.myplayer.data.lyrics.LyricsRepository,
+    private val songDao: SongDao
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -95,12 +98,17 @@ class DownloadWorker @AssistedInject constructor(
         Log.i("DownloadWorker", "Starting download: $title ($videoId)")
         setProgress(workDataOf(KEY_PROGRESS to 0))
 
+        var tempFileToClean: File? = null
+        var tmpDocToClean: DocumentFile? = null
+        var isSuccess = false
+
         return try {
             val customFolderUriString = preferencesManager.downloadFolderUri.firstOrNull()
             val hasCustomFolder = !customFolderUriString.isNullOrEmpty()
 
             val safeTitle = title
                 .replace(Regex("[^a-zA-Z0-9 _\\-]"), "")
+                .replace(Regex(" {2,}"), " ")   // collapse double-spaces left by stripped chars like '|'
                 .trim()
                 .take(60)
                 .ifBlank { videoId }
@@ -193,6 +201,7 @@ class DownloadWorker @AssistedInject constructor(
                 rootDoc.findFile(tmpFileName)?.delete()
                 val tmpDoc = rootDoc.createFile("application/octet-stream", tmpFileName)
                     ?: return Result.failure(workDataOf(KEY_ERROR to "Could not create temp file"))
+                tmpDocToClean = tmpDoc
 
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(tmpDoc.uri)?.use { out -> 
@@ -209,6 +218,7 @@ class DownloadWorker @AssistedInject constructor(
                 musicDir.mkdirs()
                 val destFile = File(musicDir, finalFileName)
                 val tempFile = File(musicDir, tmpFileName)
+                tempFileToClean = tempFile
 
                 var alreadyDownloaded = if (tempFile.exists()) tempFile.length() else 0L
                 if (alreadyDownloaded > 0 && totalSize > 0 && alreadyDownloaded >= totalSize) {
@@ -230,6 +240,14 @@ class DownloadWorker @AssistedInject constructor(
                 fileSize = destFile.length()
             }
 
+            // Durability guard: never record a "download" that didn't produce a real file.
+            // A phantom row (file missing/empty) makes a song show as downloaded but fail to
+            // play offline with ENOENT — the actual root cause of "downloaded songs don't play offline".
+            if (fileSize <= 0L) {
+                Log.e("DownloadWorker", "Download produced empty/missing file for $videoId at $savedPath")
+                return Result.failure(workDataOf(KEY_ERROR to "Downloaded file is empty or missing"))
+            }
+
             val entity = DownloadedSongEntity(
                 id = videoId,
                 title = title,
@@ -241,12 +259,57 @@ class DownloadWorker @AssistedInject constructor(
                 downloadedAt = System.currentTimeMillis()
             )
             downloadedSongDao.insert(entity)
+
+            // Playback & Playlist Synchronization:
+            // Update the path in the local SongEntity database record if it exists
+            try {
+                val existingSong = songDao.getSongById(videoId)
+                if (existingSong != null) {
+                    songDao.updateSongPath(videoId, savedPath)
+                    Log.i("DownloadWorker", "Synchronized playlist/favorites song path for $videoId to local: $savedPath")
+                }
+            } catch (e: Exception) {
+                Log.e("DownloadWorker", "Failed to synchronize local song path in SongDao", e)
+            }
+
+            // Automatically download and cache lyrics upon successful download
+            try {
+                lyricsRepository.fetchAndCacheLyrics(
+                    songId = videoId,
+                    trackName = title,
+                    artistName = artist,
+                    durationSeconds = (durationMs / 1000).toInt()
+                )
+            } catch (e: Exception) {
+                Log.e("DownloadWorker", "Failed to auto-cache lyrics for $videoId during download", e)
+            }
+
             setProgress(workDataOf(KEY_PROGRESS to 100))
+            isSuccess = true
             Result.success(workDataOf(KEY_PROGRESS to 100))
 
         } catch (e: Exception) {
             Log.e("DownloadWorker", "Download failed for $videoId", e)
             Result.failure(workDataOf(KEY_ERROR to (e.message ?: "Unknown error")))
+        } finally {
+            if (!isSuccess) {
+                try {
+                    tempFileToClean?.let {
+                        if (it.exists()) {
+                            it.delete()
+                            Log.i("DownloadWorker", "Cleaned up partial temp file: ${it.absolutePath}")
+                        }
+                    }
+                    tmpDocToClean?.let {
+                        if (it.exists()) {
+                            it.delete()
+                            Log.i("DownloadWorker", "Cleaned up partial temp doc: ${it.uri}")
+                        }
+                    }
+                } catch (ex: Exception) {
+                    Log.e("DownloadWorker", "Error cleaning up temp files on stop/cancel", ex)
+                }
+            }
         }
     }
 }

@@ -22,7 +22,6 @@ kotlinxSerializationJson = "1.7.1"
 workManager = "2.9.1"
 paging = "3.3.4"
 playIntegrity = "1.4.0"
-securityCrypto = "1.1.0-alpha06"
 annotation = "1.9.1"
 
 [libraries]
@@ -76,7 +75,6 @@ paging-compose = { group = "androidx.paging", name = "paging-compose", version.r
 
 # Security
 play-integrity = { group = "com.google.android.play", name = "integrity", version.ref = "playIntegrity" }
-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
 
 [plugins]

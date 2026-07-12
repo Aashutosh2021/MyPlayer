@@ -8,7 +8,9 @@ import androidx.paging.cachedIn
 import com.example.myplayer.data.online.InnertubeApi
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.DownloadRepository
+import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.OnlineSearchRepository
+import com.example.myplayer.data.repository.PlayableSong
 import com.example.myplayer.playback.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +24,8 @@ class OnlineSearchViewModel @Inject constructor(
     private val searchRepository: OnlineSearchRepository,
     private val downloadRepository: DownloadRepository,
     private val innertubeApi: InnertubeApi,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    private val musicRepository: MusicRepository
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -38,6 +41,37 @@ class OnlineSearchViewModel @Inject constructor(
     val downloadedIds: StateFlow<Set<String>> = _downloadedIds.asStateFlow()
  
     val downloadProgress: StateFlow<Map<String, Int>> = downloadRepository.downloadProgress
+
+    val playlists = musicRepository.getAllPlaylists()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addSongToPlaylist(playlistId: Long, song: OnlineSong) {
+        viewModelScope.launch {
+            val playable = PlayableSong.Online(
+                id = song.videoId,
+                title = song.title,
+                artist = song.artist,
+                durationMs = song.durationMs,
+                thumbnailUrl = song.thumbnailUrl
+            )
+            musicRepository.addSongToPlaylist(playlistId, playable, 0)
+        }
+    }
+
+    fun addSongsToPlaylist(playlistId: Long, songs: List<OnlineSong>) {
+        viewModelScope.launch {
+            songs.forEachIndexed { index, song ->
+                val playable = PlayableSong.Online(
+                    id = song.videoId,
+                    title = song.title,
+                    artist = song.artist,
+                    durationMs = song.durationMs,
+                    thumbnailUrl = song.thumbnailUrl
+                )
+                musicRepository.addSongToPlaylist(playlistId, playable, index)
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val searchResults: Flow<PagingData<OnlineSong>> = _query
@@ -143,4 +177,10 @@ class OnlineSearchViewModel @Inject constructor(
     }
 
     fun clearError() { _errorMessage.value = null }
+
+    fun deleteDownload(videoId: String) {
+        viewModelScope.launch {
+            downloadRepository.deleteDownloadById(videoId)
+        }
+    }
 }

@@ -42,8 +42,8 @@ fun DownloadsScreen(
     songToDelete?.let { song ->
         AlertDialog(
             onDismissRequest = { songToDelete = null },
-            title = { Text("Delete Download") },
-            text = { Text("Remove \"${song.title}\" from downloads? The file will be deleted.") },
+            title = { Text("Remove Download?") },
+            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -51,12 +51,15 @@ fun DownloadsScreen(
                         songToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
-                ) { Text("Delete") }
+                ) { Text("Remove") }
             },
             dismissButton = {
-                TextButton(onClick = { songToDelete = null }) { Text("Cancel") }
+                TextButton(
+                    onClick = { songToDelete = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) { Text("Cancel") }
             },
-            containerColor = CloudBlueBackground,
+            containerColor = SurfaceLight,
             titleContentColor = OnSurface,
             textContentColor = OnSurfaceVariant
         )

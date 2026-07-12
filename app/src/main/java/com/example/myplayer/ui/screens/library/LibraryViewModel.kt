@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myplayer.data.local.entity.FolderEntity
 import com.example.myplayer.data.local.entity.PlaylistEntity
+import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.data.repository.HybridLibraryRepository
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val repository: MusicRepository,
-    private val hybridLibraryRepository: HybridLibraryRepository
+    private val hybridLibraryRepository: HybridLibraryRepository,
+    private val downloadRepository: DownloadRepository
 ) : ViewModel() {
 
     val folders: StateFlow<List<FolderEntity>> = repository.getAllFolders()
@@ -64,6 +66,12 @@ class LibraryViewModel @Inject constructor(
             // MusicRepository could handle max position but we'll just pass 0 for now
             // or let the DB order by insertion if position is 0
             repository.addSongToPlaylist(playlistId, song, 0)
+        }
+    }
+
+    fun deleteDownload(videoId: String) {
+        viewModelScope.launch {
+            downloadRepository.deleteDownloadById(videoId)
         }
     }
 }

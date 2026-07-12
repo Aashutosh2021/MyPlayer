@@ -5,8 +5,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -40,6 +42,16 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()
     val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
 
+    // Surface one-shot playback errors (e.g. a downloaded file that is no longer on disk).
+    val context = LocalContext.current
+    val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
+    LaunchedEffect(playbackError) {
+        playbackError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearPlaybackError()
+        }
+    }
+
     val hasAnySong = currentSong != null || currentOnlineSong != null
     val displayTitle = currentSong?.title ?: currentOnlineSong?.title
     val displayArtist = currentSong?.artist ?: currentOnlineSong?.artist
@@ -48,7 +60,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, "playlist_detail/{playlistId}", Screen.Settings.route)
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -116,6 +128,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     isDownloaded = isDownloaded,
                     isDownloading = isDownloading,
                     onDownloadClick = { viewModel.downloadCurrentSong() },
+                    onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
                     title = displayTitle,
                     artist = displayArtist,
                     artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,

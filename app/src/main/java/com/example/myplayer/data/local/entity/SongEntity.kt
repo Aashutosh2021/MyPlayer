@@ -13,5 +13,9 @@ data class SongEntity(
     val path: String,
     val albumArt: String?,
     val dateAdded: Long,
-    val playCount: Int = 0
+    val playCount: Int = 0,
+    /** YouTube videoId — populated when this local song corresponds to a downloaded/online track.
+     *  Null for pure local files scanned from device storage. Added in DB version 3. */
+    val videoId: String? = null
 )
+

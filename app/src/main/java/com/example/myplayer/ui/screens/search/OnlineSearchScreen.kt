@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,8 +47,13 @@ fun OnlineSearchScreen(
     val downloadedIds by viewModel.downloadedIds.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
 
     val searchResults = viewModel.searchResults.collectAsLazyPagingItems()
+
+    var songToAddToPlaylist by remember { mutableStateOf<OnlineSong?>(null) }
+    var showAddAllDialog by remember { mutableStateOf(false) }
+    var songToRemoveDownload by remember { mutableStateOf<OnlineSong?>(null) }
 
     // Show error snackbar
     val snackbarHostState = remember { SnackbarHostState() }
@@ -55,6 +62,127 @@ fun OnlineSearchScreen(
             snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Short)
             viewModel.clearError()
         }
+    }
+
+    if (songToRemoveDownload != null) {
+        AlertDialog(
+            onDismissRequest = { songToRemoveDownload = null },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = { Text("Remove Download?") },
+            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteDownload(songToRemoveDownload!!.videoId)
+                        songToRemoveDownload = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { songToRemoveDownload = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (songToAddToPlaylist != null) {
+        AlertDialog(
+            onDismissRequest = { songToAddToPlaylist = null },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = { Text("Add to Playlist") },
+            text = {
+                if (playlists.isEmpty()) {
+                    Text("No playlists available. Create one first.")
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(playlists, key = { it.id }) { playlist ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .claySurface(borderRadius = 12.dp, backgroundColor = SurfaceLight)
+                                    .clickable {
+                                        viewModel.addSongToPlaylist(playlist.id, songToAddToPlaylist!!)
+                                        songToAddToPlaylist = null
+                                    }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = ClayPrimary)
+                                Spacer(Modifier.width(16.dp))
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = OnSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { songToAddToPlaylist = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showAddAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddAllDialog = false },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = { Text("Add All Results to Playlist") },
+            text = {
+                if (playlists.isEmpty()) {
+                    Text("No playlists available. Create one first.")
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(playlists, key = { it.id }) { playlist ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .claySurface(borderRadius = 12.dp, backgroundColor = SurfaceLight)
+                                    .clickable {
+                                        val items = searchResults.itemSnapshotList.items.filterNotNull()
+                                        viewModel.addSongsToPlaylist(playlist.id, items)
+                                        showAddAllDialog = false
+                                    }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = ClayPrimary)
+                                Spacer(Modifier.width(16.dp))
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = OnSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showAddAllDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -76,6 +204,9 @@ fun OnlineSearchScreen(
                     onNavigateToNowPlaying()
                 },
                 onDownloadClick = { song -> viewModel.downloadSong(song) },
+                onAddToPlaylistClick = { song -> songToAddToPlaylist = song },
+                onRemoveDownloadClick = { songToRemoveDownload = it },
+                onAddAllClick = { showAddAllDialog = true },
                 bottomPadding = bottomPadding
             )
         }
@@ -163,6 +294,9 @@ fun OnlineResultsList(
     downloadProgress: Map<String, Int>,
     onPlayClick: (OnlineSong) -> Unit,
     onDownloadClick: (OnlineSong) -> Unit,
+    onAddToPlaylistClick: (OnlineSong) -> Unit,
+    onRemoveDownloadClick: (OnlineSong) -> Unit,
+    onAddAllClick: () -> Unit,
     bottomPadding: Dp = 100.dp
 ) {
     LazyColumn(
@@ -178,6 +312,31 @@ fun OnlineResultsList(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = ClayPrimary)
+                }
+            }
+        }
+
+        // Add All button
+        if (results.itemCount > 0 && results.loadState.refresh !is LoadState.Loading) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "${results.itemCount} online results",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = OnSurfaceVariant
+                    )
+                    TextButton(
+                        onClick = onAddAllClick,
+                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add All to Playlist")
+                    }
                 }
             }
         }
@@ -213,14 +372,16 @@ fun OnlineResultsList(
             val isDownloaded = song.videoId in downloadedIds
             val isStreaming = isLoadingStream == song.videoId
             val isDownloading = isLoadingStream == song.videoId + "_dl" || song.videoId in downloadProgress
-
+ 
             OnlineSongCard(
                 song = song,
                 isDownloaded = isDownloaded,
                 isStreaming = isStreaming,
                 isDownloading = isDownloading,
                 onPlayClick = { onPlayClick(song) },
-                onDownloadClick = { onDownloadClick(song) }
+                onDownloadClick = { onDownloadClick(song) },
+                onAddToPlaylistClick = { onAddToPlaylistClick(song) },
+                onRemoveDownloadClick = { onRemoveDownloadClick(song) }
             )
         }
 
@@ -245,8 +406,11 @@ fun OnlineSongCard(
     isStreaming: Boolean,
     isDownloading: Boolean,
     onPlayClick: () -> Unit,
-    onDownloadClick: () -> Unit
+    onDownloadClick: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
+    onRemoveDownloadClick: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,6 +516,42 @@ fun OnlineSongCard(
                         tint = ClayPrimary,
                         modifier = Modifier.size(22.dp)
                     )
+                }
+            }
+
+            // More Options (Add to Playlist) Dropdown
+            Box {
+                ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "More",
+                        tint = OnSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(SurfaceLight)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Add to Playlist", color = OnSurface) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
+                        onClick = {
+                            showMenu = false
+                            onAddToPlaylistClick()
+                        }
+                    )
+                    if (isDownloaded) {
+                        DropdownMenuItem(
+                            text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                            onClick = {
+                                showMenu = false
+                                onRemoveDownloadClick()
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -166,8 +166,7 @@ dependencies {
     // ─── Security Dependencies ──────────────────────────────────────────────
     // Play Integrity API (Phase 5)
     implementation(libs.play.integrity)
-    // Encrypted storage (Phase 14)
-    implementation(libs.security.crypto)
+
     // Annotations for security code
     implementation(libs.androidx.annotation)
 

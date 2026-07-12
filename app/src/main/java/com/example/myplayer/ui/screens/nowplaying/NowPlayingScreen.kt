@@ -64,10 +64,12 @@ fun NowPlayingScreen(
     isDownloaded: Boolean = false,
     isDownloading: Boolean = false,
     onDownloadClick: () -> Unit = {},
+    onRemoveDownloadClick: () -> Unit = {},
     recommendationViewModel: RecommendationViewModel = hiltViewModel(),
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
+    var showRemoveConfirm by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(1L)
@@ -84,6 +86,32 @@ fun NowPlayingScreen(
             onDismiss = { showSleepTimer = false },
             onStart = { minutes -> onStartSleepTimer(minutes); showSleepTimer = false },
             onCancel = { onCancelSleepTimer(); showSleepTimer = false }
+        )
+    }
+
+    if (showRemoveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveConfirm = false },
+            title = { Text("Remove Download?") },
+            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRemoveDownloadClick()
+                        showRemoveConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showRemoveConfirm = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) { Text("Cancel") }
+            },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant
         )
     }
 
@@ -202,7 +230,9 @@ fun NowPlayingScreen(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = "Downloaded",
                             tint = ClayPrimary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clickable { showRemoveConfirm = true }
                         )
                         isDownloading -> CircularProgressIndicator(
                             color = ClayPrimary,

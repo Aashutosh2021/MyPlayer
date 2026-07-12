@@ -5,13 +5,17 @@ import android.util.Log
 import androidx.work.*
 import com.example.myplayer.data.download.DownloadWorker
 import com.example.myplayer.data.local.dao.DownloadedSongDao
+import com.example.myplayer.data.local.dao.SongDao
+import com.example.myplayer.data.local.dao.CachedLyricsDao
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.online.model.OnlineSong
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
-
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +24,9 @@ import kotlinx.coroutines.flow.update
 @Singleton
 class DownloadRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val downloadedSongDao: DownloadedSongDao
+    private val downloadedSongDao: DownloadedSongDao,
+    private val songDao: SongDao,
+    private val cachedLyricsDao: CachedLyricsDao
 ) {
     private val _downloadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Int>> = _downloadProgress.asStateFlow()
@@ -79,15 +85,128 @@ class DownloadRepository @Inject constructor(
 
     suspend fun deleteDownload(entity: DownloadedSongEntity) {
         try {
-            java.io.File(entity.localPath).delete()
+            if (entity.localPath.startsWith("content://")) {
+                val uri = android.net.Uri.parse(entity.localPath)
+                val doc = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)
+                doc?.delete()
+            } else {
+                val file = File(entity.localPath)
+                file.delete()
+            }
         } catch (e: Exception) {
             Log.e("DownloadRepository", "Could not delete file", e)
         }
+
+        // Delete cached lyrics
+        try {
+            cachedLyricsDao.deleteLyricsForSong(entity.id)
+        } catch (e: Exception) {
+            Log.e("DownloadRepository", "Could not delete cached lyrics for ${entity.id}", e)
+        }
+
         downloadedSongDao.deleteById(entity.id)
+        removeDownload(entity.id)
+        Log.i("DownloadRepository", "Deleted download record for ${entity.id}. PlaybackSourceResolver will route online on next play.")
+    }
+
+    suspend fun deleteDownloadById(videoId: String) = withContext(Dispatchers.IO) {
+        try {
+            WorkManager.getInstance(context).cancelUniqueWork("download_$videoId")
+        } catch (e: Exception) {
+            Log.e("DownloadRepository", "Could not cancel WorkManager download task for $videoId", e)
+        }
+
+        removeDownload(videoId)
+
+        val entity = downloadedSongDao.getById(videoId)
+        if (entity != null) {
+            deleteDownload(entity)
+        } else {
+            downloadedSongDao.deleteById(videoId)
+            try {
+                cachedLyricsDao.deleteLyricsForSong(videoId)
+            } catch (e: Exception) {
+                Log.e("DownloadRepository", "Could not delete cached lyrics for $videoId", e)
+            }
+        }
     }
 
     suspend fun insertDownload(song: DownloadedSongEntity) {
         downloadedSongDao.insert(song)
+    }
+
+    suspend fun performIntegrityCheck() {
+        val downloads = withContext(Dispatchers.IO) {
+            downloadedSongDao.getAllDownloadsSync()
+        }
+
+        withContext(Dispatchers.IO) {
+            val toDelete = mutableListOf<String>()
+            val seenFilePaths = mutableSetOf<String>()
+
+            for (download in downloads) {
+                val path = download.localPath
+                // 1. Check duplicate file path entries
+                if (path in seenFilePaths) {
+                    Log.w("DownloadRepository", "Duplicate path entry detected for ${download.title}. Removing database record.")
+                    toDelete.add(download.id)
+                    continue
+                }
+                seenFilePaths.add(path)
+
+                // 2. Exclude songs that are currently enqueued or actively downloading in WorkManager
+                val workInfos: List<WorkInfo> = try {
+                    WorkManager.getInstance(context).getWorkInfosForUniqueWork("download_${download.id}").get()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                var isDownloading = false
+                for (info in workInfos) {
+                    if (info.state == WorkInfo.State.ENQUEUED || 
+                        info.state == WorkInfo.State.RUNNING || 
+                        info.state == WorkInfo.State.BLOCKED) {
+                        isDownloading = true
+                        break
+                    }
+                }
+
+                if (isDownloading) {
+                    continue
+                }
+
+                // 3. Verify file exists and is not empty (corrupted/missing)
+                val fileExists = try {
+                    if (path.startsWith("content://") || path.startsWith("file://")) {
+                        val uri = android.net.Uri.parse(path)
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use {
+                            it.length > 0
+                        } ?: false
+                    } else {
+                        val file = File(path)
+                        file.exists() && file.length() > 0
+                    }
+                } catch (e: Exception) {
+                    false
+                }
+
+                if (!fileExists) {
+                    Log.w("DownloadRepository", "Integrity check failed: file missing or empty for ${download.title} at $path. Removing database record.")
+                    toDelete.add(download.id)
+                }
+            }
+
+            if (toDelete.isNotEmpty()) {
+                for (id in toDelete) {
+                    downloadedSongDao.deleteById(id)
+                    // NOTE: We intentionally do NOT reset SongEntity.path to "online://" here.
+                    // PlaybackSourceResolver handles routing correctly when downloaded_songs record is absent.
+                }
+                Log.i("DownloadRepository", "Integrity check completed. Cleaned up ${toDelete.size} stale/invalid download records.")
+            } else {
+                Log.i("DownloadRepository", "Integrity check completed successfully. All records valid.")
+            }
+        }
     }
 
     fun searchDownloads(query: String): Flow<List<DownloadedSongEntity>> =

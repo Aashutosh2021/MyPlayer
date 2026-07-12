@@ -75,30 +75,9 @@ class SecurityNativeBridge @Inject constructor() {
         }
     }
 
-    // ─── Individual checks (provided for selective use) ───────────────────────
-
-    fun isFridaDetectedNative(): Boolean {
-        if (!isNativeLibraryAvailable) return false
-        return try { nativeIsFridaDetected() } catch (e: Exception) { false }
-    }
-
-    fun isDebuggerAttachedNative(): Boolean {
-        if (!isNativeLibraryAvailable) return false
-        return try { nativeIsDebuggerAttached() } catch (e: Exception) { false }
-    }
-
-    fun isRootedNative(): Boolean {
-        if (!isNativeLibraryAvailable) return false
-        return try { nativeIsRooted() } catch (e: Exception) { false }
-    }
-
     // ─── JNI declarations ─────────────────────────────────────────────────────
     // These names MUST match Java_com_example_myplayer_security_SecurityNativeBridge_*
     // in native-lib.cpp. Do NOT rename without updating both files.
 
     private external fun nativeRunAllChecks(): Int
-    private external fun nativeIsFridaDetected(): Boolean
-    private external fun nativeIsDebuggerAttached(): Boolean
-    private external fun nativeIsRooted(): Boolean
-    private external fun nativeGetBaseUrlBytes(): ByteArray
 }

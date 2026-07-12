@@ -66,6 +66,33 @@ fun LibraryScreen(
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var songToAddToPlaylist by remember { mutableStateOf<PlayableSong?>(null) }
+    var songToRemoveDownload by remember { mutableStateOf<PlayableSong?>(null) }
+
+    songToRemoveDownload?.let { song ->
+        AlertDialog(
+            onDismissRequest = { songToRemoveDownload = null },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = { Text("Remove Download?") },
+            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteDownload(song.id)
+                        songToRemoveDownload = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { songToRemoveDownload = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) { Text("Cancel") }
+            }
+        )
+    }
 
     showDeleteDialog?.let { folder ->
         AlertDialog(
@@ -263,6 +290,7 @@ fun LibraryScreen(
                 songs = hybridLibrary,
                 onPlaySong = onPlaySong,
                 onAddToPlaylist = { songToAddToPlaylist = it },
+                onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
             1 -> FoldersTab(
@@ -288,6 +316,7 @@ fun HybridSongsTab(
     songs: List<PlayableSong>,
     onPlaySong: (PlayableSong) -> Unit,
     onAddToPlaylist: (PlayableSong) -> Unit,
+    onRemoveDownload: (PlayableSong) -> Unit,
     bottomPadding: Dp
 ) {
     if (songs.isEmpty()) {
@@ -319,14 +348,20 @@ fun HybridSongsTab(
             HybridSongItem(
                 song = song,
                 onPlaySong = { onPlaySong(song) },
-                onAddToPlaylist = { onAddToPlaylist(song) }
+                onAddToPlaylist = { onAddToPlaylist(song) },
+                onRemoveDownload = { onRemoveDownload(song) }
             )
         }
     }
 }
 
 @Composable
-fun HybridSongItem(song: PlayableSong, onPlaySong: () -> Unit, onAddToPlaylist: () -> Unit) {
+fun HybridSongItem(
+    song: PlayableSong,
+    onPlaySong: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onRemoveDownload: () -> Unit
+) {
     var showMenu by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -400,6 +435,16 @@ fun HybridSongItem(song: PlayableSong, onPlaySong: () -> Unit, onAddToPlaylist: 
                         onAddToPlaylist()
                     }
                 )
+                if (song is PlayableSong.Downloaded) {
+                    DropdownMenuItem(
+                        text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                        onClick = {
+                            showMenu = false
+                            onRemoveDownload()
+                        }
+                    )
+                }
             }
         }
     }

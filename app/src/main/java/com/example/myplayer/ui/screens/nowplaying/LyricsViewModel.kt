@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.ui.screens.nowplaying
+package com.example.myplayer.ui.screens.nowplaying
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +18,14 @@ sealed class LyricsUiState {
     object NotFound : LyricsUiState()
 }
 
+data class LyricsMetadata(
+    val songId: String,
+    val title: String,
+    val artist: String,
+    val album: String?,
+    val durationMs: Long
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
@@ -33,28 +41,45 @@ class LyricsViewModel @Inject constructor(
     // Auto-fetch whenever the playing song changes
     init {
         viewModelScope.launch {
-            // Watch both local and online song
             combine(musicController.currentSong, musicController.currentOnlineSong) { local, online ->
                 when {
-                    local != null -> Pair(local.title, local.artist)
-                    online != null -> Pair(online.title, online.artist)
+                    local != null -> LyricsMetadata(
+                        songId = local.id,
+                        title = local.title,
+                        artist = local.artist,
+                        album = local.album,
+                        durationMs = local.duration
+                    )
+                    online != null -> LyricsMetadata(
+                        songId = online.videoId,
+                        title = online.title,
+                        artist = online.artist,
+                        album = "YouTube Music",
+                        durationMs = online.durationMs
+                    )
                     else -> null
                 }
-            }.distinctUntilChanged().collectLatest { songInfo ->
-                if (songInfo == null) {
+            }.distinctUntilChanged().collectLatest { metadata ->
+                if (metadata == null) {
                     _lyricsState.value = LyricsUiState.Idle
                     return@collectLatest
                 }
-                val (title, artist) = songInfo
-                fetchLyrics(title, artist)
+                fetchLyrics(metadata)
             }
         }
     }
 
-    fun fetchLyrics(title: String, artist: String) {
+    fun fetchLyrics(metadata: LyricsMetadata) {
         viewModelScope.launch {
             _lyricsState.value = LyricsUiState.Loading
-            val result = lyricsRepository.fetchLyrics(title, artist)
+            val durationSec = (metadata.durationMs / 1000).toInt()
+            val result = lyricsRepository.fetchLyrics(
+                songId = metadata.songId,
+                trackName = metadata.title,
+                artistName = metadata.artist,
+                durationSeconds = durationSec,
+                albumName = metadata.album
+            )
             _lyricsState.value = if (result != null) {
                 val synced = result.syncedLyrics?.let { lyricsRepository.parseSyncedLyrics(it) } ?: emptyList()
                 LyricsUiState.Found(result, synced)

@@ -3,6 +3,7 @@ package com.example.myplayer.ui.screens.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myplayer.data.local.entity.PlaylistEntity
+import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.data.repository.HybridLibraryRepository
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     private val repository: MusicRepository,
-    private val hybridLibraryRepository: HybridLibraryRepository
+    private val hybridLibraryRepository: HybridLibraryRepository,
+    private val downloadRepository: DownloadRepository
 ) : ViewModel() {
 
     private val _playlistId = MutableStateFlow(-1L)
@@ -26,9 +28,7 @@ class PlaylistDetailViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val songs: StateFlow<List<PlayableSong>> = _playlistId.flatMapLatest { id ->
-        repository.getSongsInPlaylist(id).map { entities ->
-            entities.map { PlayableSong.Local(it) }
-        }
+        repository.getSongsInPlaylistAsPlayable(id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** All songs available in the user's library (local + downloaded) to pick from */
@@ -73,6 +73,12 @@ class PlaylistDetailViewModel @Inject constructor(
     fun addSongToPlaylist(playlistId: Long, song: PlayableSong) {
         viewModelScope.launch {
             repository.addSongToPlaylist(playlistId, song, 0)
+        }
+    }
+
+    fun deleteDownload(videoId: String) {
+        viewModelScope.launch {
+            downloadRepository.deleteDownloadById(videoId)
         }
     }
 }

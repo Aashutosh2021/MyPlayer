@@ -8,9 +8,12 @@ data class DownloadedSongEntity(
     @PrimaryKey val id: String,          // YouTube videoId
     val title: String,
     val artist: String,
+    /** Album name. Defaults to empty string for backwards compatibility. Added in DB version 3. */
+    val album: String = "",
     val thumbnailUrl: String,
     val durationMs: Long,
     val localPath: String,               // Absolute path to local file
     val fileSizeBytes: Long = 0,
     val downloadedAt: Long = System.currentTimeMillis()
 )
+

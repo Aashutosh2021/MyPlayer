@@ -22,6 +22,16 @@ class MainViewModel @Inject constructor(
     private val innertubeApi: InnertubeApi
 ) : ViewModel() {
 
+    init {
+        viewModelScope.launch {
+            try {
+                downloadRepository.performIntegrityCheck()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Integrity check failed on startup", e)
+            }
+        }
+    }
+
     val currentSong = musicController.currentSong
     val currentOnlineSong = musicController.currentOnlineSong
     val isPlaying = musicController.isPlaying
@@ -30,6 +40,8 @@ class MainViewModel @Inject constructor(
     val sleepTimerRemainingSeconds = musicController.sleepTimerRemainingSeconds
     val isShuffleOn = musicController.isShuffleOn
     val repeatMode = musicController.repeatMode
+    val playbackError = musicController.playbackError
+    fun clearPlaybackError() = musicController.clearPlaybackError()
 
     fun playSong(song: com.example.myplayer.data.repository.PlayableSong) = musicController.playSong(song)
     fun playPlaylist(songs: List<com.example.myplayer.data.repository.PlayableSong>, startIndex: Int) = musicController.playPlaylist(songs, startIndex)
@@ -75,22 +87,30 @@ class MainViewModel @Inject constructor(
     private val _resolvingDownloadId = MutableStateFlow<String?>(null)
 
     /** True if the currently playing song is an online (downloadable) song. */
-    val isCurrentSongOnline: StateFlow<Boolean> = currentOnlineSong
-        .map { it != null }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val isCurrentSongOnline: StateFlow<Boolean> = combine(currentOnlineSong, currentSong, downloadedIds) { online, local, ids ->
+        if (online != null) return@combine true
+        if (local != null) {
+            val id = local.videoId ?: local.id
+            ids.contains(id) || (!id.contains("/") && !id.contains(":") && !id.startsWith("content"))
+        } else {
+            false
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** True if the currently playing online song is already downloaded. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val isCurrentSongDownloaded: StateFlow<Boolean> =
-        combine(currentOnlineSong, downloadedIds) { online, ids ->
-            online != null && ids.contains(online.videoId)
+        combine(currentOnlineSong, currentSong, downloadedIds) { online, local, ids ->
+            val id = online?.videoId ?: local?.videoId ?: local?.id ?: ""
+            id.isNotEmpty() && ids.contains(id)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** True while the current online song's download is being resolved or is in progress. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val isCurrentSongDownloading: StateFlow<Boolean> =
-        combine(currentOnlineSong, downloadRepository.downloadProgress, _resolvingDownloadId) { online, progress, resolving ->
-            online != null && (resolving == online.videoId || progress.containsKey(online.videoId))
+        combine(currentOnlineSong, currentSong, downloadRepository.downloadProgress, _resolvingDownloadId) { online, local, progress, resolving ->
+            val id = online?.videoId ?: local?.videoId ?: local?.id ?: ""
+            id.isNotEmpty() && (resolving == id || progress.containsKey(id))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**
@@ -113,6 +133,13 @@ class MainViewModel @Inject constructor(
             } finally {
                 _resolvingDownloadId.value = null
             }
+        }
+    }
+
+    fun removeCurrentSongDownload() {
+        val videoId = currentOnlineSong.value?.videoId ?: currentSong.value?.videoId ?: currentSong.value?.id ?: return
+        viewModelScope.launch {
+            downloadRepository.deleteDownloadById(videoId)
         }
     }
 }

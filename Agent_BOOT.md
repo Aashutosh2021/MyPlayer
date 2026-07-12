@@ -17,6 +17,9 @@ Read the following files from the `brain/` directory in order:
 4. [brain/17_PROJECT_RULES.md](file:///e:/MyPlayer/brain/17_PROJECT_RULES.md)
 5. [brain/18_CURRENT_STATE.md](file:///e:/MyPlayer/brain/18_CURRENT_STATE.md)
 6. [brain/03_FILE_INDEX.md](file:///e:/MyPlayer/brain/03_FILE_INDEX.md)
+7. .gemini/skills/skills-lock.json
+8. [.gemini/skills](gemini/skills)
+9. [.gemini/SYSTEM_PROMPT.md]()
 
 These files contain the compressed memory of the entire project. Do NOT scan the full codebase before reading them.
 
@@ -25,6 +28,7 @@ These files contain the compressed memory of the entire project. Do NOT scan the
 # STEP 2 — Understand Request
 
 Identify the user's intent. Possible categories:
+
 * Bug Fix
 * New Feature
 * UI Change
@@ -77,6 +81,7 @@ Use [brain/03_FILE_INDEX.md](file:///e:/MyPlayer/brain/03_FILE_INDEX.md) to loca
 # STEP 6 — Before Finishing
 
 Update the following files in the `brain/` directory to keep the AI Brain synchronized:
+
 * [brain/18_CURRENT_STATE.md](file:///e:/MyPlayer/brain/18_CURRENT_STATE.md)
 * [brain/03_FILE_INDEX.md](file:///e:/MyPlayer/brain/03_FILE_INDEX.md)
 * [brain/VERSION.json](file:///e:/MyPlayer/brain/VERSION.json) (recompute hashes and increment docs version)

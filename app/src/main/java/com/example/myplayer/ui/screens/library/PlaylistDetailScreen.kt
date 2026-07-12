@@ -60,6 +60,33 @@ fun PlaylistDetailScreen(
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.songs.collectAsStateWithLifecycle()
     var showAddSheet by remember { mutableStateOf(false) }
+    var songToRemoveDownload by remember { mutableStateOf<PlayableSong?>(null) }
+
+    songToRemoveDownload?.let { song ->
+        AlertDialog(
+            onDismissRequest = { songToRemoveDownload = null },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            title = { Text("Remove Download?") },
+            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteDownload(song.id)
+                        songToRemoveDownload = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { songToRemoveDownload = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) { Text("Cancel") }
+            }
+        )
+    }
 
     // Drag state
     var draggedSongId by remember { mutableStateOf<String?>(null) }
@@ -194,6 +221,7 @@ fun PlaylistDetailScreen(
                         dragOffsetY = if (isDragged) dragOffsetY else 0f,
                         onPlayClick = { onPlaySong(localSongs, index) },
                         onRemove = { viewModel.removeSong(song.id) },
+                        onRemoveDownload = { songToRemoveDownload = song },
                         onDragStart = { draggedSongId = song.id; dragOffsetY = 0f },
                         onDrag = { deltaY ->
                             dragOffsetY += deltaY
@@ -245,6 +273,7 @@ fun PlaylistSongRow(
     dragOffsetY: Float = 0f,
     onPlayClick: () -> Unit,
     onRemove: () -> Unit,
+    onRemoveDownload: (() -> Unit)? = null,
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {}
@@ -368,6 +397,13 @@ fun PlaylistSongRow(
                     leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
                     onClick = { showMenu = false; onRemove() }
                 )
+                if (song is PlayableSong.Downloaded && onRemoveDownload != null) {
+                    DropdownMenuItem(
+                        text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                        onClick = { showMenu = false; onRemoveDownload() }
+                    )
+                }
             }
         }
     }
@@ -461,6 +497,33 @@ fun AddSongsSheet(
                     cursorColor = ClayPrimary
                 )
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (filtered.isNotEmpty()) {
+                    val availableToAdd = filtered.filter { it.id !in playlistSongIds }
+                    if (availableToAdd.isNotEmpty()) {
+                        TextButton(
+                            onClick = {
+                                val isAllSelected = selectedIds.size == availableToAdd.size
+                                selectedIds = if (isAllSelected) {
+                                    emptySet()
+                                } else {
+                                    availableToAdd.map { it.id }.toSet()
+                                }
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                        ) {
+                            val isAllSelected = selectedIds.size == availableToAdd.size
+                            Text(if (isAllSelected) "Deselect All" else "Select All")
+                        }
+                    }
+                }
+            }
 
             if (filtered.isEmpty()) {
                 Box(

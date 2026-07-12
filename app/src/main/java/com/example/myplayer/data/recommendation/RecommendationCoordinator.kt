@@ -1,24 +1,31 @@
 package com.example.myplayer.data.recommendation
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.logging.RecommendationLogger
 import com.example.myplayer.data.recommendation.model.RecommendationSeed
 import com.example.myplayer.data.recommendation.queue.RecommendationQueueManager
 import com.example.myplayer.data.recommendation.playback.RecommendationPlaybackRepository
+import com.example.myplayer.playback.PlaybackEvent
+import com.example.myplayer.playback.PlaybackEventBus
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Orchestrator for the entire Recommendation subsystem.
- * Handles lifecycle events from the playback engine and coordinates the Manager and QueueManager.
- */
 @Singleton
 class RecommendationCoordinator @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val playbackEventBus: PlaybackEventBus,
+    private val settingsDataStore: SettingsDataStore,
     private val recommendationManager: RecommendationManager,
     private val queueManager: RecommendationQueueManager,
     private val playbackRepository: RecommendationPlaybackRepository,
@@ -26,39 +33,44 @@ class RecommendationCoordinator @Inject constructor(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    /**
-     * Called whenever an online playback starts.
-     * Starts or updates the continuous session and fetches recommendations.
-     */
-    fun onPlaybackStarted(song: OnlineSong) {
-        val seed = RecommendationSeed(
-            songId = song.videoId,
-            artist = song.artist,
-            title = song.title,
-            album = "", // OnlineSong doesn't map album directly here
-            durationMs = song.durationMs,
-            source = "youtube"
-        )
-        startRecommendationSession(seed)
+    init {
+        scope.launch {
+            playbackEventBus.events.collect { event ->
+                handlePlaybackEvent(event)
+            }
+        }
     }
 
-    /**
-     * Called whenever a local or downloaded song starts playing.
-     * Builds a seed from the local metadata so recommendations can still be
-     * generated (sourced from YouTube via artist/title matching).
-     */
-    fun onPlaybackStarted(song: SongEntity) {
-        // A local song id is not a YouTube videoId, so we leave songId distinct
-        // from the search query (which is built from artist/title).
-        val seed = RecommendationSeed(
-            songId = song.id,
-            artist = song.artist,
-            title = song.title,
-            album = song.album,
-            durationMs = song.duration,
-            source = "local"
-        )
-        startRecommendationSession(seed)
+    private suspend fun handlePlaybackEvent(event: PlaybackEvent) {
+        when (event) {
+            is PlaybackEvent.SongStarted -> {
+                // If offline and it's local/downloaded, skip recommendation seeding as per offline downloaded rule
+                if (!event.isOnline && !isNetworkAvailable()) {
+                    logger.logEvent("OfflinePlaybackNoRecommendation", mapOf("songId" to event.songId))
+                    return
+                }
+
+                val seed = RecommendationSeed(
+                    songId = event.songId,
+                    artist = event.artist,
+                    title = event.title,
+                    album = "",
+                    durationMs = 0L,
+                    source = if (event.isOnline) "youtube" else "local"
+                )
+                startRecommendationSession(seed)
+            }
+            is PlaybackEvent.AutoplayRequested -> {
+                val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
+                if (isAutoplayEnabled && isNetworkAvailable()) {
+                    triggerAutoplay()
+                }
+            }
+            is PlaybackEvent.SongSkipped -> {
+                queueManager.skipSong(event.songId)
+            }
+            else -> {}
+        }
     }
 
     private fun startRecommendationSession(seed: RecommendationSeed) {
@@ -70,10 +82,7 @@ class RecommendationCoordinator @Inject constructor(
                     "source" to seed.source
                 ))
 
-                // 1. Explicitly fetch raw data into repo cache
                 recommendationManager.preloadRecommendations(seed)
-
-                // 2. Trigger QueueManager to validate TTL and generate queue if needed
                 queueManager.updateSession(seed)
 
             } catch (e: Exception) {
@@ -83,80 +92,76 @@ class RecommendationCoordinator @Inject constructor(
         }
     }
 
-    /**
-     * Resolves the next recommendation from the queue and fetches its stream URL.
-     * Keeps dequeuing if stream URLs fail to resolve.
-     */
-    suspend fun getNextAutoplaySong(): OnlineSong? {
+    private suspend fun triggerAutoplay() {
         while (!queueManager.isEmpty()) {
             val rec = queueManager.dequeue() ?: break
+            val playRequest = playbackRepository.preparePlayRequest(rec)
 
-            val song = playbackRepository.resolveStreamUrl(rec)
-            if (song != null) {
-                logger.logEvent("AutoplayRecommendationSelected", mapOf(
-                    "videoId" to rec.videoId,
-                    "score" to rec.recommendationScore
-                ))
-                return song
-            }
+            logger.logEvent("AutoplayRecommendationSelected", mapOf(
+                "videoId" to rec.videoId,
+                "score" to rec.recommendationScore
+            ))
+
+            playbackEventBus.emit(PlaybackEvent.PlayRequestReady(listOf(playRequest), 0))
+            return
         }
-        
+
         logger.logEvent("QueueEmpty", mapOf("action" to "Attempting recovery"))
-        
-        // Queue empty, attempt one synchronous recovery
+
+        // Queue empty, attempt one recovery
         val recovered = queueManager.recoverQueueSynchronously()
         if (recovered) {
             while (!queueManager.isEmpty()) {
                 val rec = queueManager.dequeue() ?: break
-                val song = playbackRepository.resolveStreamUrl(rec)
-                if (song != null) {
-                    logger.logEvent("AutoplayRecommendationSelected", mapOf(
-                        "videoId" to rec.videoId,
-                        "score" to rec.recommendationScore,
-                        "context" to "Recovered"
-                    ))
-                    return song
-                }
+                val playRequest = playbackRepository.preparePlayRequest(rec)
+
+                logger.logEvent("AutoplayRecommendationSelected", mapOf(
+                    "videoId" to rec.videoId,
+                    "score" to rec.recommendationScore,
+                    "context" to "Recovered"
+                ))
+
+                playbackEventBus.emit(PlaybackEvent.PlayRequestReady(listOf(playRequest), 0))
+                return
             }
         }
-
-        return null
     }
 
     val queueState = queueManager.queueState
 
-    /**
-     * Terminate the session entirely (e.g., app close or service death).
-     */
     fun endSession() {
         logger.logEvent("SessionEnded", emptyMap())
         queueManager.clearQueue()
         recommendationManager.reset()
     }
 
-    /**
-     * Plays a specific recommendation from the UI.
-     * Resolves stream URL and returns an OnlineSong for playback.
-     */
     suspend fun playRecommendation(song: com.example.myplayer.data.recommendation.model.RecommendationSong): OnlineSong? {
-        val resolved = playbackRepository.resolveStreamUrl(song)
-        if (resolved != null) {
-            queueManager.acceptSong(song.videoId)
-        }
-        return resolved
+        queueManager.acceptSong(song.videoId)
+        return OnlineSong(
+            videoId = song.videoId,
+            title = song.title,
+            artist = song.artist,
+            thumbnailUrl = song.thumbnailUrl,
+            durationMs = song.durationMs,
+            durationText = song.durationMs.toString(),
+            streamUrl = "online://${song.videoId}"
+        )
     }
 
-    /**
-     * Rejects a recommendation from the queue.
-     */
     fun rejectRecommendation(videoId: String) {
         queueManager.rejectSong(videoId)
     }
 
-    /**
-     * Refreshes the recommendation queue.
-     */
     fun refreshQueue() {
         queueManager.refreshQueue()
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }

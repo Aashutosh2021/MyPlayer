@@ -32,6 +32,9 @@ interface SongDao {
 
     @Query("UPDATE songs SET playCount = playCount + 1 WHERE id = :id")
     fun incrementPlayCount(id: String): Unit
+
+    @Query("UPDATE songs SET path = :path WHERE id = :id")
+    fun updateSongPath(id: String, path: String): Unit
     
     @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' OR artist LIKE '%' || :query || '%' OR album LIKE '%' || :query || '%'")
     fun searchSongs(query: String): Flow<List<SongEntity>>
