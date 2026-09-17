@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -176,11 +177,11 @@ fun DownloadsScreen(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(downloads, key = { it.id }) { song ->
+                itemsIndexed(downloads, key = { _, song -> song.id }) { index, song ->
                     DownloadedSongItem(
                         song = song,
                         onPlayClick = {
-                            viewModel.playSong(song)
+                            viewModel.playSong(downloads, index)
                             onNavigateToNowPlaying()
                         },
                         onDeleteClick = { songToDelete = song }
@@ -216,16 +217,20 @@ fun DownloadedSongItem(
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (song.thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = song.thumbnailUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop
+            val artworkRequest = remember(song.title, song.artist, song.thumbnailUrl) {
+                com.example.myplayer.data.artwork.model.ArtworkModel(
+                    title = song.title,
+                    artist = song.artist,
+                    album = song.album,
+                    localUri = song.thumbnailUrl
                 )
-            } else {
-                Icon(Icons.Filled.MusicNote, null, tint = TextMuted)
             }
+            AsyncImage(
+                model = artworkRequest,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop
+            )
         }
         
         Spacer(Modifier.width(16.dp))

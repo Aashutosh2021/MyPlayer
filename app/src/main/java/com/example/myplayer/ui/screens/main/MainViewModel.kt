@@ -40,11 +40,14 @@ class MainViewModel @Inject constructor(
     val sleepTimerRemainingSeconds = musicController.sleepTimerRemainingSeconds
     val isShuffleOn = musicController.isShuffleOn
     val repeatMode = musicController.repeatMode
+    val currentAudioQuality = musicController.currentAudioQuality
+    val playbackQueue = musicController.playbackQueue
     val playbackError = musicController.playbackError
     fun clearPlaybackError() = musicController.clearPlaybackError()
 
     fun playSong(song: com.example.myplayer.data.repository.PlayableSong) = musicController.playSong(song)
     fun playPlaylist(songs: List<com.example.myplayer.data.repository.PlayableSong>, startIndex: Int) = musicController.playPlaylist(songs, startIndex)
+    fun playQueueIndex(index: Int) = musicController.playQueueIndex(index)
     fun playPause() = musicController.playPause()
     fun skipToNext() = musicController.skipToNext()
     fun skipToPrevious() = musicController.skipToPrevious()

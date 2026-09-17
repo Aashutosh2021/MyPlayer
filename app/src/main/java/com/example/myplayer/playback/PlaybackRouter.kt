@@ -23,6 +23,7 @@ class PlaybackRouter @Inject constructor(
     private val sourceResolver: PlaybackSourceResolver,
     private val mediaItemFactory: MediaItemFactory
 ) {
+    val currentAudioQuality: kotlinx.coroutines.flow.StateFlow<AudioQualityInfo> = sourceResolver.currentAudioQuality
     private var activePlayJob: Job? = null
 
     @Synchronized
@@ -79,10 +80,10 @@ class PlaybackRouter @Inject constructor(
                 delegate.playMediaItems(mediaItems, clampedIndex)
             }
 
-            // 4. Resolve background items sequentially
+            // 4. Resolve background items prioritizing upcoming songs
             launch(Dispatchers.Default) {
-                for (i in requests.indices) {
-                    if (i == clampedIndex) continue
+                val indicesToResolve = (clampedIndex + 1 until requests.size) + (0 until clampedIndex)
+                for (i in indicesToResolve) {
                     val req = requests[i]
                     val resolvedPath = sourceResolver.resolve(req) { /* ignore background errors */ }
                     if (resolvedPath != null && resolvedPath != req.localUri) {

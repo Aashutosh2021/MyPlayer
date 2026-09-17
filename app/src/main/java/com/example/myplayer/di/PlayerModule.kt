@@ -3,6 +3,7 @@ package com.example.myplayer.di
 import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -63,11 +64,18 @@ object PlayerModule {
         audioAttributes: AudioAttributes,
         cacheDataSourceFactory: CacheDataSource.Factory
     ): ExoPlayer {
+        val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
+        val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
+        val initialShuffle = prefs.getBoolean("playback_shuffle_mode", false)
+
         return ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
-            .build()
+            .build().apply {
+                repeatMode = initialRepeat
+                shuffleModeEnabled = initialShuffle
+            }
     }
 }

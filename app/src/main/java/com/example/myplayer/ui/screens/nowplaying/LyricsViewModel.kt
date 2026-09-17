@@ -54,12 +54,13 @@ class LyricsViewModel @Inject constructor(
                         songId = online.videoId,
                         title = online.title,
                         artist = online.artist,
-                        album = "YouTube Music",
+                        album = null,
                         durationMs = online.durationMs
                     )
                     else -> null
                 }
             }.distinctUntilChanged().collectLatest { metadata ->
+                lastMetadata = metadata
                 if (metadata == null) {
                     _lyricsState.value = LyricsUiState.Idle
                     return@collectLatest
@@ -67,6 +68,12 @@ class LyricsViewModel @Inject constructor(
                 fetchLyrics(metadata)
             }
         }
+    }
+
+    private var lastMetadata: LyricsMetadata? = null
+
+    fun retryLyrics() {
+        lastMetadata?.let { fetchLyrics(it) }
     }
 
     fun fetchLyrics(metadata: LyricsMetadata) {

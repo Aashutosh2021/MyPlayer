@@ -27,15 +27,11 @@ import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.components.*
 import com.example.myplayer.ui.theme.*
 
-import com.example.myplayer.ui.screens.recommendation.RecommendationViewModel
-import com.example.myplayer.ui.components.recommendation.RecommendationSection
-
 @Composable
 fun HomeScreen(
     onNavigateToNowPlaying: () -> Unit,
     bottomPadding: Dp = 100.dp,
-    viewModel: HomeViewModel = hiltViewModel(),
-    recommendationViewModel: RecommendationViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val recentSongs by viewModel.recentSongs.collectAsStateWithLifecycle()
     val mostPlayed  by viewModel.mostPlayed.collectAsStateWithLifecycle()
@@ -166,26 +162,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Recommended For You ───────────────────────────────────────────────
-        item {
-            val recs by recommendationViewModel.recommendations.collectAsStateWithLifecycle()
-            val isLoading by recommendationViewModel.isLoading.collectAsStateWithLifecycle()
-            
-            RecommendationSection(
-                title = "Recommended For You",
-                recommendations = recs,
-                isLoading = isLoading,
-                onPlayClick = { song -> 
-                    recommendationViewModel.playNow(song)
-                    onNavigateToNowPlaying()
-                },
-                onMoreClick = { song ->
-                    // For now, hide on More click to simulate action
-                    recommendationViewModel.hideRecommendation(song)
-                },
-                onRefreshClick = { recommendationViewModel.refreshRecommendations() }
-            )
-        }
 
         // ── Most Played ──────────────────────────────────────────────────────────
         if (mostPlayed.isNotEmpty()) {
@@ -327,7 +303,7 @@ private fun FavoriteSongCard(
                 .clayConcave(borderRadius = 12.dp)
                 .padding(2.dp)
         ) {
-            AlbumArtImage(uri = song.albumArt, size = 40.dp, shape = RoundedCornerShape(10.dp), iconSize = 20.dp)
+            AlbumArtImage(uri = song.albumArt, title = song.title, artist = song.artist, size = 40.dp, shape = RoundedCornerShape(10.dp), iconSize = 20.dp)
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -370,7 +346,7 @@ private fun TrendingListItem(
                 .clayConcave(borderRadius = 14.dp)
                 .padding(2.dp)
         ) {
-            AlbumArtImage(uri = song.albumArt, size = 48.dp, shape = RoundedCornerShape(12.dp), iconSize = 22.dp)
+            AlbumArtImage(uri = song.albumArt, title = song.title, artist = song.artist, size = 48.dp, shape = RoundedCornerShape(12.dp), iconSize = 22.dp)
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {

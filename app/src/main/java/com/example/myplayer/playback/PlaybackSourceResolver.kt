@@ -9,6 +9,9 @@ import com.example.myplayer.data.local.dao.DownloadedSongDao
 import com.example.myplayer.data.online.InnertubeApi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,13 +20,18 @@ import javax.inject.Singleton
 class PlaybackSourceResolver @Inject constructor(
     @ApplicationContext private val context: Context,
     private val downloadedSongDao: DownloadedSongDao,
-    private val innertubeApi: InnertubeApi
+    private val innertubeApi: InnertubeApi,
+    private val losslessStreamResolver: LosslessStreamResolver
 ) {
+    private val _currentAudioQuality = MutableStateFlow(AudioQualityInfo())
+    val currentAudioQuality: StateFlow<AudioQualityInfo> = _currentAudioQuality.asStateFlow()
+
     suspend fun resolve(request: PlayRequest, setCustomError: (String) -> Unit): String? {
         val path = request.localUri
 
         // If it starts with http:// or https://, it is already a resolved streaming URL
         if (path != null && (path.startsWith("http://") || path.startsWith("https://"))) {
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path, isLocalFile = false)
             return path
         }
 
@@ -52,6 +60,7 @@ class PlaybackSourceResolver @Inject constructor(
 
             if (fileExists) {
                 Log.d("PlaybackSourceResolver", "Playing downloaded song locally from: $localPath")
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(localPath, isLocalFile = true)
                 return localPath
             } else {
                 Log.e("PlaybackSourceResolver", "Downloaded file missing at: $localPath")
@@ -86,6 +95,7 @@ class PlaybackSourceResolver @Inject constructor(
 
             if (!streamUrl.isNullOrBlank()) {
                 Log.d("PlaybackSourceResolver", "Successfully resolved online song to stream URL: $streamUrl")
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl, isLocalFile = false)
                 return streamUrl
             } else {
                 Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for ${request.songId}")
@@ -113,6 +123,7 @@ class PlaybackSourceResolver @Inject constructor(
             }
 
             if (fileExists) {
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path, isLocalFile = true)
                 return path
             } else {
                 Log.e("PlaybackSourceResolver", "Local scanned file missing: $path")

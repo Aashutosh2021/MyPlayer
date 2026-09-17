@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +40,7 @@ import kotlinx.coroutines.launch
 fun LyricsTab(
     lyricsState: LyricsUiState,
     positionMs: State<Long>,
+    onSeek: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -102,7 +105,8 @@ fun LyricsTab(
                 if (lyricsState.syncedLines.isNotEmpty()) {
                     SyncedLyricsView(
                         lines = lyricsState.syncedLines,
-                        positionMs = positionMs
+                        positionMs = positionMs,
+                        onSeek = onSeek
                     )
                 } else {
                     PlainLyricsView(text = lyricsState.result.plainLyrics ?: "")
@@ -115,12 +119,12 @@ fun LyricsTab(
 @Composable
 private fun SyncedLyricsView(
     lines: List<Pair<Long, String>>,
-    positionMs: State<Long>
+    positionMs: State<Long>,
+    onSeek: (Long) -> Unit
 ) {
     // Read positionMs.value INSIDE derivedStateOf so Compose tracks it as a
-    // dependency and re-derives on every tick \u2014 but only notifies readers when
-    // the active *line index* actually changes. (Capturing a raw Long parameter
-    // here would freeze the calculation at composition time.)
+    // dependency and re-derives on every tick — but only notifies readers when
+    // the active *line index* actually changes.
     val activeIndexState = remember(lines) {
         derivedStateOf {
             val pos = positionMs.value
@@ -154,44 +158,48 @@ private fun SyncedLyricsView(
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 40.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        itemsIndexed(lines, key = { index, _ -> "synced_$index" }) { index, (_, lyricLine) ->
+        itemsIndexed(lines, key = { index, _ -> "synced_$index" }) { index, (timestampMs, lyricLine) ->
             val isActive = index == activeIndex
             val isPast = index < activeIndex
 
-            // Animate color + scale instead of swapping font size via AnimatedContent:
-            // scale runs in the draw phase (graphicsLayer) \u2014 no relayout, no
-            // composition churn, buttery on every frame.
             val scale by animateFloatAsState(
-                targetValue = if (isActive) 1.12f else 1f,
+                targetValue = if (isActive) 1.15f else 1f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
                 label = "lyricScale"
             )
             val color by animateColorAsState(
                 targetValue = when {
-                    isActive -> OnSurface
-                    isPast -> OnSurfaceVariant.copy(alpha = 0.5f)
+                    isActive -> ClayPrimary
+                    isPast -> OnSurface.copy(alpha = 0.6f)
                     else -> OnSurfaceVariant.copy(alpha = 0.35f)
                 },
                 animationSpec = tween(300),
                 label = "lyricColor"
             )
 
-            Text(
-                text = lyricLine.ifBlank { "\u2022" }, // bullet for empty lines
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 17.sp,
-                    lineHeight = 26.sp
-                ),
-                color = color,
-                textAlign = TextAlign.Center,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer {
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .clickable { onSeek(timestampMs) }
+                    .padding(vertical = 4.dp, horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = lyricLine.ifBlank { "•" },
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal,
+                        fontSize = if (isActive) 18.sp else 16.sp,
+                        lineHeight = 28.sp
+                    ),
+                    color = color,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer {
                         scaleX = scale
                         scaleY = scale
                     }
-            )
+                )
+            }
         }
     }
 }

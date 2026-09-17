@@ -66,4 +66,8 @@ class SongRepository @Inject constructor(
             android.util.Log.e("SongRepository", "Rescan failed", e)
         }
     }
+
+    suspend fun getSongById(id: String): SongEntity? = withContext(Dispatchers.IO) {
+        songDao.getSongById(id)
+    }
 }

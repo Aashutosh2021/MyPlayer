@@ -157,18 +157,6 @@ fun SettingsScreen(
             }
         }
 
-        // Section: Playback
-        item { SettingsSectionHeader(title = "Playback") }
-
-        item {
-            SettingsToggleRow(
-                icon = Icons.Filled.AutoAwesome,
-                title = "Autoplay Recommendations",
-                subtitle = "Automatically play recommended songs when queue ends",
-                checked = isAutoplayEnabled,
-                onCheckedChange = { viewModel.setAutoplayEnabled(it) }
-            )
-        }
 
         // Section: Backup & Restore
         item { SettingsSectionHeader(title = "Backup & Restore") }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -38,7 +39,7 @@ import com.example.myplayer.ui.theme.*
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit,
-    onPlaySong: (PlayableSong) -> Unit,
+    onPlaySong: (List<PlayableSong>, Int) -> Unit,
     bottomPadding: Dp = 100.dp,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
@@ -314,7 +315,7 @@ fun LibraryScreen(
 @Composable
 fun HybridSongsTab(
     songs: List<PlayableSong>,
-    onPlaySong: (PlayableSong) -> Unit,
+    onPlaySong: (List<PlayableSong>, Int) -> Unit,
     onAddToPlaylist: (PlayableSong) -> Unit,
     onRemoveDownload: (PlayableSong) -> Unit,
     bottomPadding: Dp
@@ -344,10 +345,10 @@ fun HybridSongsTab(
         modifier = Modifier.padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(songs, key = { it.id }) { song ->
+        itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
             HybridSongItem(
                 song = song,
-                onPlaySong = { onPlaySong(song) },
+                onPlaySong = { onPlaySong(songs, index) },
                 onAddToPlaylist = { onAddToPlaylist(song) },
                 onRemoveDownload = { onRemoveDownload(song) }
             )

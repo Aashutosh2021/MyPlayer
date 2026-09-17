@@ -54,6 +54,8 @@ class MusicController @Inject constructor(
 
     // Keep a local copy of the queue so we can map MediaItem → SongEntity
     private val _songQueue = mutableListOf<SongEntity>()
+    private val _playbackQueue = MutableStateFlow<List<SongEntity>>(emptyList())
+    val playbackQueue: StateFlow<List<SongEntity>> = _playbackQueue.asStateFlow()
 
     // Playback history stack (Phase R9/R10)
     private val playbackHistory = java.util.Stack<Int>()
@@ -69,10 +71,35 @@ class MusicController @Inject constructor(
     val isShuffleOn: StateFlow<Boolean> = playbackStateManager.isShuffleOn
     val repeatMode: StateFlow<Int> = playbackStateManager.repeatMode
     val sleepTimerRemainingSeconds: StateFlow<Long> = sleepTimerManager.sleepTimerRemainingSeconds
+    val currentAudioQuality: StateFlow<AudioQualityInfo> = playbackRouter.currentAudioQuality
 
     private var positionJob: Job? = null
 
+    private val playbackPrefs by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun getPersistedRepeatMode(): Int =
+        playbackPrefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
+
+    private fun saveRepeatMode(mode: Int) {
+        playbackPrefs.edit().putInt(KEY_REPEAT_MODE, mode).apply()
+    }
+
+    private fun getPersistedShuffleMode(): Boolean =
+        playbackPrefs.getBoolean(KEY_SHUFFLE_MODE, false)
+
+    private fun saveShuffleMode(enabled: Boolean) {
+        playbackPrefs.edit().putBoolean(KEY_SHUFFLE_MODE, enabled).apply()
+    }
+
     init {
+        // Restore persisted repeat and shuffle states immediately for UI/state flows
+        val savedRepeat = getPersistedRepeatMode()
+        val savedShuffle = getPersistedShuffleMode()
+        playbackStateManager.updateRepeatMode(savedRepeat)
+        playbackStateManager.updateShuffle(savedShuffle)
+
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         mediaControllerFuture?.addListener({
@@ -91,12 +118,23 @@ class MusicController @Inject constructor(
     }
 
     private fun setupController() {
+        val controller = mediaController
+        if (controller != null) {
+            val savedRepeat = getPersistedRepeatMode()
+            val savedShuffle = getPersistedShuffleMode()
+            controller.repeatMode = savedRepeat
+            controller.shuffleModeEnabled = savedShuffle
+            playbackStateManager.updateRepeatMode(savedRepeat)
+            playbackStateManager.updateShuffle(savedShuffle)
+        }
+
         mediaController?.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
                 val controller = mediaController
                 if (controller != null) {
                     val currentIndex = controller.currentMediaItemIndex
+                    Log.d("MusicController", "[TRANSITION] reason=$reason index=$currentIndex mediaId=${mediaItem?.mediaId}")
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
                         playbackHistory.clear()
                         lastIndex = currentIndex
@@ -169,11 +207,13 @@ class MusicController @Inject constructor(
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                 super.onShuffleModeEnabledChanged(shuffleModeEnabled)
                 playbackStateManager.updateShuffle(shuffleModeEnabled)
+                saveShuffleMode(shuffleModeEnabled)
             }
 
             override fun onRepeatModeChanged(repeatMode: Int) {
                 super.onRepeatModeChanged(repeatMode)
                 playbackStateManager.updateRepeatMode(repeatMode)
+                saveRepeatMode(repeatMode)
             }
         })
     }
@@ -181,7 +221,7 @@ class MusicController @Inject constructor(
     private fun handlePlaybackEnded() {
         val mediaId = mediaController?.currentMediaItem?.mediaId ?: ""
         playbackEventBus.emit(PlaybackEvent.SongCompleted(mediaId))
-        playbackEventBus.emit(PlaybackEvent.AutoplayRequested)
+        // Auto-recommendation / autoplay disabled to keep app lightweight, fast, and user-directed
     }
 
     private fun startPositionUpdater() {
@@ -205,10 +245,16 @@ class MusicController @Inject constructor(
     }
 
     private fun updateCurrentSong() {
-        val mediaId = mediaController?.currentMediaItem?.mediaId ?: return
-        val localSong = _songQueue.firstOrNull { it.id == mediaId }
-        if (localSong != null) {
-            playbackStateManager.updateCurrentSong(localSong)
+        val controller = mediaController ?: return
+        val index = controller.currentMediaItemIndex
+        if (index in _songQueue.indices) {
+            playbackStateManager.updateCurrentSong(_songQueue[index])
+        } else {
+            val mediaId = controller.currentMediaItem?.mediaId ?: return
+            val localSong = _songQueue.firstOrNull { it.id == mediaId }
+            if (localSong != null) {
+                playbackStateManager.updateCurrentSong(localSong)
+            }
         }
     }
 
@@ -216,8 +262,11 @@ class MusicController @Inject constructor(
 
     fun playSongs(songs: List<SongEntity>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
+        val clampedIndex = startIndex.coerceIn(0, songs.size - 1)
+        Log.d("MusicController", "[QUEUE_CREATED] size=${songs.size} startIndex=$clampedIndex firstId=${songs.firstOrNull()?.id}")
         _songQueue.clear()
         _songQueue.addAll(songs)
+        _playbackQueue.value = _songQueue.toList()
         playbackStateManager.updateCurrentOnlineSong(null)
 
         val requests = songs.map { song ->
@@ -231,7 +280,7 @@ class MusicController @Inject constructor(
             )
         }
 
-        playbackRouter.play(scope, this, requests, startIndex)
+        playbackRouter.play(scope, this, requests, clampedIndex)
     }
 
     /**
@@ -305,11 +354,43 @@ class MusicController @Inject constructor(
             albumArt = song.thumbnailUrl
         )
 
+        val syntheticSong = SongEntity(
+            id = song.videoId,
+            title = song.title,
+            artist = song.artist,
+            album = "Online",
+            duration = song.durationMs,
+            path = "online://${song.videoId}",
+            albumArt = song.thumbnailUrl,
+            dateAdded = System.currentTimeMillis(),
+            videoId = song.videoId
+        )
         _songQueue.clear()
+        _songQueue.add(syntheticSong)
+        _playbackQueue.value = _songQueue.toList()
         playbackStateManager.updateCurrentSong(null)
         playbackStateManager.updateCurrentOnlineSong(song)
 
         playbackRouter.play(scope, this, listOf(request), 0)
+    }
+
+    fun playDownloadedSongs(songs: List<DownloadedSongEntity>, startIndex: Int = 0) {
+        if (songs.isEmpty()) return
+        val entities = songs.map { d ->
+            SongEntity(
+                id = d.id,
+                title = d.title,
+                artist = d.artist,
+                album = d.album.ifBlank { "Downloads" },
+                duration = d.durationMs,
+                path = d.localPath,
+                albumArt = d.thumbnailUrl,
+                dateAdded = d.downloadedAt,
+                videoId = d.id
+            )
+        }
+        val clampedIndex = startIndex.coerceIn(0, entities.size - 1)
+        playSongs(entities, clampedIndex)
     }
 
     fun playDownloadedSong(song: DownloadedSongEntity) {
@@ -333,21 +414,8 @@ class MusicController @Inject constructor(
                 return@launch
             }
 
-            val entities = downloads.map { d ->
-                SongEntity(
-                    id = d.id,
-                    title = d.title,
-                    artist = d.artist,
-                    album = d.album.ifBlank { "Downloads" },
-                    duration = d.durationMs,
-                    path = d.localPath,
-                    albumArt = d.thumbnailUrl,
-                    dateAdded = d.downloadedAt,
-                    videoId = d.id
-                )
-            }
             val startIndex = downloads.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-            playSongs(entities, startIndex)
+            playDownloadedSongs(downloads, startIndex)
         }
     }
 
@@ -364,24 +432,19 @@ class MusicController @Inject constructor(
         if (currentMediaId.isNotEmpty()) {
             playbackEventBus.emit(PlaybackEvent.SongSkipped(currentMediaId))
         }
+        Log.d("MusicController", "[SKIP_NEXT] hasNext=${controller.hasNextMediaItem()} currentIndex=${controller.currentMediaItemIndex}")
         if (controller.hasNextMediaItem()) {
             controller.seekToNext()
-        } else {
-            scope.launch {
-                val songs = withContext(Dispatchers.IO) {
-                    musicRepository.getAllSongs().firstOrNull()
-                }
-                songs?.let {
-                    if (it.isNotEmpty()) {
-                        playSongs(listOf(it.random()), 0)
-                    }
-                }
-            }
         }
     }
 
     fun skipToPrevious() {
         val controller = mediaController ?: return
+        Log.d("MusicController", "[SKIP_PREV] pos=${controller.currentPosition} hasPrev=${controller.hasPreviousMediaItem()} historySize=${playbackHistory.size}")
+        if (controller.currentPosition > 3000L) {
+            controller.seekTo(0L)
+            return
+        }
         if (!playbackHistory.isEmpty()) {
             val prevIndex = playbackHistory.pop()
             if (prevIndex in 0 until controller.mediaItemCount) {
@@ -390,6 +453,10 @@ class MusicController @Inject constructor(
                 controller.play()
                 return
             }
+        }
+        if (controller.hasPreviousMediaItem()) {
+            controller.seekToPrevious()
+            return
         }
         controller.seekTo(0L)
     }
@@ -421,16 +488,23 @@ class MusicController @Inject constructor(
     fun setShuffleEnabled(enabled: Boolean) {
         mediaController?.shuffleModeEnabled = enabled
         playbackStateManager.updateShuffle(enabled)
+        saveShuffleMode(enabled)
+    }
+
+    fun setRepeatMode(mode: Int) {
+        mediaController?.repeatMode = mode
+        playbackStateManager.updateRepeatMode(mode)
+        saveRepeatMode(mode)
     }
 
     fun cycleRepeatMode() {
-        val next = when (mediaController?.repeatMode ?: Player.REPEAT_MODE_OFF) {
+        val current = mediaController?.repeatMode ?: playbackStateManager.repeatMode.value
+        val next = when (current) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
             else -> Player.REPEAT_MODE_OFF
         }
-        mediaController?.repeatMode = next
-        playbackStateManager.updateRepeatMode(next)
+        setRepeatMode(next)
     }
 
     // ── PlaybackRouterDelegate Implementation ──────────────────────────────────
@@ -478,4 +552,64 @@ class MusicController @Inject constructor(
     override fun getMediaItemCount(): Int {
         return mediaController?.mediaItemCount ?: 0
     }
+
+    // ── ARIA SDK Helpers ──────────────────────────────────────────────────────
+
+    fun getMediaController(): MediaController? = mediaController
+
+    fun getSongQueue(): List<SongEntity> = _songQueue
+
+    fun setPlaybackSpeed(speed: Float) {
+        mediaController?.setPlaybackSpeed(speed)
+    }
+
+    fun getPlaybackSpeed(): Float {
+        return mediaController?.playbackParameters?.speed ?: 1.0f
+    }
+
+    fun setPlayerVolume(volume: Float) {
+        mediaController?.volume = volume
+    }
+
+    fun getPlayerVolume(): Float {
+        return mediaController?.volume ?: 1.0f
+    }
+
+    fun addSongToQueue(song: SongEntity) {
+        val controller = mediaController ?: return
+        _songQueue.add(song)
+        _playbackQueue.value = _songQueue.toList()
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(Uri.parse(song.path))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .apply {
+                        if (!song.albumArt.isNullOrBlank()) {
+                            setArtworkUri(Uri.parse(song.albumArt))
+                        }
+                    }
+                    .build()
+            )
+            .build()
+        controller.addMediaItem(mediaItem)
+    }
+
+    fun playQueueIndex(index: Int) {
+        val controller = mediaController ?: return
+        if (index in 0 until controller.mediaItemCount) {
+            controller.seekTo(index, C.TIME_UNSET)
+            controller.play()
+        }
+    }
+
+    companion object {
+        const val PREFS_NAME = "playback_preferences"
+        const val KEY_REPEAT_MODE = "playback_repeat_mode"
+        const val KEY_SHUFFLE_MODE = "playback_shuffle_mode"
+    }
 }
+
+

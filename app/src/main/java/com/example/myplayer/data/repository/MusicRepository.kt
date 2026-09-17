@@ -86,4 +86,8 @@ class MusicRepository @Inject constructor(
     suspend fun addRecentHistory(songId: String) {
         recentHistoryRepository.addRecentHistory(songId)
     }
+
+    suspend fun getSongById(id: String): SongEntity? {
+        return songRepository.getSongById(id)
+    }
 }

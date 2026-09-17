@@ -99,8 +99,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onPlaylistClick = { playlistId ->
                         navController.navigate("playlist_detail/$playlistId")
                     },
-                    onPlaySong = { song ->
-                        viewModel.playSong(song)
+                    onPlaySong = { songs, index ->
+                        viewModel.playPlaylist(songs, index)
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
                     bottomPadding = if (hasAnySong) 160.dp else 100.dp
@@ -122,6 +122,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val canDownload by viewModel.isCurrentSongOnline.collectAsState()
                 val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsState()
                 val isDownloading by viewModel.isCurrentSongDownloading.collectAsState()
+                val currentAudioQuality by viewModel.currentAudioQuality.collectAsState()
                 val positionState = viewModel.currentPosition.collectAsState()
                 NowPlayingScreen(
                     canDownload = canDownload,
@@ -129,6 +130,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     isDownloading = isDownloading,
                     onDownloadClick = { viewModel.downloadCurrentSong() },
                     onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
+                    audioQuality = currentAudioQuality,
                     title = displayTitle,
                     artist = displayArtist,
                     artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,

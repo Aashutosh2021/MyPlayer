@@ -20,19 +20,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.myplayer.playback.AudioQualityInfo
 import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.components.ClayIconButton
+import com.example.myplayer.ui.components.ClayWavySeekBar
 import com.example.myplayer.ui.theme.*
 
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.verticalScroll
-import com.example.myplayer.ui.screens.recommendation.RecommendationViewModel
-import com.example.myplayer.ui.components.recommendation.RecommendationQueuePreview
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.media3.common.Player
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,11 +63,12 @@ fun NowPlayingScreen(
     isDownloading: Boolean = false,
     onDownloadClick: () -> Unit = {},
     onRemoveDownloadClick: () -> Unit = {},
-    recommendationViewModel: RecommendationViewModel = hiltViewModel(),
+    audioQuality: AudioQualityInfo = AudioQualityInfo(),
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
+    var showQualityDetails by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(1L)
@@ -79,6 +78,45 @@ fun NowPlayingScreen(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "artScale"
     )
+
+    if (showQualityDetails) {
+        AlertDialog(
+            onDismissRequest = { showQualityDetails = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = ClayPrimary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Audio Stream Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Source: ${audioQuality.sourceName}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Codec / Format: ${audioQuality.format.uppercase()}", style = MaterialTheme.typography.bodyMedium)
+                    if (audioQuality.bitDepth != null) {
+                        Text("Bit Depth: ${audioQuality.bitDepth}-bit", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (audioQuality.sampleRateHz != null) {
+                        val khz = audioQuality.sampleRateHz / 1000.0
+                        Text("Sample Rate: ${if (khz % 1.0 == 0.0) khz.toInt().toString() else "%.1f".format(khz)} kHz", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (audioQuality.bitrateKbps != null) {
+                        Text("Bitrate: ~${audioQuality.bitrateKbps} kbps", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        "Lossless Fidelity: ${if (audioQuality.isLossless) "Yes (Bit-Perfect)" else "Standard (Compressed)"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (audioQuality.isLossless) ClayPrimary else TextMuted
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQualityDetails = false }) {
+                    Text("Close", color = ClayPrimary)
+                }
+            }
+        )
+    }
 
     if (showSleepTimer) {
         SleepTimerDialog(
@@ -180,6 +218,8 @@ fun NowPlayingScreen(
                 if (hasSong) {
                     AlbumArtImage(
                         uri = artUri ?: "",
+                        title = title,
+                        artist = artist,
                         size = 284.dp,
                         shape = RoundedCornerShape(24.dp),
                         iconSize = 80.dp
@@ -260,13 +300,46 @@ fun NowPlayingScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // ── Audio Quality Badge Pill ─────────────────────────────────────
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (audioQuality.isLossless) ClayPrimary.copy(alpha = 0.12f) else SurfaceContainerHigh.copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, if (audioQuality.isLossless) ClayPrimary.copy(alpha = 0.3f) else Color.Transparent),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showQualityDetails = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (audioQuality.isLossless) {
+                        Icon(
+                            Icons.Filled.HighQuality,
+                            contentDescription = null,
+                            tint = ClayPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = audioQuality.displayBadge,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = if (audioQuality.isLossless) ClayPrimary else TextMuted
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
 
             // ── Seek Bar ─────────────────────────────────────────────────────
             // Extracted composable: position ticks recompose only this section.
             SeekBarSection(
                 positionState = positionState,
                 duration = duration,
+                isPlaying = isPlaying,
                 onSeek = onSeek
             )
 
@@ -326,10 +399,15 @@ fun NowPlayingScreen(
                 
                 // Repeat
                 IconButton(onClick = onCycleRepeatMode) {
+                    val (icon, tint, desc) = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, ClayPrimary, "Repeat One")
+                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, ClayPrimary, "Repeat All")
+                        else -> Triple(Icons.Filled.Repeat, TextMuted, "Repeat Off")
+                    }
                     Icon(
-                        imageVector = if (repeatMode == 2) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                        null,
-                        tint = if (repeatMode > 0) ClayPrimary else TextMuted,
+                        imageVector = icon,
+                        contentDescription = desc,
+                        tint = tint,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -337,60 +415,17 @@ fun NowPlayingScreen(
 
             Spacer(Modifier.height(48.dp))
 
-            // ── Lyrics / Queue Tabs ─────────────────────────────────────
-            var bottomTab by remember { mutableIntStateOf(0) }
-            Row(
+            // ── Synced Lyrics ───────────────────────────────────────────
+            val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+            val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+            LyricsTab(
+                lyricsState = lyricsState,
+                positionMs = lyricsPositionState,
+                onSeek = onSeek,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clayConcave(borderRadius = 20.dp, backgroundColor = SurfaceContainerLow)
-                    .padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                listOf("Lyrics", "Up Next").forEachIndexed { index, label ->
-                    val active = bottomTab == index
-                    val tabMod = if (active)
-                        Modifier.weight(1f).claySurface(borderRadius = 14.dp, backgroundColor = SurfaceLight).padding(vertical = 10.dp)
-                    else
-                        Modifier.weight(1f).clickable { bottomTab = index }.padding(vertical = 10.dp)
-                    Box(tabMod, contentAlignment = Alignment.Center) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (active) ClayPrimary else OnSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
-
-            AnimatedContent(
-                targetState = bottomTab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "bottom_tab"
-            ) { tab ->
-                when (tab) {
-                    0 -> {
-                        // Only collect position updates when Lyrics tab is actually visible.
-                        // Avoids 120 recompositions/min from the position clock while on Up Next.
-                        val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
-                        LyricsTab(
-                            lyricsState = lyricsState,
-                            positionMs = lyricsPositionState,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp)
-                        )
-                    }
-                    else -> {
-                        val recs by recommendationViewModel.recommendations.collectAsStateWithLifecycle()
-                        RecommendationQueuePreview(
-                            recommendations = recs,
-                            onSongClick = { song -> recommendationViewModel.playNow(song) }
-                        )
-                    }
-                }
-            }
+                    .heightIn(min = 200.dp, max = 450.dp)
+            )
 
             Spacer(Modifier.height(48.dp))
         }
@@ -474,39 +509,26 @@ fun formatDuration(durationMs: Long): String {
 private fun SeekBarSection(
     positionState: State<Long>,
     duration: Long,
+    isPlaying: Boolean,
     onSeek: (Long) -> Unit
 ) {
-    var isSeeking by remember { mutableStateOf(false) }
-    var seekPosition by remember { mutableFloatStateOf(0f) }
-
-    val currentPosition = if (isSeeking) seekPosition.toLong() else positionState.value
-    val progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-
-    Column {
-        Slider(
-            value = progress,
-            onValueChange = { v ->
-                isSeeking = true
-                seekPosition = (v * duration).toLong().toFloat()
-            },
-            onValueChangeFinished = {
-                onSeek(seekPosition.toLong())
-                isSeeking = false
-            },
-            valueRange = 0f..1f,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = ClayPrimary,
-                activeTrackColor = ClayPrimary,
-                inactiveTrackColor = SurfaceContainerHigh
-            )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        ClayWavySeekBar(
+            positionMs = positionState.value,
+            durationMs = duration,
+            isPlaying = isPlaying,
+            onSeek = onSeek,
+            modifier = Modifier.fillMaxWidth()
         )
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(formatDuration(currentPosition), style = MaterialTheme.typography.labelSmall, color = TextMuted)
+            Text(formatDuration(positionState.value), style = MaterialTheme.typography.labelSmall, color = TextMuted)
             Text(formatDuration(duration), style = MaterialTheme.typography.labelSmall, color = TextMuted)
         }
     }
 }
+

@@ -10,7 +10,7 @@ interface DownloadedSongDao {
     @Query("SELECT * FROM downloaded_songs ORDER BY downloadedAt DESC")
     fun getAllDownloads(): Flow<List<DownloadedSongEntity>>
 
-    @Query("SELECT * FROM downloaded_songs")
+    @Query("SELECT * FROM downloaded_songs ORDER BY downloadedAt DESC")
     fun getAllDownloadsSync(): List<DownloadedSongEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

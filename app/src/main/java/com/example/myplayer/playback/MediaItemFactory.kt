@@ -9,9 +9,14 @@ import javax.inject.Singleton
 @Singleton
 class MediaItemFactory @Inject constructor() {
     fun createMediaItem(songId: String, path: String, title: String, artist: String, albumArt: String?): MediaItem {
+        val uri = if (path.startsWith("/")) {
+            Uri.fromFile(java.io.File(path))
+        } else {
+            Uri.parse(path)
+        }
         return MediaItem.Builder()
             .setMediaId(songId)
-            .setUri(Uri.parse(path))
+            .setUri(uri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)

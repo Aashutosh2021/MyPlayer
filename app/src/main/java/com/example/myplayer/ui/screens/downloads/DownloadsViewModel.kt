@@ -35,8 +35,18 @@ class DownloadsViewModel @Inject constructor(
 
     fun onSearchQueryChange(q: String) { _searchQuery.value = q }
 
+    fun playSong(songs: List<DownloadedSongEntity>, startIndex: Int) {
+        musicController.playDownloadedSongs(songs, startIndex)
+    }
+
     fun playSong(song: DownloadedSongEntity) {
-        musicController.playDownloadedSong(song)
+        val list = filteredDownloads.value
+        val index = list.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        if (list.isNotEmpty()) {
+            musicController.playDownloadedSongs(list, index)
+        } else {
+            musicController.playDownloadedSong(song)
+        }
     }
 
     fun deleteSong(song: DownloadedSongEntity) {

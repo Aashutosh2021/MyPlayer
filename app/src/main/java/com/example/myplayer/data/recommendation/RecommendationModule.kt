@@ -23,7 +23,7 @@ abstract class RecommendationModule {
     @Binds
     @Singleton
     abstract fun bindRecommendationStrategy(
-        defaultRankingStrategy: DefaultRankingStrategy
+        smartRankingStrategy: com.example.myplayer.data.recommendation.strategy.SmartRankingStrategy
     ): RecommendationStrategy
     
     @Binds

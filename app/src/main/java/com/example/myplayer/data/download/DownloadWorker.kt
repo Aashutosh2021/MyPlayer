@@ -32,7 +32,8 @@ class DownloadWorker @AssistedInject constructor(
     private val downloadedSongDao: DownloadedSongDao,
     private val preferencesManager: PreferencesManager,
     private val lyricsRepository: com.example.myplayer.data.lyrics.LyricsRepository,
-    private val songDao: SongDao
+    private val songDao: SongDao,
+    private val audioTagHelper: AudioTagHelper
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -259,6 +260,9 @@ class DownloadWorker @AssistedInject constructor(
                 downloadedAt = System.currentTimeMillis()
             )
             downloadedSongDao.insert(entity)
+
+            // MediaStore & Scanner Indexing (LastWave-inspired system discovery)
+            audioTagHelper.scanDownloadedFile(context, savedPath, title, artist)
 
             // Playback & Playlist Synchronization:
             // Update the path in the local SongEntity database record if it exists

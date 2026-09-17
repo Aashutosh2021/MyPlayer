@@ -71,6 +71,8 @@ class DownloadRepository @Inject constructor(
 
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(data)
+            .addTag("download")
+            .addTag("videoId_${song.videoId}")
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build()
 

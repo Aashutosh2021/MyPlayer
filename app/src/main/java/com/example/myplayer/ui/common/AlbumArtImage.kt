@@ -22,19 +22,25 @@ import coil.request.ImageRequest
 import coil.request.CachePolicy
 import androidx.compose.runtime.remember
 
+import com.example.myplayer.data.artwork.model.ArtworkModel
+
 /**
- * Loads embedded album art from an audio file URI or HTTP url.
- * Offloads loading and memory caching to Coil.
+ * Loads embedded album art or resolves high-resolution online artwork using [ArtworkModel].
+ * Offloads loading and caching to Coil and the dedicated Artwork Engine.
  */
 @Composable
 fun AlbumArtImage(
     uri: String?,
     modifier: Modifier = Modifier,
+    title: String? = null,
+    artist: String? = null,
+    album: String? = null,
     size: Dp = 48.dp,
     shape: Shape = RoundedCornerShape(8.dp),
     iconSize: Dp = 24.dp
 ) {
     val context = LocalContext.current
+    val hasValidRequest = !uri.isNullOrBlank() || (!title.isNullOrBlank() && !artist.isNullOrBlank())
 
     Box(
         modifier = modifier
@@ -43,10 +49,18 @@ fun AlbumArtImage(
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
-        if (!uri.isNullOrBlank()) {
-            val imageRequest = remember(context, uri) {
+        if (hasValidRequest) {
+            val requestModel: Any = remember(uri, title, artist, album) {
+                if (!title.isNullOrBlank() && !artist.isNullOrBlank()) {
+                    ArtworkModel(title = title, artist = artist, album = album, localUri = uri)
+                } else {
+                    uri ?: ""
+                }
+            }
+
+            val imageRequest = remember(context, requestModel) {
                 ImageRequest.Builder(context)
-                    .data(uri)
+                    .data(requestModel)
                     .crossfade(true)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)

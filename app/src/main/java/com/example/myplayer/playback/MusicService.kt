@@ -1,5 +1,6 @@
 package com.example.myplayer.playback
 
+import android.content.Context
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -47,6 +48,18 @@ class MusicService : MediaSessionService() {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
                 // We can broadcast song changes or update recent history here
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                super.onRepeatModeChanged(repeatMode)
+                getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
+                    .edit().putInt("playback_repeat_mode", repeatMode).apply()
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+                getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
+                    .edit().putBoolean("playback_shuffle_mode", shuffleModeEnabled).apply()
             }
         })
     }

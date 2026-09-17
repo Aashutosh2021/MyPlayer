@@ -12,6 +12,10 @@ import coil.ImageLoaderFactory
 import com.example.myplayer.security.SecurityManager
 import com.example.myplayer.util.AudioAlbumArtFetcher
 
+import com.example.myplayer.data.artwork.ArtworkRepository
+import com.example.myplayer.data.artwork.coil.ArtworkFetcher
+import javax.inject.Provider
+
 @HiltAndroidApp
 class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFactory {
 
@@ -19,6 +23,9 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
 
     // Phase 15: Security Manager — injected by Hilt after the component graph is ready
     @Inject lateinit var securityManager: SecurityManager
+
+    // Dedicated Artwork Engine repository provider for Coil
+    @Inject lateinit var artworkRepositoryProvider: Provider<ArtworkRepository>
 
     override fun onCreate() {
         super.onCreate()
@@ -41,6 +48,7 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
         return ImageLoader.Builder(this)
             .components {
                 add(AudioAlbumArtFetcher.Factory(this@MyPlayerApplication))
+                add(ArtworkFetcher.Factory(artworkRepositoryProvider))
             }
             .build()
     }

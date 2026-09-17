@@ -34,43 +34,11 @@ class RecommendationCoordinator @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     init {
-        scope.launch {
-            playbackEventBus.events.collect { event ->
-                handlePlaybackEvent(event)
-            }
-        }
+        // Auto-recommendation background engine disabled to keep app lightweight, fast, and smooth
     }
 
     private suspend fun handlePlaybackEvent(event: PlaybackEvent) {
-        when (event) {
-            is PlaybackEvent.SongStarted -> {
-                // If offline and it's local/downloaded, skip recommendation seeding as per offline downloaded rule
-                if (!event.isOnline && !isNetworkAvailable()) {
-                    logger.logEvent("OfflinePlaybackNoRecommendation", mapOf("songId" to event.songId))
-                    return
-                }
-
-                val seed = RecommendationSeed(
-                    songId = event.songId,
-                    artist = event.artist,
-                    title = event.title,
-                    album = "",
-                    durationMs = 0L,
-                    source = if (event.isOnline) "youtube" else "local"
-                )
-                startRecommendationSession(seed)
-            }
-            is PlaybackEvent.AutoplayRequested -> {
-                val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
-                if (isAutoplayEnabled && isNetworkAvailable()) {
-                    triggerAutoplay()
-                }
-            }
-            is PlaybackEvent.SongSkipped -> {
-                queueManager.skipSong(event.songId)
-            }
-            else -> {}
-        }
+        // Auto-recommendation seeding and autoplay disabled
     }
 
     private fun startRecommendationSession(seed: RecommendationSeed) {
@@ -93,38 +61,7 @@ class RecommendationCoordinator @Inject constructor(
     }
 
     private suspend fun triggerAutoplay() {
-        while (!queueManager.isEmpty()) {
-            val rec = queueManager.dequeue() ?: break
-            val playRequest = playbackRepository.preparePlayRequest(rec)
-
-            logger.logEvent("AutoplayRecommendationSelected", mapOf(
-                "videoId" to rec.videoId,
-                "score" to rec.recommendationScore
-            ))
-
-            playbackEventBus.emit(PlaybackEvent.PlayRequestReady(listOf(playRequest), 0))
-            return
-        }
-
-        logger.logEvent("QueueEmpty", mapOf("action" to "Attempting recovery"))
-
-        // Queue empty, attempt one recovery
-        val recovered = queueManager.recoverQueueSynchronously()
-        if (recovered) {
-            while (!queueManager.isEmpty()) {
-                val rec = queueManager.dequeue() ?: break
-                val playRequest = playbackRepository.preparePlayRequest(rec)
-
-                logger.logEvent("AutoplayRecommendationSelected", mapOf(
-                    "videoId" to rec.videoId,
-                    "score" to rec.recommendationScore,
-                    "context" to "Recovered"
-                ))
-
-                playbackEventBus.emit(PlaybackEvent.PlayRequestReady(listOf(playRequest), 0))
-                return
-            }
-        }
+        // Disabled: No autoplay recommendations
     }
 
     val queueState = queueManager.queueState
