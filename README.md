@@ -28,13 +28,11 @@ MyPlayer is designed to provide a premium music experience by combining powerful
 
 ### ✨ Key Highlights
 
-* 🎧 Local & Online Music in one app
-* ❤️ Smart Recommendation Engine
+* 🎧 Online Music in one app
 * 🎤 Real-Time Synced Lyrics
 * 📥 Offline Downloads
 * 📚 Playlist & Favorites Management
 * 🔍 Fast Online Music Search
-* 🔄 Intelligent Recommendation Autoplay
 * 🎨 Modern Material 3 Interface
 * ⚡ Smooth & Responsive User Experience
 
@@ -44,11 +42,8 @@ MyPlayer is designed to provide a premium music experience by combining powerful
 
 | Feature                 | Status |
 | ----------------------- | :----: |
-| Local Music Playback    |    ✅   |
 | Online Music Streaming  |    ✅   |
 | Online Song Search      |    ✅   |
-| Smart Recommendations   |    ✅   |
-| Recommendation Autoplay |    ✅   |
 | Recommendation Queue    |    ✅   |
 | Synced Lyrics           |    ✅   |
 | Offline Downloads       |    ✅   |
@@ -101,37 +96,6 @@ Search and play music instantly.
 * Song Duration
 * Instant Streaming
 * One-Tap Playback
-
----
-
-# ❤️ Smart Recommendation Engine
-
-A fully integrated recommendation system designed for uninterrupted listening.
-
-### Features
-
-* Automatic Recommendation Generation
-* Smart Recommendation Queue
-* Continuous Autoplay
-* Queue Preview
-* Background Recommendation Loading
-* Duplicate Prevention
-* Recommendation History
-* Session Management
-* Intelligent Queue Refill
-* Recommendation Scoring
-* Recommendation Filtering
-* Recommendation Prioritization
-* Background Cache
-* Safe Recovery Mechanism
-
-### Recommendation Reasons
-
-* Because You Played...
-* Similar Artist
-* Similar Genre
-* Trending Songs
-* Popular Songs
 
 ---
 
@@ -250,7 +214,6 @@ A premium listening interface.
 
 ### Features
 
-* Recommendation Autoplay
 * Playback Preferences
 * Download Folder Information
 * Application Information
@@ -314,7 +277,6 @@ Designed with performance, simplicity, and user experience as the primary focus.
 # 🚀 Upcoming Features
 
 * Android Auto Support
-* Wear OS Support
 * Home Screen Widgets
 * Cross Device Sync
 * Cloud Backup
