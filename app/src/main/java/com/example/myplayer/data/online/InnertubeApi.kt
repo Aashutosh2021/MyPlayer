@@ -266,11 +266,45 @@ class InnertubeApi @Inject constructor(
         }
     }
 
+    data class CachedStream(
+        val url: String,
+        val expiryTimeMs: Long
+    )
+
+    private val streamUrlCache = java.util.concurrent.ConcurrentHashMap<String, CachedStream>()
+    private val CACHE_TTL_MS = 2 * 60 * 60 * 1000L // 2 hours
+
+    /**
+     * Returns the cached stream URL if available and not expired.
+     */
+    fun getCachedStreamUrl(videoId: String): String? {
+        val cached = streamUrlCache[videoId] ?: return null
+        if (System.currentTimeMillis() < cached.expiryTimeMs) {
+            return cached.url
+        }
+        streamUrlCache.remove(videoId)
+        return null
+    }
+
+    /**
+     * Caches a stream URL for a given video ID with standard TTL.
+     */
+    fun cacheStreamUrl(videoId: String, url: String) {
+        if (videoId.isNotBlank() && url.isNotBlank()) {
+            streamUrlCache[videoId] = CachedStream(url, System.currentTimeMillis() + CACHE_TTL_MS)
+        }
+    }
+
     /**
      * Resolves the actual audio stream URL for a given YouTube Music video ID.
      * Uses NewPipeExtractor to bypass bot detection and poToken issues.
      */
     suspend fun getStreamUrl(videoId: String): String? = withContext(Dispatchers.IO) {
+        getCachedStreamUrl(videoId)?.let { cachedUrl ->
+            Log.i(TAG, "getStreamUrl: Returning cached stream URL for $videoId (<1ms)")
+            return@withContext cachedUrl
+        }
+
         try {
             Log.i(TAG, "getStreamUrl: Starting resolution for $videoId")
             val url = "https://www.youtube.com/watch?v=$videoId"
@@ -290,6 +324,9 @@ class InnertubeApi @Inject constructor(
             val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
             val contentUrl = bestStream?.getContent()
             Log.i(TAG, "getStreamUrl: Selected stream URL: ${contentUrl?.take(80)}...")
+            if (!contentUrl.isNullOrBlank()) {
+                cacheStreamUrl(videoId, contentUrl)
+            }
             contentUrl
         } catch (e: org.schabi.newpipe.extractor.exceptions.ExtractionException) {
             Log.e(TAG, "NewPipe Extraction failed", e)

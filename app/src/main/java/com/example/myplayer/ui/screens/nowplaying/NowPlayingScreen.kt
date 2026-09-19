@@ -58,7 +58,7 @@ fun NowPlayingScreen(
     repeatMode: Int = 0,
     onCycleRepeatMode: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    canDownload: Boolean = false,
+    canDownload: Boolean = true,
     isDownloaded: Boolean = false,
     isDownloading: Boolean = false,
     onDownloadClick: () -> Unit = {},
@@ -262,8 +262,8 @@ fun NowPlayingScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                // Download button (only for online/downloadable songs)
-                if (canDownload) {
+                // Download button (visible whenever a song is loaded)
+                if (hasSong) {
                     Spacer(Modifier.width(12.dp))
                     when {
                         isDownloaded -> Icon(

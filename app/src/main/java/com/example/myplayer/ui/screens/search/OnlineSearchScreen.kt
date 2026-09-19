@@ -425,19 +425,16 @@ fun OnlineSongCard(
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            val artworkRequest = remember(song.title, song.artist, song.thumbnailUrl) {
-                com.example.myplayer.data.artwork.model.ArtworkModel(
-                    title = song.title,
-                    artist = song.artist,
-                    localUri = song.thumbnailUrl
+            if (song.thumbnailUrl.isNotBlank()) {
+                AsyncImage(
+                    model = song.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Icon(Icons.Filled.MusicNote, contentDescription = null, tint = TextMuted)
             }
-            AsyncImage(
-                model = artworkRequest,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
             // Play loading overlay
             if (isStreaming) {
                 Box(

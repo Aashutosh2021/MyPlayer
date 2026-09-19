@@ -80,16 +80,18 @@ class PlaybackRouter @Inject constructor(
                 delegate.playMediaItems(mediaItems, clampedIndex)
             }
 
-            // 4. Resolve background items prioritizing upcoming songs
-            launch(Dispatchers.Default) {
-                val indicesToResolve = (clampedIndex + 1 until requests.size) + (0 until clampedIndex)
-                for (i in indicesToResolve) {
-                    val req = requests[i]
+            // 4. Pre-resolve only the immediate next track after playback stabilizes (delay 4s)
+            // This prevents YouTube rate-limiting/throttling from hammering the entire queue.
+            launch(Dispatchers.IO) {
+                kotlinx.coroutines.delay(4000)
+                val nextIndex = clampedIndex + 1
+                if (nextIndex < requests.size) {
+                    val req = requests[nextIndex]
                     val resolvedPath = sourceResolver.resolve(req) { /* ignore background errors */ }
                     if (resolvedPath != null && resolvedPath != req.localUri) {
                         withContext(Dispatchers.Main) {
-                            if (delegate.getMediaItemCount() == requests.size && i < delegate.getMediaItemCount()) {
-                                val currentItem = delegate.getMediaItemAt(i)
+                            if (delegate.getMediaItemCount() == requests.size && nextIndex < delegate.getMediaItemCount()) {
+                                val currentItem = delegate.getMediaItemAt(nextIndex)
                                 if (currentItem != null) {
                                     val resolvedItem = mediaItemFactory.createMediaItem(
                                         songId = req.songId,
@@ -98,7 +100,7 @@ class PlaybackRouter @Inject constructor(
                                         artist = req.artist,
                                         albumArt = req.albumArt
                                     )
-                                    delegate.replaceMediaItem(i, resolvedItem)
+                                    delegate.replaceMediaItem(nextIndex, resolvedItem)
                                 }
                             }
                         }

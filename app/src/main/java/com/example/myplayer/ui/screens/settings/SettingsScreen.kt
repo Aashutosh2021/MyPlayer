@@ -27,6 +27,7 @@ import com.example.myplayer.ui.theme.*
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigateToDualBud: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val isAutoplayEnabled by viewModel.isAutoplayEnabled.collectAsStateWithLifecycle()
@@ -179,6 +180,18 @@ fun SettingsScreen(
             )
         }
 
+        // Section: Experimental Features
+        item { SettingsSectionHeader(title = "Experimental Features") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Headphones,
+                title = "Dual Bud Mode",
+                subtitle = "Play two independent songs simultaneously in left & right earbuds",
+                onClick = onNavigateToDualBud
+            )
+        }
+
         // Section: About
         item { SettingsSectionHeader(title = "About") }
 
@@ -186,7 +199,7 @@ fun SettingsScreen(
             SettingsInfoRow(
                 icon = Icons.Filled.Info,
                 title = "Version",
-                subtitle = "2.0"
+                subtitle = "3.0"
             )
         }
 

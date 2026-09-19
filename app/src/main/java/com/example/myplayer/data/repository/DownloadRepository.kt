@@ -10,38 +10,83 @@ import com.example.myplayer.data.local.dao.CachedLyricsDao
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.online.model.OnlineSong
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 @Singleton
 class DownloadRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val downloadedSongDao: DownloadedSongDao,
     private val songDao: SongDao,
     private val cachedLyricsDao: CachedLyricsDao
 ) {
-    private val _downloadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val downloadProgress: StateFlow<Map<String, Int>> = _downloadProgress.asStateFlow()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _manualProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    private val workManagerFlow: Flow<List<WorkInfo>> = flow {
+        try {
+            emitAll(WorkManager.getInstance(context).getWorkInfosByTagFlow("download"))
+        } catch (e: Exception) {
+            Log.w("DownloadRepository", "Could not observe WorkManager download tag flow", e)
+            emit(emptyList())
+        }
+    }
+
+    val downloadProgress: StateFlow<Map<String, Int>> = combine(
+        workManagerFlow,
+        _manualProgress
+    ) { workInfos, manual ->
+        val terminalIds = workInfos
+            .filter { it.state.isFinished }
+            .mapNotNull { info ->
+                info.tags.firstOrNull { it.startsWith("videoId_") }?.removePrefix("videoId_")
+            }
+            .toSet()
+
+        if (terminalIds.isNotEmpty()) {
+            _manualProgress.update { current -> current - terminalIds }
+        }
+
+        val activeMap = workInfos
+            .filter { info ->
+                info.state == WorkInfo.State.ENQUEUED ||
+                info.state == WorkInfo.State.RUNNING ||
+                info.state == WorkInfo.State.BLOCKED
+            }
+            .mapNotNull { info ->
+                val videoId = info.tags.firstOrNull { it.startsWith("videoId_") }
+                    ?.removePrefix("videoId_")
+                    ?: return@mapNotNull null
+                val prog = info.progress.getInt(DownloadWorker.KEY_PROGRESS, 0)
+                videoId to prog
+            }
+            .toMap()
+        (manual - terminalIds) + activeMap
+    }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     fun setDownloadProgress(videoId: String, progress: Int) {
-        _downloadProgress.update { it + (videoId to progress) }
+        _manualProgress.update { it + (videoId to progress) }
     }
 
     fun removeDownload(videoId: String) {
-        _downloadProgress.update { it - videoId }
+        _manualProgress.update { it - videoId }
+    }
+
+    fun isDownloading(videoId: String): Boolean {
+        return downloadProgress.value.containsKey(videoId)
     }
 
     fun getAllDownloads(): Flow<List<DownloadedSongEntity>> = downloadedSongDao.getAllDownloads()
 
-    suspend fun isDownloaded(videoId: String): Boolean = downloadedSongDao.existsById(videoId)
+    suspend fun isDownloaded(videoId: String): Boolean = withContext(Dispatchers.IO) {
+        downloadedSongDao.existsById(videoId)
+    }
 
     fun getDownloadedById(id: String): Flow<List<DownloadedSongEntity>> =
         downloadedSongDao.searchDownloads("")
@@ -54,12 +99,13 @@ class DownloadRepository @Inject constructor(
     fun startDownload(song: OnlineSong): Boolean {
         val streamUrl = song.streamUrl
         if (streamUrl.isNullOrBlank()) {
-            Log.e("DownloadRepository", "No stream URL for ${song.videoId}")
+            Log.e("DownloadRepository", "[DOWNLOAD] No stream URL for ${song.videoId}")
             return false
         }
 
-        Log.i("DownloadRepository", "Scheduling expedited download for: ${song.title}")
-        
+        Log.i("DownloadRepository", "[DOWNLOAD] Scheduling expedited download for: ${song.title} (${song.videoId})")
+        setDownloadProgress(song.videoId, 0)
+
         val data = workDataOf(
             DownloadWorker.KEY_VIDEO_ID to song.videoId,
             DownloadWorker.KEY_TITLE to song.title,
@@ -76,13 +122,19 @@ class DownloadRepository @Inject constructor(
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build()
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "download_${song.videoId}",
-            ExistingWorkPolicy.KEEP,   // Don't cancel a running download if same song is enqueued again
-            request
-        )
-        
-        return true
+        return try {
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "download_${song.videoId}",
+                ExistingWorkPolicy.KEEP,   // Don't cancel a running download if same song is enqueued again
+                request
+            )
+            Log.i("DownloadRepository", "[DOWNLOAD] Successfully enqueued WorkManager job for: ${song.videoId}")
+            true
+        } catch (e: Exception) {
+            Log.e("DownloadRepository", "[DOWNLOAD] Failed to enqueue WorkManager job for ${song.videoId}", e)
+            removeDownload(song.videoId)
+            false
+        }
     }
 
     suspend fun deleteDownload(entity: DownloadedSongEntity) {

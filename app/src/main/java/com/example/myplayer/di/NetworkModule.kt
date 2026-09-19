@@ -40,10 +40,18 @@ object NetworkModule {
     fun provideOkHttpClient(
         networkSecurityManager: NetworkSecurityManager
     ): OkHttpClient {
+        val dispatcher = okhttp3.Dispatcher().apply {
+            maxRequests = 128
+            maxRequestsPerHost = 20
+        }
+        val connectionPool = okhttp3.ConnectionPool(16, 5, TimeUnit.MINUTES)
+
         val builder = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .dispatcher(dispatcher)
+            .connectionPool(connectionPool)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
 
         // Phase 13: Only log network traffic in debug builds.
         // In release, logging is COMPLETELY disabled.

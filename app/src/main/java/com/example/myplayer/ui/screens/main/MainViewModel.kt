@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import android.util.Log
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.online.InnertubeApi
+import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
@@ -82,37 +84,74 @@ class MainViewModel @Inject constructor(
     }
 
     // ── Downloads ───────────────────────────────────────────────────────────
-    private val downloadedIds: StateFlow<Set<String>> = downloadRepository.getAllDownloads()
+    val downloadedIds: StateFlow<Set<String>> = downloadRepository.getAllDownloads()
         .map { downloads -> downloads.map { it.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     // videoId currently being resolved/queued for download
     private val _resolvingDownloadId = MutableStateFlow<String?>(null)
 
-    /** True if the currently playing song is an online (downloadable) song. */
-    val isCurrentSongOnline: StateFlow<Boolean> = combine(currentOnlineSong, currentSong, downloadedIds) { online, local, ids ->
-        if (online != null) return@combine true
-        if (local != null) {
-            val id = local.videoId ?: local.id
-            ids.contains(id) || (!id.contains("/") && !id.contains(":") && !id.startsWith("content"))
-        } else {
-            false
+    private val _downloadError = MutableStateFlow<String?>(null)
+    val downloadError: StateFlow<String?> = _downloadError.asStateFlow()
+    fun clearDownloadError() { _downloadError.value = null }
+
+    /**
+     * Resolves the downloadable metadata for the currently playing track regardless
+     * of whether it was initiated as a direct OnlineSong or mapped as a SongEntity.
+     */
+    fun getDownloadableTrack(
+        online: OnlineSong?,
+        local: SongEntity?,
+        downloadedSet: Set<String>
+    ): OnlineSong? {
+        if (online != null && online.videoId.isNotBlank()) {
+            return online
         }
+        if (local != null) {
+            val videoId = local.videoId?.takeIf { it.isNotBlank() }
+                ?: if (local.path.startsWith("online://")) {
+                    local.path.removePrefix("online://").takeIf { it.isNotBlank() }
+                } else null
+                ?: if (downloadedSet.contains(local.id)) {
+                    local.id
+                } else null
+
+            if (videoId != null) {
+                val streamUrl = if (local.path.startsWith("http://") || local.path.startsWith("https://")) {
+                    local.path
+                } else null
+                return OnlineSong(
+                    videoId = videoId,
+                    title = local.title,
+                    artist = local.artist,
+                    thumbnailUrl = local.albumArt ?: "",
+                    durationMs = local.duration,
+                    streamUrl = streamUrl
+                )
+            }
+        }
+        return null
+    }
+
+    /** True if any song is currently loaded (canDownload flag for UI). */
+    val isCurrentSongOnline: StateFlow<Boolean> = combine(currentOnlineSong, currentSong, downloadedIds) { online, local, _ ->
+        online != null || local != null
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** True if the currently playing online song is already downloaded. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val isCurrentSongDownloaded: StateFlow<Boolean> =
         combine(currentOnlineSong, currentSong, downloadedIds) { online, local, ids ->
-            val id = online?.videoId ?: local?.videoId ?: local?.id ?: ""
-            id.isNotEmpty() && ids.contains(id)
+            val track = getDownloadableTrack(online, local, ids)
+            track != null && ids.contains(track.videoId)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** True while the current online song's download is being resolved or is in progress. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val isCurrentSongDownloading: StateFlow<Boolean> =
         combine(currentOnlineSong, currentSong, downloadRepository.downloadProgress, _resolvingDownloadId) { online, local, progress, resolving ->
-            val id = online?.videoId ?: local?.videoId ?: local?.id ?: ""
+            val track = getDownloadableTrack(online, local, downloadedIds.value)
+            val id = track?.videoId ?: ""
             id.isNotEmpty() && (resolving == id || progress.containsKey(id))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -120,19 +159,81 @@ class MainViewModel @Inject constructor(
      * Resolves the stream URL for the currently playing online song and queues a download.
      */
     fun downloadCurrentSong() {
-        val song = currentOnlineSong.value ?: return
+        val currentLocal = currentSong.value
+        val currentOnline = currentOnlineSong.value
+        val song = getDownloadableTrack(currentOnline, currentLocal, downloadedIds.value)
+
+        if (song == null) {
+            // Track is a pure local file already stored on device storage
+            if (currentLocal != null) {
+                Log.i("MainViewModel", "[DOWNLOAD] Song '${currentLocal.title}' is pure local storage file")
+                _downloadError.value = "This song is already available on your device storage"
+            } else {
+                Log.w("MainViewModel", "[DOWNLOAD] No downloadable track in Now Playing")
+            }
+            return
+        }
+
+        val videoId = song.videoId
+        Log.i("MainViewModel", "[DOWNLOAD] Click received for '${song.title}' ($videoId)")
+
+        // Case 3 — Already downloaded
+        if (downloadedIds.value.contains(videoId)) {
+            Log.i("MainViewModel", "[DOWNLOAD] Song '$videoId' already downloaded, skipping")
+            _downloadError.value = "Already downloaded and available offline"
+            return
+        }
+
+        // Case 2 — Already downloading (prevent duplicate jobs)
+        if (_resolvingDownloadId.value == videoId || downloadRepository.isDownloading(videoId)) {
+            Log.i("MainViewModel", "[DOWNLOAD] Song '$videoId' is already downloading, skipping duplicate")
+            return
+        }
+
         viewModelScope.launch {
-            if (downloadRepository.isDownloaded(song.videoId)) return@launch
-            _resolvingDownloadId.value = song.videoId
+            if (downloadRepository.isDownloaded(videoId)) return@launch
+
+            _resolvingDownloadId.value = videoId
+            Log.i("MainViewModel", "[DOWNLOAD] Starting download resolution for: ${song.title} ($videoId)")
+
             try {
-                val url = innertubeApi.getStreamUrl(song.videoId)
-                if (url != null) {
-                    downloadRepository.startDownload(song.copy(streamUrl = url))
-                } else {
-                    Log.e("MainViewModel", "Could not resolve download URL for '${song.title}'")
+                var streamUrl = song.streamUrl?.takeIf { it.isNotBlank() }
+                if (streamUrl == null) {
+                    streamUrl = innertubeApi.getCachedStreamUrl(videoId)
                 }
+                if (streamUrl == null) {
+                    Log.i("MainViewModel", "[DOWNLOAD] Resolving stream URL via InnertubeApi for: $videoId")
+                    streamUrl = innertubeApi.getStreamUrl(videoId)
+                } else {
+                    Log.i("MainViewModel", "[DOWNLOAD] Reusing active session stream URL for: $videoId")
+                }
+
+                if (streamUrl.isNullOrBlank()) {
+                    // Case 4 — Missing URL
+                    val msg = "Download failed: no valid media URL"
+                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)")
+                    _downloadError.value = msg
+                    return@launch
+                }
+
+                Log.i("MainViewModel", "[DOWNLOAD] Enqueuing download in DownloadRepository for '${song.title}'")
+                val enqueued = downloadRepository.startDownload(song.copy(streamUrl = streamUrl))
+                if (!enqueued) {
+                    val msg = "Download failed: could not schedule download"
+                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)")
+                    _downloadError.value = msg
+                } else {
+                    Log.i("MainViewModel", "[DOWNLOAD] Successfully enqueued download for '${song.title}'")
+                }
+            } catch (e: com.example.myplayer.data.online.YouTubeStreamBlockedException) {
+                // Case 5 — Download failure: do not remain stuck in downloading state
+                val msg = e.message ?: "Download failed: YouTube stream blocked"
+                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)", e)
+                _downloadError.value = msg
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Download failed for '${song.title}'", e)
+                val msg = "Download failed: ${e.message ?: "Unknown error"}"
+                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)", e)
+                _downloadError.value = msg
             } finally {
                 _resolvingDownloadId.value = null
             }
@@ -140,9 +241,10 @@ class MainViewModel @Inject constructor(
     }
 
     fun removeCurrentSongDownload() {
-        val videoId = currentOnlineSong.value?.videoId ?: currentSong.value?.videoId ?: currentSong.value?.id ?: return
+        val song = getDownloadableTrack(currentOnlineSong.value, currentSong.value, downloadedIds.value) ?: return
+        Log.i("MainViewModel", "[DOWNLOAD] Removing download for '${song.title}' (${song.videoId})")
         viewModelScope.launch {
-            downloadRepository.deleteDownloadById(videoId)
+            downloadRepository.deleteDownloadById(song.videoId)
         }
     }
 }

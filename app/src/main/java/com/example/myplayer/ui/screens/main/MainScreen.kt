@@ -52,6 +52,14 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         }
     }
 
+    val downloadError by viewModel.downloadError.collectAsStateWithLifecycle()
+    LaunchedEffect(downloadError) {
+        downloadError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearDownloadError()
+        }
+    }
+
     val hasAnySong = currentSong != null || currentOnlineSong != null
     val displayTitle = currentSong?.title ?: currentOnlineSong?.title
     val displayArtist = currentSong?.artist ?: currentOnlineSong?.artist
@@ -60,7 +68,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -118,12 +126,12 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 )
             }
             composable(Screen.NowPlaying.route) {
-                val durationMs = currentSong?.duration ?: viewModel.currentDuration.collectAsState().value
-                val canDownload by viewModel.isCurrentSongOnline.collectAsState()
-                val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsState()
-                val isDownloading by viewModel.isCurrentSongDownloading.collectAsState()
-                val currentAudioQuality by viewModel.currentAudioQuality.collectAsState()
-                val positionState = viewModel.currentPosition.collectAsState()
+                val durationMs = currentSong?.duration ?: viewModel.currentDuration.collectAsStateWithLifecycle().value
+                val canDownload by viewModel.isCurrentSongOnline.collectAsStateWithLifecycle()
+                val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsStateWithLifecycle()
+                val isDownloading by viewModel.isCurrentSongDownloading.collectAsStateWithLifecycle()
+                val currentAudioQuality by viewModel.currentAudioQuality.collectAsStateWithLifecycle()
+                val positionState = viewModel.currentPosition.collectAsStateWithLifecycle()
                 NowPlayingScreen(
                     canDownload = canDownload,
                     isDownloaded = isDownloaded,
@@ -156,6 +164,12 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } }
+                )
+            }
+            composable(Screen.DualBud.route) {
+                com.example.myplayer.dualbud.ui.DualBudScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

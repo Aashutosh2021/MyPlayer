@@ -204,22 +204,23 @@ class LyricsRepository @Inject constructor(
                 .get()
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: return null
-                val json = JSONObject(body)
-                val plain = json.optString("plainLyrics", "").takeIf { it.isNotBlank() }
-                val synced = json.optString("syncedLyrics", "").takeIf { it.isNotBlank() }
-                if (plain != null || synced != null) {
-                    val respTrack = json.optString("trackName", trackName)
-                    val respArtist = json.optString("artistName", artistName)
-                    Log.d(TAG, "LRCLIB /get matched: '$respTrack' by '$respArtist' (synced=${synced != null})")
-                    return LyricsResult(
-                        plainLyrics = plain,
-                        syncedLyrics = synced,
-                        trackName = respTrack,
-                        artistName = respArtist
-                    )
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: return null
+                    val json = JSONObject(body)
+                    val plain = json.optString("plainLyrics", "").takeIf { it.isNotBlank() }
+                    val synced = json.optString("syncedLyrics", "").takeIf { it.isNotBlank() }
+                    if (plain != null || synced != null) {
+                        val respTrack = json.optString("trackName", trackName)
+                        val respArtist = json.optString("artistName", artistName)
+                        Log.d(TAG, "LRCLIB /get matched: '$respTrack' by '$respArtist' (synced=${synced != null})")
+                        return LyricsResult(
+                            plainLyrics = plain,
+                            syncedLyrics = synced,
+                            trackName = respTrack,
+                            artistName = respArtist
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -244,10 +245,11 @@ class LyricsRepository @Inject constructor(
                 .get()
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: return null
-                return pickBestCandidate(JSONArray(body), trackName, artistName, targetDurationSec)
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: return null
+                    return pickBestCandidate(JSONArray(body), trackName, artistName, targetDurationSec)
+                }
             }
         } catch (e: Exception) {
             Log.d(TAG, "LRCLIB /search (params) failed: ${e.message}")
@@ -272,10 +274,11 @@ class LyricsRepository @Inject constructor(
                 .get()
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: return null
-                return pickBestCandidate(JSONArray(body), targetTrack, targetArtist, targetDurationSec)
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: return null
+                    return pickBestCandidate(JSONArray(body), targetTrack, targetArtist, targetDurationSec)
+                }
             }
         } catch (e: Exception) {
             Log.d(TAG, "LRCLIB /search?q failed: ${e.message}")
