@@ -38,7 +38,8 @@
 
 <div align="center">
   <h3>✨ Design Overview & Hero Radial Controller</h3>
-  <img width="85%" alt="Home Screen" src="https://github.com/user-attachments/assets/d496d16d-b6a1-44d8-b49c-9c182e518a78" />
+   <b>Home Screen</b><br/>
+  <img height ="260" width="600" alt="Home Screen" src="https://github.com/user-attachments/assets/d496d16d-b6a1-44d8-b49c-9c182e518a78" />
 </div>
 
 <br/>
