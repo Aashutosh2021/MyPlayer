@@ -275,7 +275,7 @@ fun SettingsScreen(
             SettingsInfoRow(
                 icon = Icons.Filled.Info,
                 title = "Version",
-                subtitle = "3.1"
+                subtitle = com.example.myplayer.BuildConfig.VERSION_NAME
             )
         }
 
