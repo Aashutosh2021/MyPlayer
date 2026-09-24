@@ -283,15 +283,43 @@ fun SettingsScreen(
                 }
             )
         }
+        is ManualUpdateState.NoInternet -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                containerColor = SurfaceLight,
+                titleContentColor = OnSurface,
+                textContentColor = OnSurfaceVariant,
+                icon = {
+                    Icon(
+                        Icons.Filled.CloudOff,
+                        contentDescription = null,
+                        tint = ClayPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = { Text("No Internet Connection") },
+                text = {
+                    Text(state.message)
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    ) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
         is ManualUpdateState.Error -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
                 containerColor = SurfaceLight,
                 titleContentColor = OnSurface,
                 textContentColor = OnSurfaceVariant,
-                title = { Text("Check Failed") },
+                title = { Text("Update Check") },
                 text = {
-                    Text("Could not check for updates: ${state.message}")
+                    Text(state.message)
                 },
                 confirmButton = {
                     TextButton(
