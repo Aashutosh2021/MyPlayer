@@ -7,7 +7,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-FF6F00?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-3.1-D2F83A?style=for-the-badge&logoColor=black)
+![Version](https://img.shields.io/badge/Version-3.2-D2F83A?style=for-the-badge&logoColor=black)
 
 <p align="center">
   <b>A modern, high-performance Android music player combining local library playback, seamless online streaming, intelligent recommendations, real-time synchronized lyrics, innovative dual-earbud playback, and an ultra-modern Dark Olive & Electric Neon Lime design system.</b>
@@ -19,7 +19,7 @@
 
 ## 🌟 Highlights & Key Features
 
-- **🎨 Modern Dark Olive & Electric Neon Lime Aesthetic (v3.1)**: An immersive dark theme featuring deep olive-charcoal backgrounds (`#12160E`), sleek surfaces (`#1A2216`), and vibrant electric neon lime accents (`#D2F83A`).
+- **🎨 Modern Dark Olive & Electric Neon Lime Aesthetic (v3.2)**: An immersive dark theme featuring deep olive-charcoal backgrounds (`#12160E`), sleek surfaces (`#1A2216`), and vibrant electric neon lime accents (`#D2F83A`).
 - **🌀 Signature Radial Audio Controller**: Interactive 270° circular seek arc supporting smooth touch and drag scrubbing, surrounded by concentric glowing aura sound rings and an apex favorite heart button.
 - **👤 Personalized User Profile & Display Name**: Set and personalize your display name right from the Home Screen or via the dedicated Profile section in Settings, persistently backed by Jetpack DataStore.
 - **🏷️ Interactive Category & Mood Filter Pills**: Instant genre and mood filter pills ("All", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop") for quick library exploration.
@@ -45,7 +45,7 @@
 <br/>
 
 <div align="center">
-  <h3>📱 App Screens (v3.1)</h3>
+  <h3>📱 App Screens (v3.2)</h3>
   <table align="center">
     <tr>
       <td align="center" width="20%">
@@ -74,7 +74,7 @@
 
 ---
 
-## 🆕 What's New in Version 3.1
+## 🆕 What's New in Version 3.2
 
 1. **Brand-New Stitch UI**:
    - Complete redesign inspired by the Stitch design specification (`ui.webp`).
