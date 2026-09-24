@@ -38,13 +38,12 @@
 
 <div align="center">
   <h3>✨ Design Overview & Hero Radial Controller</h3>
-  <img width="85%" alt="Now Playing & Home Design Overview" src="docs/screenshots/ui_design_overview.webp" />
 </div>
 
 <br/>
 
 <div align="center">
-  <h3>📱 App Screenshots (v3.2)</h3>
+  <h3>📱 App Screens (v3.1)</h3>
   <table align="center">
     <tr>
       <td align="center" width="20%">
