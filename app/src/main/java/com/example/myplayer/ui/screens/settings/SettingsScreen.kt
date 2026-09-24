@@ -37,6 +37,8 @@ fun SettingsScreen(
 
     val backupState by viewModel.backupState.collectAsStateWithLifecycle()
     val restoreState by viewModel.restoreState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var showDialogText by remember { mutableStateOf<String?>(null) }
     var isLoadingDialog by remember { mutableStateOf(false) }
@@ -187,6 +189,122 @@ fun SettingsScreen(
         )
     }
 
+    when (val state = updateState) {
+        ManualUpdateState.Idle -> {}
+        ManualUpdateState.Checking -> {
+            AlertDialog(
+                onDismissRequest = {},
+                containerColor = SurfaceLight,
+                titleContentColor = OnSurface,
+                textContentColor = OnSurfaceVariant,
+                title = { Text("Checking for Updates") },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = ClayPrimary)
+                        Spacer(Modifier.width(16.dp))
+                        Text("Connecting to GitHub...")
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        is ManualUpdateState.Available -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                containerColor = SurfaceLight,
+                titleContentColor = OnSurface,
+                textContentColor = OnSurfaceVariant,
+                title = { Text("Update Available") },
+                text = {
+                    Column {
+                        Text(
+                            "A newer version (${state.updateInfo.versionName}) is available!",
+                            fontWeight = FontWeight.Bold,
+                            color = OnSurface
+                        )
+                        if (state.updateInfo.releaseNotes.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                state.updateInfo.releaseNotes.take(300),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.resetUpdateState()
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                Uri.parse(state.updateInfo.releaseUrl)
+                            ).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonLimePrimary,
+                            contentColor = OnNeonLime
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Update Now", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    ) {
+                        Text("Later")
+                    }
+                }
+            )
+        }
+        ManualUpdateState.UpToDate -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                containerColor = SurfaceLight,
+                titleContentColor = OnSurface,
+                textContentColor = OnSurfaceVariant,
+                title = { Text("Up to Date") },
+                text = {
+                    Text("You're using the latest version of MyPlayer (v${com.example.myplayer.BuildConfig.VERSION_NAME}).")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    ) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        is ManualUpdateState.Error -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                containerColor = SurfaceLight,
+                titleContentColor = OnSurface,
+                textContentColor = OnSurfaceVariant,
+                title = { Text("Check Failed") },
+                text = {
+                    Text("Could not check for updates: ${state.message}")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.resetUpdateState() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    ) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -270,6 +388,15 @@ fun SettingsScreen(
 
         // Section: About
         item { SettingsSectionHeader(title = "About") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.SystemUpdate,
+                title = "Check for Updates",
+                subtitle = "Check GitHub for the latest MyPlayer release",
+                onClick = { viewModel.checkForUpdates() }
+            )
+        }
 
         item {
             SettingsInfoRow(

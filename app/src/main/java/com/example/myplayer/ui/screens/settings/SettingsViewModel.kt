@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.myplayer.data.backup.BackupRestoreManager
 import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.local.prefs.PreferencesManager
+import com.example.myplayer.data.update.UpdateChecker
+import com.example.myplayer.data.update.UpdateInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +26,21 @@ sealed interface BackupRestoreState {
     data class Error(val error: String) : BackupRestoreState
 }
 
+sealed interface ManualUpdateState {
+    object Idle : ManualUpdateState
+    object Checking : ManualUpdateState
+    data class Available(val updateInfo: UpdateInfo) : ManualUpdateState
+    object UpToDate : ManualUpdateState
+    data class Error(val message: String) : ManualUpdateState
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val preferencesManager: PreferencesManager,
-    private val backupRestoreManager: BackupRestoreManager
+    private val backupRestoreManager: BackupRestoreManager,
+    private val updateChecker: UpdateChecker
 ) : ViewModel() {
 
     private val _backupState = MutableStateFlow<BackupRestoreState>(BackupRestoreState.Idle)
@@ -37,6 +48,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _restoreState = MutableStateFlow<BackupRestoreState>(BackupRestoreState.Idle)
     val restoreState = _restoreState.asStateFlow()
+
+    private val _updateState = MutableStateFlow<ManualUpdateState>(ManualUpdateState.Idle)
+    val updateState = _updateState.asStateFlow()
 
     val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -68,6 +82,26 @@ class SettingsViewModel @Inject constructor(
     fun resetStates() {
         _backupState.value = BackupRestoreState.Idle
         _restoreState.value = BackupRestoreState.Idle
+    }
+
+    fun checkForUpdates() {
+        _updateState.value = ManualUpdateState.Checking
+        viewModelScope.launch {
+            try {
+                val update = updateChecker.checkForUpdate()
+                if (update != null) {
+                    _updateState.value = ManualUpdateState.Available(update)
+                } else {
+                    _updateState.value = ManualUpdateState.UpToDate
+                }
+            } catch (e: Exception) {
+                _updateState.value = ManualUpdateState.Error(e.message ?: "Failed to check for updates")
+            }
+        }
+    }
+
+    fun resetUpdateState() {
+        _updateState.value = ManualUpdateState.Idle
     }
 
     fun exportBackup(uri: Uri) {
