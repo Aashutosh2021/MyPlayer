@@ -1,10 +1,8 @@
 package com.example.myplayer.ui.components
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -32,91 +31,129 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myplayer.ui.theme.*
 import kotlin.math.*
 
 /**
- * Signature Radial / Circular Audio Controller from Stitch UI Redesign.
- * Features:
- * - Circular arc seekbar (135° to 405°, 270° sweep) with drag & tap scrub support.
- * - Glowing green favorite heart icon at top crest (270°).
- * - Central Neon Lime Play/Pause button with concentric pulsating sound wave rings.
- * - Current position & total duration timestamps at bottom-left and bottom-right.
+ * Signature Radial / Circular Audio Controller inspired by Stitch UI redesign.
+ * Features concentric glowing aura waves, a central electric neon lime Play/Pause button,
+ * an interactive 270-degree radial seek arc, apex favorite heart, and elapsed / duration time indicators.
  */
 @Composable
 fun RadialAudioController(
     positionMs: Long,
     durationMs: Long,
     isPlaying: Boolean,
-    onSeek: (Long) -> Unit,
-    onPlayPauseClick: () -> Unit,
     isFavorite: Boolean,
+    onPlayPauseClick: () -> Unit,
+    onSeek: (Long) -> Unit,
     onToggleFavorite: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dialSize: Dp = 250.dp
 ) {
     val duration = durationMs.coerceAtLeast(1L)
-    val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val density = LocalDensity.current
 
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
-    val displayedProgress = if (isDragging) dragProgress else actualProgress
 
-    val density = LocalDensity.current
-    val strokeWidthPx = with(density) { 6.dp.toPx() }
-    val thumbRadiusPx = with(density) { 7.dp.toPx() }
+    val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val currentProgress = if (isDragging) dragProgress else actualProgress
 
-    // Pulsing aura animation for sound waves
+    // Concentric pulsing aura animation when playing
     val infiniteTransition = rememberInfiniteTransition(label = "radialAura")
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.94f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulseScale"
     )
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
 
-    // Helper to calculate progress from touch coordinates
-    fun calculateProgressFromOffset(offset: Offset, sizePx: Float): Float {
-        val centerX = sizePx / 2f
-        val centerY = sizePx / 2f
-        val dx = offset.x - centerX
-        val dy = offset.y - centerY
-        var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-        if (angle < 0) angle += 360f
-
-        // Arc runs from 135° clockwise to 405° (45°), sweep = 270°
-        // Bottom gap is from 45° to 135° (90°)
-        if (angle in 45f..135f) {
-            return if (angle < 90f) 1f else 0f
-        }
-        val adjustedAngle = if (angle < 135f) angle + 360f else angle
-        return ((adjustedAngle - 135f) / 270f).coerceIn(0f, 1f)
-    }
+    // Favorite heart bounce
+    val heartScale by animateFloatAsState(
+        targetValue = if (isFavorite) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "heartScale"
+    )
 
     Box(
         modifier = modifier
-            .size(270.dp),
+            .size(dialSize)
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // ── 1. Arc Canvas (Seekbar & Concentric Rings) ────────────────────────
+        val strokeWidthPx = with(density) { 5.dp.toPx() }
+        val thumbRadiusPx = with(density) { 7.dp.toPx() }
+
+        // ── Canvas: Concentric Aura Waves & Radial Seek Arc ───────────────────
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(duration) {
-                    detectTapGestures { offset ->
-                        val p = calculateProgressFromOffset(offset, size.width.toFloat())
-                        onSeek((p * duration).toLong())
+                    fun updateFromOffset(offset: Offset) {
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val dx = offset.x - centerX
+                        val dy = offset.y - centerY
+                        var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                        if (angleDeg < 0) angleDeg += 360f
+
+                        // Arc runs from 135° to 405° (sweep 270°)
+                        val relativeAngle = if (angleDeg >= 135f) {
+                            angleDeg - 135f
+                        } else {
+                            (angleDeg + 360f) - 135f
+                        }
+
+                        val progress = if (relativeAngle <= 270f) {
+                            (relativeAngle / 270f).coerceIn(0f, 1f)
+                        } else {
+                            // Gap between 45° and 135° (90° bottom zone)
+                            if (relativeAngle < 315f) 1f else 0f
+                        }
+
+                        dragProgress = progress
+                        onSeek((progress * duration).toLong())
                     }
+
+                    detectTapGestures(
+                        onPress = { offset ->
+                            isDragging = true
+                            updateFromOffset(offset)
+                            tryAwaitRelease()
+                            isDragging = false
+                        }
+                    )
                 }
                 .pointerInput(duration) {
                     detectDragGestures(
                         onDragStart = { offset ->
                             isDragging = true
-                            dragProgress = calculateProgressFromOffset(offset, size.width.toFloat())
+                            val centerX = size.width / 2f
+                            val centerY = size.height / 2f
+                            val dx = offset.x - centerX
+                            val dy = offset.y - centerY
+                            var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                            if (angleDeg < 0) angleDeg += 360f
+                            val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
+                            val progress = if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
+                            else if (relativeAngle < 315f) 1f else 0f
+                            dragProgress = progress
                         },
                         onDragEnd = {
                             isDragging = false
@@ -126,123 +163,142 @@ fun RadialAudioController(
                             isDragging = false
                         },
                         onDrag = { change, _ ->
-                            change.consume()
-                            dragProgress = calculateProgressFromOffset(change.position, size.width.toFloat())
+                            val centerX = size.width / 2f
+                            val centerY = size.height / 2f
+                            val dx = change.position.x - centerX
+                            val dy = change.position.y - centerY
+                            var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                            if (angleDeg < 0) angleDeg += 360f
+                            val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
+                            val progress = if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
+                            else if (relativeAngle < 315f) 1f else 0f
+                            dragProgress = progress
+                            onSeek((progress * duration).toLong())
                         }
                     )
                 }
         ) {
-            val width = size.width
-            val height = size.height
-            val centerX = width / 2f
-            val centerY = height / 2f
-            val arcRadius = (min(width, height) / 2f) - strokeWidthPx - 14.dp.toPx()
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val arcRadius = (min(size.width, size.height) / 2f) - thumbRadiusPx - 4.dp.toPx()
 
-            // Concentric sound wave rings behind central play button
+            // 1. Concentric Sound Rings (behind center button)
+            val baseRadius = 38.dp.toPx()
             if (isPlaying) {
-                val basePulse = if (isPlaying) pulseScale else 1f
+                // Ring 1
                 drawCircle(
-                    color = NeonLimePrimary.copy(alpha = 0.05f),
-                    radius = 82.dp.toPx() * basePulse,
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.9f),
+                    radius = (baseRadius + 14.dp.toPx()) * pulseScale,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+                // Ring 2
+                drawCircle(
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.5f),
+                    radius = (baseRadius + 28.dp.toPx()) * pulseScale,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
+                // Ring 3
+                drawCircle(
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.25f),
+                    radius = (baseRadius + 42.dp.toPx()) * pulseScale,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1.dp.toPx())
                 )
+            } else {
+                // Subtle static rings when paused
                 drawCircle(
-                    color = NeonLimePrimary.copy(alpha = 0.12f),
-                    radius = 66.dp.toPx() * basePulse,
+                    color = CardBorderOlive.copy(alpha = 0.5f),
+                    radius = baseRadius + 14.dp.toPx(),
                     center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.5.dp.toPx())
-                )
-                drawCircle(
-                    color = NeonLimePrimary.copy(alpha = 0.22f),
-                    radius = 52.dp.toPx() * basePulse,
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.5.dp.toPx())
+                    style = Stroke(width = 1.dp.toPx())
                 )
             }
 
-            val arcTopLeft = Offset(centerX - arcRadius, centerY - arcRadius)
-            val arcSize = Size(arcRadius * 2, arcRadius * 2)
+            // 2. Background Inactive Arc (135° to 405°, sweep 270°)
+            val arcRectTopLeft = Offset(centerX - arcRadius, centerY - arcRadius)
+            val arcRectSize = Size(arcRadius * 2, arcRadius * 2)
 
-            // 1. Inactive Track (Dark olive track)
             drawArc(
-                color = Color(0xFF24301B),
+                color = Color(0xFF222C1A),
                 startAngle = 135f,
                 sweepAngle = 270f,
                 useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
+                topLeft = arcRectTopLeft,
+                size = arcRectSize,
                 style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
             )
 
-            // 2. Active Track (Neon lime)
-            val activeSweep = 270f * displayedProgress
-            if (activeSweep > 0.5f) {
-                drawArc(
-                    color = NeonLimePrimary,
-                    startAngle = 135f,
-                    sweepAngle = activeSweep,
-                    useCenter = false,
-                    topLeft = arcTopLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
-                )
+            // 3. Active Progress Arc
+            val activeSweep = (currentProgress * 270f).coerceIn(0.1f, 270f)
+            drawArc(
+                color = NeonLimePrimary,
+                startAngle = 135f,
+                sweepAngle = activeSweep,
+                useCenter = false,
+                topLeft = arcRectTopLeft,
+                size = arcRectSize,
+                style = Stroke(width = strokeWidthPx + 1.dp.toPx(), cap = StrokeCap.Round)
+            )
 
-                // 3. Thumb Bead at the end of active track
-                val currentAngleRad = Math.toRadians((135f + activeSweep).toDouble())
-                val thumbX = (centerX + arcRadius * cos(currentAngleRad)).toFloat()
-                val thumbY = (centerY + arcRadius * sin(currentAngleRad)).toFloat()
+            // 4. Glowing Thumb Bead
+            val currentAngleRad = Math.toRadians((135f + activeSweep).toDouble())
+            val thumbX = (centerX + arcRadius * cos(currentAngleRad)).toFloat()
+            val thumbY = (centerY + arcRadius * sin(currentAngleRad)).toFloat()
 
-                // Glow halo
-                drawCircle(
-                    color = NeonLimePrimary.copy(alpha = 0.35f),
-                    radius = thumbRadiusPx + 4f,
-                    center = Offset(thumbX, thumbY)
-                )
-                // Solid thumb
-                drawCircle(
-                    color = NeonLimePrimary,
-                    radius = thumbRadiusPx,
-                    center = Offset(thumbX, thumbY)
-                )
-                // Center white reflection dot
-                drawCircle(
-                    color = Color.White,
-                    radius = thumbRadiusPx * 0.45f,
-                    center = Offset(thumbX, thumbY)
-                )
-            }
+            // Outer glow
+            drawCircle(
+                color = NeonLimePrimary.copy(alpha = 0.35f),
+                radius = thumbRadiusPx * 1.6f,
+                center = Offset(thumbX, thumbY)
+            )
+            // Solid thumb
+            drawCircle(
+                color = NeonLimePrimary,
+                radius = thumbRadiusPx,
+                center = Offset(thumbX, thumbY)
+            )
+            // Center highlight
+            drawCircle(
+                color = Color.White,
+                radius = thumbRadiusPx * 0.45f,
+                center = Offset(thumbX, thumbY)
+            )
         }
 
-        // ── 2. Top Crest Favorite Heart Button ────────────────────────────────
+        // ── Apex Favorite Heart (Top center of the circular dial) ─────────────
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = 2.dp)
+                .offset(y = (-4).dp)
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(SurfaceLight)
-                .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onToggleFavorite
-                ),
+                )
+                .scale(heartScale),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = "Favorite",
                 tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
-        // ── 3. Central Play/Pause Action Button ───────────────────────────────
+        // ── Central Play/Pause Button (Hero neon lime circle) ─────────────────
         Box(
             modifier = Modifier
-                .size(76.dp)
-                .shadow(elevation = 16.dp, shape = CircleShape, spotColor = NeonLimePrimary)
+                .size(74.dp)
+                .shadow(
+                    elevation = if (isPlaying) 16.dp else 8.dp,
+                    shape = CircleShape,
+                    spotColor = NeonLimePrimary
+                )
                 .clip(CircleShape)
                 .background(NeonLimePrimary)
                 .clickable(
@@ -260,37 +316,33 @@ fun RadialAudioController(
             )
         }
 
-        // ── 4. Current Time (Bottom Left of Dial) ─────────────────────────────
-        Text(
-            text = formatRadialDuration(if (isDragging) (dragProgress * duration).toLong() else positionMs),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
-            ),
-            color = OnSurface,
+        // ── Time Labels: Elapsed (Left) & Total Duration (Right) ───────────────
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 28.dp, bottom = 10.dp)
-        )
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 24.dp, vertical = 2.dp)
+        ) {
+            val displayedPositionMs = if (isDragging) (dragProgress * duration).toLong() else positionMs
+            Text(
+                text = formatDuration(displayedPositionMs),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurfaceVariant,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
 
-        // ── 5. Total Duration (Bottom Right of Dial) ──────────────────────────
-        Text(
-            text = formatRadialDuration(duration),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
-            ),
-            color = OnSurfaceVariant,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 28.dp, bottom = 10.dp)
-        )
+            Text(
+                text = formatDuration(duration),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurfaceVariant,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
+        }
     }
 }
 
-private fun formatRadialDuration(ms: Long): String {
-    val totalSeconds = (ms / 1000).coerceAtLeast(0L)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
+private fun formatDuration(durationMs: Long): String {
+    val s = durationMs / 1000
+    return "%d:%02d".format(s / 60, s % 60)
 }
+
