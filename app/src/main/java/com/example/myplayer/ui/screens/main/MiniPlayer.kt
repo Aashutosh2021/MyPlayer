@@ -1,6 +1,8 @@
 package com.example.myplayer.ui.screens.main
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -16,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,13 +44,10 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .claySurface(
-                    borderRadius = 20.dp,
-                    backgroundColor = ClayPrimary,
-                    innerLightColor = Color.White.copy(alpha = 0.3f),
-                    innerDarkColor = Color.Black.copy(alpha = 0.2f),
-                    outerShadowColor = ClayShadowOuter
-                )
+                .shadow(elevation = 12.dp, shape = RoundedCornerShape(22.dp), spotColor = Color.Black)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceLight)
+                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(22.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -56,19 +56,20 @@ fun MiniPlayer(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Album art (sunken well)
+            // Album art with rounded corner
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clayConcave(borderRadius = 12.dp, backgroundColor = SurfaceLight)
-                    .padding(2.dp)
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceContainerLow),
+                contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
                     uri = song.albumArt,
                     title = song.title,
                     artist = song.artist,
-                    size = 44.dp,
-                    shape = RoundedCornerShape(10.dp),
+                    size = 46.dp,
+                    shape = RoundedCornerShape(12.dp),
                     iconSize = 20.dp
                 )
             }
@@ -79,34 +80,28 @@ fun MiniPlayer(
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = OnPrimary,
+                    color = OnSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = OnSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
-            // Play/Pause button (raised lozenge inside primary container)
-            val playPauseInteraction = remember { MutableInteractionSource() }
+            // Play/Pause button (Neon Lime circle with dark black icon)
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .claySurface(
-                        borderRadius = 20.dp,
-                        backgroundColor = PrimaryContainer,
-                        innerLightColor = Color.White.copy(alpha = 0.4f),
-                        innerDarkColor = Color.Black.copy(alpha = 0.2f),
-                        outerShadowColor = Color.Transparent,
-                        interactionSource = playPauseInteraction
-                    )
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(NeonLimePrimary)
                     .clickable(
-                        interactionSource = playPauseInteraction,
+                        interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onPlayPauseClick
                     ),
@@ -115,28 +110,22 @@ fun MiniPlayer(
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = OnPrimaryContainer,
+                    tint = OnNeonLime,
                     modifier = Modifier.size(22.dp)
                 )
             }
 
             Spacer(Modifier.width(8.dp))
 
-            // Next button (raised secondary button)
-            val nextInteraction = remember { MutableInteractionSource() }
+            // Next button (dark circular button)
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .claySurface(
-                        borderRadius = 18.dp,
-                        backgroundColor = ClayPrimary,
-                        innerLightColor = Color.White.copy(alpha = 0.2f),
-                        innerDarkColor = Color.Black.copy(alpha = 0.2f),
-                        outerShadowColor = Color.Transparent,
-                        interactionSource = nextInteraction
-                    )
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(SurfaceContainerHigh)
+                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
                     .clickable(
-                        interactionSource = nextInteraction,
+                        interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onNextClick
                     ),
@@ -145,10 +134,11 @@ fun MiniPlayer(
                 Icon(
                     Icons.Filled.SkipNext,
                     contentDescription = "Next",
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(22.dp)
+                    tint = OnSurface,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
+
