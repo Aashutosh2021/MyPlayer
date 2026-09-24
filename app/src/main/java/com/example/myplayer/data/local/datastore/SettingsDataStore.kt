@@ -20,6 +20,7 @@ class SettingsDataStore @Inject constructor(
 
     companion object {
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
+        val USER_NAME = stringPreferencesKey("user_display_name")
     }
 
     val isAutoplayEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -31,4 +32,15 @@ class SettingsDataStore @Inject constructor(
             preferences[AUTOPLAY_ENABLED] = enabled
         }
     }
+
+    val userName: Flow<String> = dataStore.data.map { preferences ->
+        preferences[USER_NAME] ?: "Alex Rivera"
+    }
+
+    suspend fun setUserName(name: String) {
+        dataStore.edit { preferences ->
+            preferences[USER_NAME] = name.trim().ifBlank { "User" }
+        }
+    }
 }
+

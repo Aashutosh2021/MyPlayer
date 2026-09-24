@@ -41,6 +41,10 @@ fun HomeScreen(
     val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
     val allSongs    by viewModel.allSongs.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val userName    by viewModel.userName.collectAsStateWithLifecycle()
+
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var nameInput by remember { mutableStateOf("") }
 
     var selectedCategory by remember { mutableStateOf("All") }
     val categories = remember {
@@ -54,6 +58,62 @@ fun HomeScreen(
             in 17..20 -> "Good Evening!"
             else      -> "Good Night!"
         }
+    }
+
+    if (showEditNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            icon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = NeonLimePrimary) },
+            title = { Text("Set Display Name", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Enter your name to personalize your player experience:")
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonLimePrimary,
+                            unfocusedBorderColor = CardBorderOlive,
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface,
+                            cursorColor = NeonLimePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Your Name", color = TextMuted) }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nameInput.isNotBlank()) {
+                            viewModel.setUserName(nameInput.trim())
+                        }
+                        showEditNameDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonLimePrimary,
+                        contentColor = OnNeonLime
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showEditNameDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     // Filter songs if a specific mood/category is tapped
@@ -88,7 +148,14 @@ fun HomeScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            nameInput = userName
+                            showEditNameDialog = true
+                        }
+                        .padding(4.dp)
                 ) {
                     // Avatar with subtle neon lime accent
                     Box(
@@ -113,15 +180,25 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = OnSurfaceVariant
                         )
-                        Text(
-                            text = "Alex Rivera",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = OnSurface
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = userName,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnSurface
+                                )
                             )
-                        )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = "Edit name",
+                                tint = OnSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
                 }
+
 
                 // Notification Bell with Neon Dot
                 Box(

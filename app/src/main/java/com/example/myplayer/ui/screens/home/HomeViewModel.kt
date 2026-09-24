@@ -2,6 +2,7 @@ package com.example.myplayer.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.playback.MusicController
@@ -15,8 +16,12 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: MusicRepository,
-    val musicController: MusicController
+    val musicController: MusicController,
+    private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
+
+    val userName: StateFlow<String> = settingsDataStore.userName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
 
     val recentSongs: StateFlow<List<SongEntity>> = repository.getRecentlyAddedSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -32,6 +37,12 @@ class HomeViewModel @Inject constructor(
 
     val currentSong = musicController.currentSong
     val isPlaying = musicController.isPlaying
+
+    fun setUserName(name: String) {
+        viewModelScope.launch {
+            settingsDataStore.setUserName(name)
+        }
+    }
 
     fun playSong(songs: List<SongEntity>, startIndex: Int) {
         musicController.playSongs(songs, startIndex)

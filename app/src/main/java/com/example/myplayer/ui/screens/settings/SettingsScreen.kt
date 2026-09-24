@@ -33,12 +33,16 @@ fun SettingsScreen(
 ) {
     val isAutoplayEnabled by viewModel.isAutoplayEnabled.collectAsStateWithLifecycle()
     val downloadFolderUri by viewModel.downloadFolderUri.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
 
     val backupState by viewModel.backupState.collectAsStateWithLifecycle()
     val restoreState by viewModel.restoreState.collectAsStateWithLifecycle()
 
     var showDialogText by remember { mutableStateOf<String?>(null) }
     var isLoadingDialog by remember { mutableStateOf(false) }
+
+    var showNameDialog by remember { mutableStateOf(false) }
+    var editNameInput by remember { mutableStateOf("") }
 
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -86,6 +90,62 @@ fun SettingsScreen(
             }
             BackupRestoreState.Idle -> {}
         }
+    }
+
+    if (showNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showNameDialog = false },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = NeonLimePrimary) },
+            title = { Text("Set Display Name", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Enter your name to show on the Home Screen:")
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = editNameInput,
+                        onValueChange = { editNameInput = it },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonLimePrimary,
+                            unfocusedBorderColor = CardBorderOlive,
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface,
+                            cursorColor = NeonLimePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Your Name", color = TextMuted) }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editNameInput.isNotBlank()) {
+                            viewModel.setUserName(editNameInput.trim())
+                        }
+                        showNameDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonLimePrimary,
+                        contentColor = OnNeonLime
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showNameDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showDialogText != null) {
@@ -159,9 +219,24 @@ fun SettingsScreen(
             }
         }
 
+        // Section: User Profile
+        item { SettingsSectionHeader(title = "Profile") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Person,
+                title = "Display Name",
+                subtitle = userName,
+                onClick = {
+                    editNameInput = userName
+                    showNameDialog = true
+                }
+            )
+        }
 
         // Section: Backup & Restore
         item { SettingsSectionHeader(title = "Backup & Restore") }
+
 
         item {
             SettingsNavigationRow(
