@@ -7,10 +7,10 @@
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-FF6F00?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-3.1-00C853?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.2-D2F83A?style=for-the-badge&logoColor=black)
 
 <p align="center">
-  <b>A modern, high-performance Android music player combining local library playback, seamless online streaming, intelligent recommendations, real-time synchronized lyrics, and innovative dual-earbud playback.</b>
+  <b>A modern, high-performance Android music player combining local library playback, seamless online streaming, intelligent recommendations, real-time synchronized lyrics, innovative dual-earbud playback, and an ultra-modern Dark Olive & Electric Neon Lime design system.</b>
 </p>
 
 </div>
@@ -19,32 +19,78 @@
 
 ## 🌟 Highlights & Key Features
 
+- **🎨 Modern Dark Olive & Electric Neon Lime Aesthetic (v3.2)**: An immersive dark theme featuring deep olive-charcoal backgrounds (`#12160E`), sleek surfaces (`#1A2216`), and vibrant electric neon lime accents (`#D2F83A`).
+- **🌀 Signature Radial Audio Controller**: Interactive 270° circular seek arc supporting smooth touch and drag scrubbing, surrounded by concentric glowing aura sound rings and an apex favorite heart button.
+- **👤 Personalized User Profile & Display Name**: Set and personalize your display name right from the Home Screen or via the dedicated Profile section in Settings, persistently backed by Jetpack DataStore.
+- **🏷️ Interactive Category & Mood Filter Pills**: Instant genre and mood filter pills ("All", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop") for quick library exploration.
+- **🔥 Popular Songs Carousel & Featured Collection Banners**: Dynamic horizontal song carousels with studio artwork, playing equalizer badges, and featured gradient banners.
 - **🎧 Dual Bud Mode**: Play two separate, independent audio streams simultaneously—one in your left earbud and another in your right earbud with individual volume controls!
 - **🌐 Hybrid Playback Engine**: Seamlessly switch between local device storage and online YouTube Music streaming through a unified Media3 / ExoPlayer pipeline.
 - **🖼️ 1000×1000 HD Artwork Engine**: Multi-tier artwork resolution integrating iTunes Search API, Deezer API, and YouTube Music to automatically fetch studio-grade HD album covers.
 - **📜 Synced Lyrics**: Real-time synchronized lyrics powered by LRCLIB with silky smooth auto-scrolling and manual line scrubbing.
 - **🧠 Smart Recommendations & Autoplay**: Dynamic next-song recommendation engine that surfaces contextual tracks based on current playback genres and artists.
 - **💾 Offline Downloads & Backup**: Download online audio directly to local storage for offline playback, and export/import full library and playlist states using JSON backup & restore.
-- **🎨 Tactile Claymorphism UI**: Beautiful, custom neumorphic/claymorphic design system (`claySurface`, `clayConcave`) crafted with Jetpack Compose for 120Hz displays.
-- **🛡️ Secure & Resilient**: Built-in runtime integrity checks, network security configuration, and graceful audio fallback handlers.
+- **🛡️ Clean Navigation Architecture**: Mini player and floating pill navigation bar docked within Scaffold's bottomBar, eliminating z-index overlapping and preventing obscured content.
 
 ---
 
 ## 📸 Screenshots
 
 <div align="center">
-  <img width="23%" alt="Home Screen" src="https://github.com/user-attachments/assets/966f5fd6-a381-4da5-808b-637b045afbf6" />
-  <img width="23%" alt="Search Screen" src="https://github.com/user-attachments/assets/2f28e3ed-e120-4f58-b404-813e1edb0bcc" />
-  <img width="23%" alt="Library Screen" src="https://github.com/user-attachments/assets/1eba9d7b-810e-47b7-aa7d-6872a2f26167" />
-  <img width="23%" alt="Downloads Screen" src="https://github.com/user-attachments/assets/7e14d874-19f5-4de8-85b8-c6820d3b9263" />
+  <h3>✨ Design Overview & Hero Radial Controller</h3>
+  <img width="85%" alt="Now Playing & Home Design Overview" src="docs/screenshots/ui_design_overview.webp" />
 </div>
 
+<br/>
+
 <div align="center">
-  <img width="23%" alt="Now Playing Screen" src="https://github.com/user-attachments/assets/69d3fae6-801b-4a57-b4e3-86d2d01f618a" />
-  <img width="23%" alt="Lyrics Screen" src="https://github.com/user-attachments/assets/e009a6dd-f55a-440e-abe5-fe127ff5efd6" />
-  <img width="23%" alt="Audio Engine" src="https://github.com/user-attachments/assets/e9a0b5da-ca5d-4855-9796-dbca5868e3d3" />
-  <img width="23%" alt="Queue / Settings" src="https://github.com/user-attachments/assets/f183c1ca-572e-4b2f-9e44-552f5777cb87" />
+  <h3>📱 App Screenshots (v3.2)</h3>
+  <table align="center">
+    <tr>
+      <td align="center" width="20%">
+        <b>Settings & Profile</b><br/>
+        <img src="docs/screenshots/settings_screen.jpg" alt="Settings & Profile" width="100%" />
+      </td>
+      <td align="center" width="20%">
+        <b>Downloads Screen</b><br/>
+        <img src="docs/screenshots/downloads_screen.jpg" alt="Downloads Screen" width="100%" />
+      </td>
+      <td align="center" width="20%">
+        <b>Library (All Songs)</b><br/>
+        <img src="docs/screenshots/library_songs_screen.jpg" alt="Library All Songs" width="100%" />
+      </td>
+      <td align="center" width="20%">
+        <b>Library (Playlists)</b><br/>
+        <img src="docs/screenshots/library_playlists_screen.jpg" alt="Library Playlists" width="100%" />
+      </td>
+      <td align="center" width="20%">
+        <b>Online Search</b><br/>
+        <img src="docs/screenshots/search_screen.jpg" alt="Online Search" width="100%" />
+      </td>
+    </tr>
+  </table>
 </div>
+
+---
+
+## 🆕 What's New in Version 3.2
+
+1. **Brand-New Stitch UI**:
+   - Complete redesign inspired by the Stitch design specification (`ui.webp`).
+   - Deep organic olive-black palette with electric neon lime interactive accents.
+2. **Radial Seek & Audio Controller**:
+   - Circular seek arc replacing standard linear seekbars on the Now Playing screen.
+   - Pulsing concentric sound waves responding to active playback.
+3. **Personalized User Profile**:
+   - Display name customization in both Settings and Home Screen.
+   - Persistent preferences storage using AndroidX DataStore.
+4. **Docked Navigation & Floating Pill**:
+   - Fixed navigation bar and mini player z-index positioning inside `Scaffold`'s `bottomBar`.
+   - Floating pill navigation bar with active neon lime circle indicator.
+5. **Streamlined Library**:
+   - Removed folder view clutter; consolidated into clean "All Songs" and "Playlists" tabs.
+6. **High-Fidelity Audio Stream Badges**:
+   - Lossless and Hi-Res fidelity pill indicators showing bit depth, sample rate, and codec format.
 
 ---
 
@@ -55,7 +101,7 @@ MyPlayer is engineered following **Clean Architecture** principles and the **MVV
 | Layer | Technologies / Libraries |
 | :--- | :--- |
 | **Language** | [Kotlin](https://kotlinlang.org/) (Coroutines, StateFlow, Flow) |
-| **UI Toolkit** | [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3 & Custom Clay Design System |
+| **UI Toolkit** | [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3 & Custom Design Tokens |
 | **Audio Core** | [AndroidX Media3](https://developer.android.com/guide/topics/media/media3) (`ExoPlayer`, `MediaSession`, `MediaController`) |
 | **Dependency Injection** | [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) / Dagger |
 | **Local Persistence** | [Room Database](https://developer.android.com/training/data-storage/room) & Jetpack DataStore |
@@ -83,7 +129,8 @@ MyPlayer/
 │   │   │   └── res/                 # Vector drawables, mipmaps, XML security configs
 │   │   └── test/                    # Comprehensive unit tests (Artwork, Playback, Queue, etc.)
 │   └── build.gradle.kts
-├── docs/                            # Architectural design documents & feature breakdowns
+├── docs/                            # Architectural design documents & screenshots
+│   └── screenshots/                 # High-resolution screenshots and UI design specs
 ├── gradle/                          # Gradle wrapper and version catalog (libs.versions.toml)
 ├── CONTRIBUTING.md                  # Open source contribution guidelines
 ├── LICENSE                          # MIT Open Source License
@@ -139,3 +186,4 @@ Please review our [Contribution Guide](CONTRIBUTING.md) for details on code styl
 ## 📄 License
 
 This project is open-sourced under the [MIT License](LICENSE).
+
