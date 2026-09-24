@@ -115,6 +115,9 @@ class MainViewModel @Inject constructor(
                 ?: if (downloadedSet.contains(local.id)) {
                     local.id
                 } else null
+                ?: if (local.id.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+                    local.id
+                } else null
 
             if (videoId != null) {
                 val streamUrl = if (local.path.startsWith("http://") || local.path.startsWith("https://")) {

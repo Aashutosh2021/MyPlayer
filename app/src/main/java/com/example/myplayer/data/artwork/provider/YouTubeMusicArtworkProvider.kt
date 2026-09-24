@@ -76,7 +76,7 @@ class YouTubeMusicArtworkProvider @Inject constructor(
             rawUrl.contains("i.ytimg.com") && videoId.isNotBlank() -> {
                 "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
             }
-            else -> rawUrl
+            else -> rawUrl.replace(Regex("""w\d+-h\d+"""), "w800-h800")
         }
     }
 }

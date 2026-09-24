@@ -222,6 +222,7 @@ fun PlaylistDetailScreen(
                         onPlayClick = { onPlaySong(localSongs, index) },
                         onRemove = { viewModel.removeSong(song.id) },
                         onRemoveDownload = { songToRemoveDownload = song },
+                        onDownload = if (song is PlayableSong.Online) { { viewModel.downloadSong(song) } } else null,
                         onDragStart = { draggedSongId = song.id; dragOffsetY = 0f },
                         onDrag = { deltaY ->
                             dragOffsetY += deltaY
@@ -274,6 +275,7 @@ fun PlaylistSongRow(
     onPlayClick: () -> Unit,
     onRemove: () -> Unit,
     onRemoveDownload: (() -> Unit)? = null,
+    onDownload: (() -> Unit)? = null,
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {}
@@ -352,11 +354,19 @@ fun PlaylistSongRow(
                 is PlayableSong.Downloaded -> song.entity.thumbnailUrl
                 is PlayableSong.Online -> song.thumbnailUrl
             }
-            if (!artUri.isNullOrBlank()) {
-                AsyncImage(model = artUri, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-            } else {
-                Icon(Icons.Filled.MusicNote, null, tint = TextMuted)
+            val artworkRequest = remember(song.title, song.artist, artUri) {
+                com.example.myplayer.data.artwork.model.ArtworkModel(
+                    title = song.title,
+                    artist = song.artist,
+                    localUri = artUri
+                )
             }
+            AsyncImage(
+                model = artworkRequest,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop
+            )
         }
 
         Spacer(Modifier.width(12.dp))
@@ -402,6 +412,13 @@ fun PlaylistSongRow(
                         text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
                         leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
                         onClick = { showMenu = false; onRemoveDownload() }
+                    )
+                }
+                if (song is PlayableSong.Online && onDownload != null) {
+                    DropdownMenuItem(
+                        text = { Text("Download", color = ClayPrimary) },
+                        leadingIcon = { Icon(Icons.Filled.Download, null, tint = ClayPrimary) },
+                        onClick = { showMenu = false; onDownload() }
                     )
                 }
             }

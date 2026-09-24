@@ -19,7 +19,7 @@ class AudioAlbumArtFetcher(
         // Try Android 10+ ContentResolver thumbnail API first
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             try {
-                val bitmap = context.contentResolver.loadThumbnail(data, android.util.Size(512, 512), null)
+                val bitmap = context.contentResolver.loadThumbnail(data, android.util.Size(1024, 1024), null)
                 return DrawableResult(
                     drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap),
                     isSampled = false,

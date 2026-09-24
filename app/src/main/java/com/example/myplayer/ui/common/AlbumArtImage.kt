@@ -62,6 +62,7 @@ fun AlbumArtImage(
                 ImageRequest.Builder(context)
                     .data(requestModel)
                     .crossfade(true)
+                    .size(coil.size.Size.ORIGINAL)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .build()

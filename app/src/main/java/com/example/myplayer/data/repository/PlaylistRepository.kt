@@ -42,8 +42,17 @@ class PlaylistRepository @Inject constructor(
                 if (downloaded != null) {
                     PlayableSong.Downloaded(downloaded)
                 } else if (entity.path.startsWith("online://")) {
+                    val vid = entity.videoId?.takeIf { it.isNotBlank() } ?: entity.path.removePrefix("online://")
                     PlayableSong.Online(
-                        id = entity.id,
+                        id = vid,
+                        title = entity.title,
+                        artist = entity.artist,
+                        durationMs = entity.duration,
+                        thumbnailUrl = entity.albumArt
+                    )
+                } else if (!entity.videoId.isNullOrBlank()) {
+                    PlayableSong.Online(
+                        id = entity.videoId,
                         title = entity.title,
                         artist = entity.artist,
                         durationMs = entity.duration,

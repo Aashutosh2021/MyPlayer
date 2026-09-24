@@ -248,15 +248,32 @@ class InnertubeApi @Inject constructor(
                 ?.optJSONObject("thumbnail")
                 ?.optJSONArray("thumbnails")
 
-            val thumbnailUrl = if (thumbnails != null && thumbnails.length() > 0) {
+            val rawThumbnailUrl = if (thumbnails != null && thumbnails.length() > 0) {
                 thumbnails.optJSONObject(thumbnails.length() - 1)?.optString("url") ?: ""
             } else ""
+
+            val highResThumbnailUrl = when {
+                rawThumbnailUrl.contains("googleusercontent.com") -> {
+                    val googleDimRegex = Regex("""=w\d+-h\d+[^=]*$""")
+                    if (googleDimRegex.containsMatchIn(rawThumbnailUrl)) {
+                        rawThumbnailUrl.replace(googleDimRegex, "=w800-h800-l90-rj")
+                    } else if (rawThumbnailUrl.contains("=")) {
+                        rawThumbnailUrl.substringBeforeLast("=") + "=w800-h800-l90-rj"
+                    } else {
+                        "$rawThumbnailUrl=w800-h800-l90-rj"
+                    }
+                }
+                rawThumbnailUrl.isNotBlank() -> {
+                    rawThumbnailUrl.replace(Regex("""w\d+-h\d+"""), "w800-h800")
+                }
+                else -> ""
+            }
 
             OnlineSong(
                 videoId = videoId,
                 title = title,
                 artist = artist,
-                thumbnailUrl = thumbnailUrl.replace("w60-h60", "w226-h226"),
+                thumbnailUrl = highResThumbnailUrl,
                 durationMs = durationMs,
                 durationText = durationText
             )

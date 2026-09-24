@@ -57,7 +57,8 @@ data class BackupSong(
     val path: String,
     val albumArt: String?,
     val dateAdded: Long,
-    val playCount: Int
+    val playCount: Int,
+    val videoId: String? = null
 )
 
 @Serializable
@@ -125,7 +126,7 @@ class BackupRestoreManager @Inject constructor(
         // Songs list (obtained by collecting first element of Flow)
         val songsList = db.songDao().getAllSongs().firstOrNull() ?: emptyList()
         val songs = songsList.map {
-            BackupSong(it.id, it.title, it.artist, it.album, it.duration, it.path, it.albumArt, it.dateAdded, it.playCount)
+            BackupSong(it.id, it.title, it.artist, it.album, it.duration, it.path, it.albumArt, it.dateAdded, it.playCount, it.videoId)
         }
 
         val downloads = db.downloadedSongDao().getAllDownloadsSync().map {
@@ -185,17 +186,44 @@ class BackupRestoreManager @Inject constructor(
             }
 
             // Insert songs (Parent table required by playlists, favorites, and history)
-            val songsToInsert = backupData.songs.map {
+            // For each song, check if local file still exists. If not and the song has a videoId,
+            // rewrite path to online://<videoId> so it can stream on demand without source errors.
+            val songsToInsert = backupData.songs.map { backupSong ->
+                var resolvedPath = backupSong.path
+                val vid = backupSong.videoId?.takeIf { it.isNotBlank() }
+                    ?: if (backupSong.path.startsWith("online://")) backupSong.path.removePrefix("online://").takeIf { it.isNotBlank() } else null
+                    ?: backupData.downloads.firstOrNull { it.id == backupSong.id || (it.title.equals(backupSong.title, ignoreCase = true) && it.artist.equals(backupSong.artist, ignoreCase = true)) }?.id
+                    ?: if (backupSong.id.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) backupSong.id else null
+
+                // Only rewrite if path is NOT already an online:// URI
+                if (!resolvedPath.startsWith("online://") && !resolvedPath.startsWith("http")) {
+                    val fileExists = try {
+                        if (resolvedPath.startsWith("content://")) {
+                            val doc = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, Uri.parse(resolvedPath))
+                            doc?.exists() == true && doc.length() > 0
+                        } else {
+                            val file = File(resolvedPath)
+                            file.exists() && file.length() > 0
+                        }
+                    } catch (e: Exception) { false }
+
+                    if (!fileExists && !vid.isNullOrBlank()) {
+                        Log.i("BackupRestoreManager", "Local file missing for '${backupSong.title}', rewriting path to online://$vid")
+                        resolvedPath = "online://$vid"
+                    }
+                }
+
                 SongEntity(
-                    id = it.id,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    duration = it.duration,
-                    path = it.path,
-                    albumArt = it.albumArt,
-                    dateAdded = it.dateAdded,
-                    playCount = it.playCount
+                    id = backupSong.id,
+                    title = backupSong.title,
+                    artist = backupSong.artist,
+                    album = backupSong.album,
+                    duration = backupSong.duration,
+                    path = resolvedPath,
+                    albumArt = backupSong.albumArt,
+                    dateAdded = backupSong.dateAdded,
+                    playCount = backupSong.playCount,
+                    videoId = vid
                 )
             }
             if (songsToInsert.isNotEmpty()) {
@@ -258,8 +286,20 @@ class BackupRestoreManager @Inject constructor(
                 db.recentSearchDao().insertRecentSearches(searchesToInsert)
             }
 
-            // Insert downloads metadata
-            val downloadsToInsert = backupData.downloads.map {
+            // Insert downloads metadata ONLY for files that actually exist on disk.
+            // If the files are missing, do not insert them into downloaded_songs table
+            // so the user can manually download them from NowPlayingScreen or list screen.
+            val downloadsToInsert = backupData.downloads.filter { download ->
+                try {
+                    if (download.localPath.startsWith("content://") || download.localPath.startsWith("file://")) {
+                        val uri = Uri.parse(download.localPath)
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length > 0 } ?: false
+                    } else {
+                        val file = File(download.localPath)
+                        file.exists() && file.length() > 0
+                    }
+                } catch (e: Exception) { false }
+            }.map {
                 DownloadedSongEntity(
                     id = it.id,
                     title = it.title,
@@ -291,47 +331,9 @@ class BackupRestoreManager @Inject constructor(
             }
         }
 
-        // 3. Auto-restore downloaded files.
-        // For any download whose file doesn't exist on disk (due to uninstall or clean),
-        // fetch stream URL and request an expedited download background task immediately.
-        backupData.downloads.forEach { download ->
-            var fileExists = false
-            try {
-                if (download.localPath.startsWith("content://")) {
-                    // Check custom SAF document exist status
-                    val doc = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, Uri.parse(download.localPath))
-                    fileExists = doc?.exists() == true && doc.length() > 0
-                } else {
-                    val file = File(download.localPath)
-                    fileExists = file.exists() && file.length() > 0
-                }
-            } catch (e: Exception) {
-                Log.e("BackupRestoreManager", "Failed to check file existence for ${download.title}", e)
-            }
-
-            if (!fileExists) {
-                Log.i("BackupRestoreManager", "Auto-restoring download for missing track: ${download.title}")
-                try {
-                    val freshStreamUrl = innertubeApi.getStreamUrl(download.id)
-                    if (!freshStreamUrl.isNullOrBlank()) {
-                        val onlineSong = OnlineSong(
-                            videoId = download.id,
-                            title = download.title,
-                            artist = download.artist,
-                            thumbnailUrl = download.thumbnailUrl,
-                            durationMs = download.durationMs,
-                            durationText = download.durationMs.toString(),
-                            streamUrl = freshStreamUrl
-                        )
-                        // Trigger immediate WorkManager download
-                        downloadRepository.startDownload(onlineSong)
-                    } else {
-                        Log.e("BackupRestoreManager", "Failed to resolve fresh stream URL for: ${download.title}")
-                    }
-                } catch (e: Exception) {
-                    Log.e("BackupRestoreManager", "Error restoring download background task", e)
-                }
-            }
-        }
+        // Downloads metadata is restored above but files are NOT auto-downloaded.
+        // Users can manually download songs from the NowPlaying screen or list screen.
+        Log.i("BackupRestoreManager", "Restore complete. ${backupData.downloads.size} download records restored (files not auto-downloaded).")
+        Log.i("BackupRestoreManager", "${backupData.songs.size} songs, ${backupData.playlists.size} playlists, ${backupData.favorites.size} favorites restored.")
     }
 }

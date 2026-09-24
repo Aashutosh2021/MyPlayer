@@ -31,7 +31,7 @@ class ArtworkCache @Inject constructor(
         private const val TAG = "ArtworkCache"
         private const val MAX_MEMORY_ENTRIES = 500
         private const val POSITIVE_CACHE_TTL_MS = 14L * 24 * 60 * 60 * 1000 // 14 days
-        private const val NEGATIVE_CACHE_TTL_MS = 24L * 60 * 60 * 1000      // 24 hours
+        private const val NEGATIVE_CACHE_TTL_MS = 5L * 60 * 1000            // 5 minutes
         private const val CACHE_SUBDIR = "artwork_cache"
         private const val MAX_DISK_FILES = 2000
     }

@@ -42,30 +42,31 @@ class ArtworkRepository @Inject constructor(
         album: String? = null,
         localArtworkUri: String? = null
     ): ArtworkResult? {
-        // 1. Local artwork first (as per design spec: Local artwork/cache -> Deezer -> iTunes -> YouTube Music)
-        if (!localArtworkUri.isNullOrBlank()) {
-            return ArtworkResult(url = localArtworkUri, provider = "Local", width = 0, height = 0)
-        }
-
-        val safeTitle = title.orEmpty()
-        val safeArtist = artist.orEmpty()
+        val safeTitle = title.orEmpty().trim()
+        val safeArtist = artist.orEmpty().trim()
         val cleanArtist = matcher.cleanArtist(safeArtist)
         val cleanTitle = matcher.cleanTitle(safeTitle, cleanArtist)
+
+        // If both title and artist are missing, return local/fallback URI immediately
         if (cleanTitle.isBlank() && cleanArtist.isBlank()) {
-            return null
+            return localArtworkUri?.takeIf { it.isNotBlank() }?.let {
+                ArtworkResult(url = upgradeThumbnailIfNeeded(it), provider = "Local", width = 0, height = 0)
+            }
         }
 
         val cacheKey = matcher.createStableCacheKey(safeArtist, safeTitle)
 
-        // 2. Check positive cache
+        // 1. Check positive cache (<1ms response)
         cache.get(cacheKey)?.let { return it }
 
-        // 3. Check negative cache
+        // 2. Check negative cache
         if (cache.isNegativeCached(cacheKey)) {
-            return null
+            return localArtworkUri?.takeIf { it.isNotBlank() }?.let {
+                ArtworkResult(url = upgradeThumbnailIfNeeded(it), provider = "Local", width = 0, height = 0)
+            }
         }
 
-        // 4. Deduplicate in-flight requests
+        // 3. Deduplicate in-flight requests and query external providers (Deezer -> iTunes -> YouTube Music)
         val deferred = inFlightRequests.computeIfAbsent(cacheKey) {
             scope.async {
                 fetchFromProviders(cleanTitle, cleanArtist, album, cacheKey)
@@ -78,7 +79,29 @@ class ArtworkRepository @Inject constructor(
             inFlightRequests.remove(cacheKey)
         }
 
-        return result
+        // 4. Return HD result or fall back to local/fallback URI
+        return result ?: localArtworkUri?.takeIf { it.isNotBlank() }?.let {
+            ArtworkResult(url = it, provider = "Local", width = 0, height = 0)
+        }
+    }
+
+    private fun upgradeThumbnailIfNeeded(url: String): String {
+        return when {
+            url.contains("googleusercontent.com") -> {
+                val googleDimRegex = Regex("""=w\d+-h\d+[^=]*$""")
+                if (googleDimRegex.containsMatchIn(url)) {
+                    url.replace(googleDimRegex, "=w800-h800-l90-rj")
+                } else if (url.contains("=")) {
+                    url.substringBeforeLast("=") + "=w800-h800-l90-rj"
+                } else {
+                    "$url=w800-h800-l90-rj"
+                }
+            }
+            url.contains("i.ytimg.com") -> {
+                url.replace(Regex("""/hqdefault\.jpg$"""), "/hq720.jpg")
+            }
+            else -> url.replace(Regex("""w\d+-h\d+"""), "w800-h800")
+        }
     }
 
     private suspend fun fetchFromProviders(

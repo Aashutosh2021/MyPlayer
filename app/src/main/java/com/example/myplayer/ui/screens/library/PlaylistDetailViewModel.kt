@@ -18,7 +18,8 @@ import javax.inject.Inject
 class PlaylistDetailViewModel @Inject constructor(
     private val repository: MusicRepository,
     private val hybridLibraryRepository: HybridLibraryRepository,
-    private val downloadRepository: DownloadRepository
+    private val downloadRepository: DownloadRepository,
+    private val innertubeApi: com.example.myplayer.data.online.InnertubeApi
 ) : ViewModel() {
 
     private val _playlistId = MutableStateFlow(-1L)
@@ -79,6 +80,32 @@ class PlaylistDetailViewModel @Inject constructor(
     fun deleteDownload(videoId: String) {
         viewModelScope.launch {
             downloadRepository.deleteDownloadById(videoId)
+        }
+    }
+
+    fun downloadSong(song: PlayableSong.Online) {
+        viewModelScope.launch {
+            try {
+                var streamUrl = innertubeApi.getCachedStreamUrl(song.id)
+                if (streamUrl.isNullOrBlank()) {
+                    streamUrl = innertubeApi.getStreamUrl(song.id)
+                }
+                if (!streamUrl.isNullOrBlank()) {
+                    downloadRepository.startDownload(
+                        com.example.myplayer.data.online.model.OnlineSong(
+                            videoId = song.id,
+                            title = song.title,
+                            artist = song.artist,
+                            thumbnailUrl = song.thumbnailUrl ?: "",
+                            durationMs = song.durationMs,
+                            durationText = "",
+                            streamUrl = streamUrl
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PlaylistDetailViewModel", "Failed to start download for ${song.title}", e)
+            }
         }
     }
 }
