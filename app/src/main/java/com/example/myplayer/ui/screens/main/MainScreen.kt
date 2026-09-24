@@ -1,6 +1,8 @@
 package com.example.myplayer.ui.screens.main
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -10,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -27,6 +28,7 @@ import com.example.myplayer.ui.screens.library.PlaylistDetailScreen
 import com.example.myplayer.ui.screens.nowplaying.NowPlayingScreen
 import com.example.myplayer.ui.screens.search.SearchScreen
 import com.example.myplayer.ui.screens.settings.SettingsScreen
+import com.example.myplayer.ui.theme.CloudBlueBackground
 
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
@@ -72,21 +74,72 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
-    val currentBottomPadding = if (hasAnySong) 190.dp else 120.dp
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = CloudBlueBackground,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (showNav) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CloudBlueBackground),
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    // Mini player above nav bar
+                    if (hasAnySong) {
+                        // Memoize synthetic SongEntity: only rebuild when the online song reference
+                        // changes, not on every isPlaying / position / any-state recomposition.
+                        val miniSong = currentSong ?: remember(currentOnlineSong) {
+                            com.example.myplayer.data.local.entity.SongEntity(
+                                id = currentOnlineSong?.videoId ?: "",
+                                title = displayTitle ?: "",
+                                artist = displayArtist ?: "",
+                                album = "",
+                                duration = 0,
+                                path = displayArt ?: "",
+                                albumArt = displayArt,
+                                dateAdded = 0
+                            )
+                        }
+                        MiniPlayer(
+                            song = miniSong,
+                            isPlaying = isPlaying,
+                            onPlayPauseClick = { viewModel.playPause() },
+                            onNextClick = { viewModel.skipToNext() },
+                            onPlayerClick = {
+                                navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
+                            }
+                        )
+                    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // ── Content fills entire screen ─────────────────────────────────────
+                    FloatingNavBar(
+                        currentRoute = currentRoute,
+                        onNavigate = { route ->
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = if (showNav) innerPadding.calculateBottomPadding() else 0.dp)
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = currentBottomPadding
+                    bottomPadding = 16.dp
                 )
             }
             composable(Screen.Search.route) {
@@ -94,7 +147,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = currentBottomPadding
+                    bottomPadding = 16.dp
                 )
             }
             composable(Screen.Downloads.route) {
@@ -102,7 +155,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = currentBottomPadding
+                    bottomPadding = 16.dp
                 )
             }
             composable(Screen.Library.route) {
@@ -114,7 +167,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         viewModel.playPlaylist(songs, index)
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = currentBottomPadding
+                    bottomPadding = 16.dp
                 )
             }
             composable("playlist_detail/{playlistId}") { backStackEntry ->
@@ -169,61 +222,12 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
-                    bottomPadding = currentBottomPadding
+                    bottomPadding = 16.dp
                 )
             }
             composable(Screen.DualBud.route) {
                 com.example.myplayer.dualbud.ui.DualBudScreen(
                     onBack = { navController.popBackStack() }
-                )
-            }
-        }
-
-        // ── Floating overlay: mini player + nav bar ─────────────────────────
-        if (showNav) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .zIndex(10f),
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                // Mini player above nav bar
-                if (hasAnySong) {
-                    // Memoize synthetic SongEntity: only rebuild when the online song reference
-                // changes, not on every isPlaying / position / any-state recomposition.
-                val miniSong = currentSong ?: remember(currentOnlineSong) {
-                    com.example.myplayer.data.local.entity.SongEntity(
-                        id = currentOnlineSong?.videoId ?: "",
-                        title = displayTitle ?: "",
-                        artist = displayArtist ?: "",
-                        album = "",
-                        duration = 0,
-                        path = displayArt ?: "",
-                        albumArt = displayArt,
-                        dateAdded = 0
-                    )
-                }
-                    MiniPlayer(
-                        song = miniSong,
-                        isPlaying = isPlaying,
-                        onPlayPauseClick = { viewModel.playPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        onPlayerClick = {
-                            navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
-                        }
-                    )
-                }
-
-                FloatingNavBar(
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
                 )
             }
         }
