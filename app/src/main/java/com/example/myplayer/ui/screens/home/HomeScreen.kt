@@ -391,7 +391,7 @@ private fun PremiumEmptyState() {
         Spacer(Modifier.height(24.dp))
         Text("No music yet", style = MaterialTheme.typography.titleLarge, color = OnSurface)
         Spacer(Modifier.height(8.dp))
-        Text("Go to Library to add a music folder", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
+        Text("Search online to stream or download songs", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
     }
 }
 

@@ -549,7 +549,7 @@ fun AddSongsSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        if (library.isEmpty()) "No songs in your library yet.\nAdd a music folder from the Library tab."
+                        if (library.isEmpty()) "No songs in your library yet.\nDownload songs or search online to add songs."
                         else "No songs match \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyMedium,
                         color = OnSurfaceVariant,
