@@ -3,9 +3,11 @@ package com.example.myplayer.ui.screens.nowplaying
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -15,22 +17,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myplayer.playback.AudioQualityInfo
 import com.example.myplayer.ui.common.AlbumArtImage
-import com.example.myplayer.ui.components.ClayIconButton
-import com.example.myplayer.ui.components.ClayWavySeekBar
+import com.example.myplayer.ui.components.RadialAudioController
 import com.example.myplayer.ui.theme.*
 
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.verticalScroll
 import androidx.media3.common.Player
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,8 +43,6 @@ fun NowPlayingScreen(
     artUri: String?,
     durationMs: Long,
     isPlaying: Boolean,
-    // State (not raw Long): only the seek bar / time labels / lyrics read it,
-    // so position ticks no longer recompose the whole screen.
     positionState: State<Long>,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
@@ -82,9 +83,12 @@ fun NowPlayingScreen(
     if (showQualityDetails) {
         AlertDialog(
             onDismissRequest = { showQualityDetails = false },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = ClayPrimary)
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = NeonLimePrimary)
                     Spacer(Modifier.width(8.dp))
                     Text("Audio Stream Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -106,13 +110,13 @@ fun NowPlayingScreen(
                     Text(
                         "Lossless Fidelity: ${if (audioQuality.isLossless) "Yes (Bit-Perfect)" else "Standard (Compressed)"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (audioQuality.isLossless) ClayPrimary else TextMuted
+                        color = if (audioQuality.isLossless) NeonLimePrimary else TextMuted
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showQualityDetails = false }) {
-                    Text("Close", color = ClayPrimary)
+                    Text("Close", color = NeonLimePrimary)
                 }
             }
         )
@@ -131,14 +135,14 @@ fun NowPlayingScreen(
         AlertDialog(
             onDismissRequest = { showRemoveConfirm = false },
             title = { Text("Remove Download?") },
-            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            text = { Text("This will remove the downloaded audio from your device. The song will remain available for online streaming.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onRemoveDownloadClick()
                         showRemoveConfirm = false
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))
                 ) { Text("Remove") }
             },
             dismissButton = {
@@ -156,12 +160,10 @@ fun NowPlayingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(DeepOliveBackground)
     ) {
         val scrollState = androidx.compose.foundation.rememberScrollState()
-        val windowInfo = androidx.compose.ui.platform.LocalConfiguration.current
-        val screenHeight = windowInfo.screenHeightDp.dp
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -170,48 +172,94 @@ fun NowPlayingScreen(
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // ── Top bar ──────────────────────────────────────────────────────
+            // ── Top Navigation Bar ───────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ClayIconButton(onClick = onBackClick, size = 48.dp) {
-                    Icon(Icons.Filled.KeyboardArrowDown, null, tint = OnSurface, modifier = Modifier.size(28.dp))
+                // Back Button (Dark circular pill)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceLight)
+                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                        .clickable(onClick = onBackClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Back",
+                        tint = OnSurface,
+                        modifier = Modifier.size(26.dp)
+                    )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Now Playing", style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
-                }
+                Text(
+                    text = "Now Playing",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = OnSurface
+                )
 
-                Row {
-                    ClayIconButton(onClick = { showSleepTimer = true }, size = 48.dp) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Sleep Timer
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceLight)
+                            .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                            .clickable { showSleepTimer = true },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
-                            null,
-                            tint = if (sleepTimerRemaining > 0) ClayPrimary else OnSurface,
-                            modifier = Modifier.size(24.dp)
+                            contentDescription = "Sleep Timer",
+                            tint = if (sleepTimerRemaining > 0) NeonLimePrimary else OnSurface,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-                    ClayIconButton(onClick = onNavigateToSettings, size = 48.dp) {
-                        Icon(Icons.Filled.Settings, null, tint = OnSurface, modifier = Modifier.size(22.dp))
+
+                    // Settings / Options
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceLight)
+                            .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                            .clickable(onClick = onNavigateToSettings),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.MoreHoriz,
+                            contentDescription = "More Options",
+                            tint = OnSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
 
-            Spacer(Modifier.height(screenHeight * 0.05f))
+            Spacer(Modifier.height(24.dp))
 
-            // ── Album Art ────────────────────────────────────────────────────
+            // ── Album Artwork ────────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .size(300.dp)
+                    .size(280.dp)
                     .graphicsLayer {
                         scaleX = artScale
                         scaleY = artScale
                     }
-                    .clayConcave(borderRadius = 32.dp, backgroundColor = SurfaceLight)
+                    .shadow(elevation = 20.dp, shape = RoundedCornerShape(28.dp), spotColor = Color.Black)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(SurfaceLight)
+                    .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(28.dp))
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -220,202 +268,224 @@ fun NowPlayingScreen(
                         uri = artUri ?: "",
                         title = title,
                         artist = artist,
-                        size = 284.dp,
-                        shape = RoundedCornerShape(24.dp),
+                        size = 264.dp,
+                        shape = RoundedCornerShape(22.dp),
                         iconSize = 80.dp
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(SurfaceContainerLowest),
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(SurfaceContainerLow),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(80.dp))
+                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(72.dp))
                     }
                 }
             }
 
-            Spacer(Modifier.height(screenHeight * 0.05f))
+            Spacer(Modifier.height(20.dp))
 
-            // ── Song Info ────────────────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (hasSong) title!! else "No song playing",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = artist ?: "",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = OnSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                // Download button (visible whenever a song is loaded)
-                if (hasSong) {
-                    Spacer(Modifier.width(12.dp))
-                    when {
-                        isDownloaded -> Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Downloaded",
-                            tint = ClayPrimary,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clickable { showRemoveConfirm = true }
-                        )
-                        isDownloading -> CircularProgressIndicator(
-                            color = ClayPrimary,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        else -> Icon(
-                            imageVector = Icons.Filled.Download,
-                            contentDescription = "Download",
-                            tint = OnSurfaceVariant,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clickable { onDownloadClick() }
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) ClayPrimary else OnSurfaceVariant,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable { onToggleFavorite() }
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Audio Quality Badge Pill ─────────────────────────────────────
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (audioQuality.isLossless) ClayPrimary.copy(alpha = 0.12f) else SurfaceContainerHigh.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, if (audioQuality.isLossless) ClayPrimary.copy(alpha = 0.3f) else Color.Transparent),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { showQualityDetails = true }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (audioQuality.isLossless) {
-                        Icon(
-                            Icons.Filled.HighQuality,
-                            contentDescription = null,
-                            tint = ClayPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                    }
-                    Text(
-                        text = audioQuality.displayBadge,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (audioQuality.isLossless) ClayPrimary else TextMuted
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Seek Bar ─────────────────────────────────────────────────────
-            // Extracted composable: position ticks recompose only this section.
-            SeekBarSection(
-                positionState = positionState,
-                duration = duration,
-                isPlaying = isPlaying,
-                onSeek = onSeek
+            // ── Track Title & Artist ─────────────────────────────────────────
+            Text(
+                text = if (hasSong) title!! else "No song playing",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(6.dp))
 
-            // ── Controls ─────────────────────────────────────────────────────
+            Text(
+                text = artist ?: "",
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            // ── Audio Quality & Download Indicators ──────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Audio Quality Badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (audioQuality.isLossless) NeonLimePrimary.copy(alpha = 0.15f) else SurfaceContainerHigh,
+                    border = BorderStroke(1.dp, if (audioQuality.isLossless) NeonLimePrimary.copy(alpha = 0.4f) else CardBorderOlive),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { showQualityDetails = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (audioQuality.isLossless) {
+                            Icon(
+                                Icons.Filled.HighQuality,
+                                contentDescription = null,
+                                tint = NeonLimePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = audioQuality.displayBadge,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (audioQuality.isLossless) NeonLimePrimary else TextMuted
+                        )
+                    }
+                }
+
+                // Download Button
+                if (hasSong && canDownload) {
+                    when {
+                        isDownloaded -> {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceLight)
+                                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                                    .clickable { showRemoveConfirm = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = "Downloaded",
+                                    tint = NeonLimePrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        isDownloading -> {
+                            CircularProgressIndicator(
+                                color = NeonLimePrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        else -> {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceLight)
+                                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                                    .clickable { onDownloadClick() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Download,
+                                    contentDescription = "Download",
+                                    tint = OnSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Hero Radial / Circular Audio Controller ──────────────────────
+            RadialAudioController(
+                positionMs = positionState.value,
+                durationMs = duration,
+                isPlaying = isPlaying,
+                onSeek = onSeek,
+                onPlayPauseClick = onPlayPauseClick,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── Bottom Playback Control Row ──────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Shuffle
                 IconButton(onClick = onToggleShuffle) {
                     Icon(
                         Icons.Filled.Shuffle,
-                        null,
-                        tint = if (isShuffleOn) ClayPrimary else TextMuted,
-                        modifier = Modifier.size(28.dp)
+                        contentDescription = "Shuffle",
+                        tint = if (isShuffleOn) NeonLimePrimary else TextMuted,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
+
                 // Previous
-                ClayIconButton(onClick = onPreviousClick, size = 60.dp) {
-                    Icon(Icons.Filled.SkipPrevious, null, tint = OnSurface, modifier = Modifier.size(32.dp))
-                }
-                
-                // Play/Pause (Primary Clay Button)
-                val playInteractionSource = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .claySurface(
-                            borderRadius = 40.dp,
-                            backgroundColor = ClayPrimary,
-                            innerLightColor = Color.White.copy(alpha = 0.5f),
-                            innerDarkColor = Color.Black.copy(alpha = 0.2f),
-                            interactionSource = playInteractionSource
-                        )
-                        .clickable(
-                            interactionSource = playInteractionSource,
-                            indication = null,
-                            onClick = onPlayPauseClick
-                        ),
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceLight)
+                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                        .clickable(onClick = onPreviousClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = OnPrimary,
-                        modifier = Modifier.size(40.dp)
+                        Icons.Filled.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = OnSurface,
+                        modifier = Modifier.size(30.dp)
                     )
                 }
 
                 // Next
-                ClayIconButton(onClick = onNextClick, size = 60.dp) {
-                    Icon(Icons.Filled.SkipNext, null, tint = OnSurface, modifier = Modifier.size(32.dp))
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceLight)
+                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
+                        .clickable(onClick = onNextClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.SkipNext,
+                        contentDescription = "Next",
+                        tint = OnSurface,
+                        modifier = Modifier.size(30.dp)
+                    )
                 }
-                
+
                 // Repeat
                 IconButton(onClick = onCycleRepeatMode) {
                     val (icon, tint, desc) = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, ClayPrimary, "Repeat One")
-                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, ClayPrimary, "Repeat All")
+                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, NeonLimePrimary, "Repeat One")
+                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, NeonLimePrimary, "Repeat All")
                         else -> Triple(Icons.Filled.Repeat, TextMuted, "Repeat Off")
                     }
                     Icon(
                         imageVector = icon,
                         contentDescription = desc,
                         tint = tint,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
 
-            // ── Synced Lyrics ───────────────────────────────────────────
+            // ── Synced Lyrics Section ────────────────────────────────────────
             val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
             val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
             LyricsTab(
@@ -424,10 +494,10 @@ fun NowPlayingScreen(
                 onSeek = onSeek,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 200.dp, max = 450.dp)
+                    .heightIn(min = 180.dp, max = 380.dp)
             )
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
@@ -449,14 +519,15 @@ fun SleepTimerDialog(
         containerColor = SurfaceLight,
         titleContentColor = OnSurface,
         textContentColor = OnSurfaceVariant,
-        icon = { Icon(Icons.Filled.Timer, null, tint = ClayPrimary) },
+        icon = { Icon(Icons.Filled.Timer, null, tint = NeonLimePrimary) },
         title = { Text(if (isActive) "Sleep Timer Active" else "Set Sleep Timer") },
         text = {
             Column {
                 if (isActive) {
                     Text(
                         text = "Pausing in ${currentRemaining / 60}m ${currentRemaining % 60}s",
-                        color = ClayPrimary
+                        color = NeonLimePrimary,
+                        fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(12.dp))
                 }
@@ -472,11 +543,11 @@ fun SleepTimerDialog(
                                 OutlinedButton(
                                     onClick = { onStart(minutes) },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ClayPrimary),
-                                    border = BorderStroke(1.dp, ClayPrimary.copy(0.4f))
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonLimePrimary),
+                                    border = BorderStroke(1.dp, CardBorderOlive)
                                 ) {
-                                    Text("${minutes}m")
+                                    Text("${minutes}m", fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -488,7 +559,7 @@ fun SleepTimerDialog(
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isActive) {
-                    TextButton(onClick = onCancel, colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))) {
+                    TextButton(onClick = onCancel, colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))) {
                         Text("Cancel Timer")
                     }
                 }
@@ -504,31 +575,3 @@ fun formatDuration(durationMs: Long): String {
     val s = durationMs / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
-
-@Composable
-private fun SeekBarSection(
-    positionState: State<Long>,
-    duration: Long,
-    isPlaying: Boolean,
-    onSeek: (Long) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        ClayWavySeekBar(
-            positionMs = positionState.value,
-            durationMs = duration,
-            isPlaying = isPlaying,
-            onSeek = onSeek,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(formatDuration(positionState.value), style = MaterialTheme.typography.labelSmall, color = TextMuted)
-            Text(formatDuration(duration), style = MaterialTheme.typography.labelSmall, color = TextMuted)
-        }
-    }
-}
-

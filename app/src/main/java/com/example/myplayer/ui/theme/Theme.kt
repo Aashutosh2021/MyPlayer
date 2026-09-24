@@ -1,11 +1,11 @@
 package com.example.myplayer.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val ClayLightColorScheme = lightColorScheme(
+private val DarkOliveColorScheme = darkColorScheme(
     primary            = ClayPrimary,
     onPrimary          = OnPrimary,
     primaryContainer   = PrimaryContainer,
@@ -21,7 +21,7 @@ private val ClayLightColorScheme = lightColorScheme(
     tertiaryContainer  = TertiaryContainer,
     onTertiaryContainer = OnTertiaryContainer,
 
-    background         = CloudBlueBackground,
+    background         = DeepOliveBackground,
     onBackground       = OnSurface,
 
     surface            = SurfaceLight,
@@ -32,10 +32,10 @@ private val ClayLightColorScheme = lightColorScheme(
     outline            = TextMuted,
     outlineVariant     = SurfaceContainerHigh,
 
-    error              = Color(0xFFBA1A1A),
-    onError            = Color.White,
-    errorContainer     = Color(0xFFFFDAD6),
-    onErrorContainer   = Color(0xFF93000A)
+    error              = Color(0xFFFF5252),
+    onError            = Color(0xFF38000A),
+    errorContainer     = Color(0xFF491118),
+    onErrorContainer   = Color(0xFFFFDAD6)
 )
 
 @Composable
@@ -43,7 +43,7 @@ fun MyPlayerTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = ClayLightColorScheme,
+        colorScheme = DarkOliveColorScheme,
         typography  = Typography,
         content     = content
     )

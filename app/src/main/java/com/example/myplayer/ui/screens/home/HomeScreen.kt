@@ -1,8 +1,10 @@
 package com.example.myplayer.ui.screens.home
 
 import java.util.Calendar
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,7 +28,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.ui.common.AlbumArtImage
-import com.example.myplayer.ui.components.*
 import com.example.myplayer.ui.theme.*
 
 @Composable
@@ -39,84 +42,311 @@ fun HomeScreen(
     val allSongs    by viewModel.allSongs.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
 
+    var selectedCategory by remember { mutableStateOf("All") }
+    val categories = remember {
+        listOf("All", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop")
+    }
+
     val greeting = remember {
         when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-            in 5..11  -> "Good Morning,"
-            in 12..16 -> "Good Afternoon,"
-            in 17..20 -> "Good Evening,"
-            else      -> "Good Night,"
+            in 5..11  -> "Good Morning!"
+            in 12..16 -> "Good Afternoon!"
+            in 17..20 -> "Good Evening!"
+            else      -> "Good Night!"
+        }
+    }
+
+    // Filter songs if a specific mood/category is tapped
+    val displayedSongs = remember(selectedCategory, allSongs) {
+        if (selectedCategory == "All") {
+            allSongs
+        } else {
+            val query = selectedCategory.lowercase()
+            allSongs.filter {
+                it.title.lowercase().contains(query) ||
+                it.artist.lowercase().contains(query) ||
+                it.album.lowercase().contains(query)
+            }.ifEmpty { allSongs }
         }
     }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(DeepOliveBackground)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp)
+        contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
     ) {
-        // ── Header ───────────────────────────────────────────────────────────
+        // ── Top Header (Avatar, Greeting & Notification Bell) ─────────────────
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Avatar with subtle neon lime accent
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceLight)
+                            .border(BorderStroke(1.5.dp, CardBorderOlive), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = "Profile",
+                            tint = NeonLimePrimary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = greeting,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceVariant
+                        )
+                        Text(
+                            text = "Alex Rivera",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = OnSurface
+                            )
+                        )
+                    }
+                }
+
+                // Notification Bell with Neon Dot
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceLight)
+                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.NotificationsNone,
+                        contentDescription = "Notifications",
+                        tint = OnSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    // Vibrant neon lime dot indicator
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 11.dp, end = 12.dp)
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(NeonLimePrimary)
+                    )
+                }
+            }
+        }
+
+        // ── Category Filter Pills ─────────────────────────────────────────────
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+                items(categories) { category ->
+                    val isSelected = category == selectedCategory
+                    val pillBg by animateColorAsState(
+                        targetValue = if (isSelected) NeonLimePrimary else SurfaceLight,
+                        label = "pillBg_$category"
+                    )
+                    val textTint by animateColorAsState(
+                        targetValue = if (isSelected) OnNeonLime else OnSurfaceVariant,
+                        label = "textTint_$category"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(pillBg)
+                            .then(
+                                if (!isSelected) Modifier.border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(24.dp))
+                                else Modifier
+                            )
+                            .clickable { selectedCategory = category }
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = category,
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = textTint
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // ── Popular Songs Section ─────────────────────────────────────────────
+        val popularPool = (mostPlayed.ifEmpty { recentSongs.ifEmpty { allSongs } })
+        if (popularPool.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Popular Songs",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
+                    Text(
+                        text = "See All",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = NeonLimePrimary
+                    )
+                }
+            }
+
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(vertical = 12.dp)
+                ) {
+                    itemsIndexed(popularPool.take(8), key = { _, song -> song.id }) { index, song ->
+                        PopularSongCard(
+                            song = song,
+                            isPlaying = currentSong?.id == song.id,
+                            onClick = {
+                                viewModel.playSong(popularPool, index)
+                                onNavigateToNowPlaying()
+                            }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+
+        // ── Featured "New Collection" Banner Card ─────────────────────────────
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(Color(0xFF26331C), Color(0xFF161E13))
+                        )
+                    )
+                    .border(BorderStroke(1.dp, Color(0xFF354427)), RoundedCornerShape(24.dp))
+                    .clickable {
+                        if (allSongs.isNotEmpty()) {
+                            viewModel.playSong(allSongs, 0)
+                            onNavigateToNowPlaying()
+                        }
+                    }
+                    .padding(20.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Badge Pill
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF1A2216))
+                                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "New Collection",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonLimePrimary
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
                         Text(
-                            text = greeting,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold, color = OnSurface
+                            text = "Top Songs Global",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = OnSurface
                             )
                         )
+
+                        Spacer(Modifier.height(4.dp))
+
                         Text(
-                            text = "User.",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold, color = ClayPrimary
-                            )
+                            text = "Discover ${allSongs.size.coerceAtLeast(86)} songs",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceVariant
                         )
                     }
-                    // Avatar circle (Clay surface)
+
+                    // Circle Play Action Button
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
-                            .claySurface(borderRadius = 26.dp, backgroundColor = SurfaceLight),
+                            .size(48.dp)
+                            .shadow(elevation = 8.dp, shape = CircleShape, spotColor = NeonLimePrimary)
+                            .clip(CircleShape)
+                            .background(NeonLimePrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Person, contentDescription = null, tint = ClayPrimary, modifier = Modifier.size(26.dp))
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = "Play Collection",
+                            tint = OnNeonLime,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
         }
 
-        // ── Favorite Songs ────────────────────────────────────────────────────
+        // ── Favorite Songs (2-Column Grid) ────────────────────────────────────
         if (favoriteSongs.isNotEmpty()) {
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Favorite Songs", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = OnSurface)
+                    Text(
+                        text = "Favorite Songs",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
                 }
             }
             item {
-                // 2-column grid of favorites
                 val chunked = favoriteSongs.take(6).chunked(2)
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                     chunked.forEach { pair ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            pair.forEachIndexed { i, song ->
+                            pair.forEach { song ->
                                 val index = favoriteSongs.indexOf(song)
                                 FavoriteSongCard(
                                     song = song,
@@ -133,22 +363,34 @@ fun HomeScreen(
                         Spacer(Modifier.height(12.dp))
                     }
                 }
+                Spacer(Modifier.height(16.dp))
             }
         }
 
-        // ── Recently Played ──────────────────────────────────────────────────
+        // ── Recently Played Row ───────────────────────────────────────────────
         if (recentSongs.isNotEmpty()) {
             item {
-                PremiumSectionHeader(title = "Recently Played", actionLabel = ">")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Recently Played",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
+                }
             }
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.height(156.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     itemsIndexed(recentSongs.take(10), key = { _, song -> song.id }) { index, song ->
-                        RecentlyPlayedCard(
+                        PopularSongCard(
                             song = song,
                             isPlaying = currentSong?.id == song.id,
                             onClick = {
@@ -162,126 +404,127 @@ fun HomeScreen(
             }
         }
 
-
-        // ── Most Played ──────────────────────────────────────────────────────────
-        if (mostPlayed.isNotEmpty()) {
+        // ── All Songs List ────────────────────────────────────────────────────
+        if (displayedSongs.isNotEmpty()) {
             item {
-                PremiumSectionHeader(title = "Most Played")
-            }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.height(156.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    itemsIndexed(mostPlayed.take(10), key = { _, song -> song.id }) { index, song ->
-                        RecentlyPlayedCard(
-                            song = song,
-                            isPlaying = currentSong?.id == song.id,
-                            onClick = {
-                                viewModel.playSong(mostPlayed, index)
-                                onNavigateToNowPlaying()
-                            }
-                        )
-                    }
+                    Text(
+                        text = if (selectedCategory == "All") "All Songs" else "$selectedCategory Songs",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
                 }
-                Spacer(Modifier.height(16.dp))
             }
-        }
 
-        // ── All Local Songs ──────────────────────────────────────────────────
-        if (allSongs.isNotEmpty()) {
-            item {
-                PremiumSectionHeader(title = "All Songs")
-            }
-            itemsIndexed(allSongs.take(8), key = { _, song -> song.id }) { index, song ->
-                TrendingListItem(
+            itemsIndexed(displayedSongs.take(10), key = { _, song -> song.id }) { index, song ->
+                DarkSongListItem(
                     song = song,
                     isPlaying = currentSong?.id == song.id,
                     onClick = {
-                        viewModel.playSong(allSongs, index)
+                        viewModel.playSong(displayedSongs, index)
                         onNavigateToNowPlaying()
                     }
                 )
             }
         }
 
-        // ── Empty state ───────────────────────────────────────────────────────
+        // ── Empty State ───────────────────────────────────────────────────────
         if (allSongs.isEmpty() && recentSongs.isEmpty()) {
-            item { PremiumEmptyState() }
+            item { DarkEmptyState() }
         }
     }
 }
 
-// ─── Recently Played Card (Clay card with inset well) ────────────────────────
+// ─── Popular Song Card (Dark Olive with square album art) ────────────────────
 
 @Composable
-private fun RecentlyPlayedCard(
+private fun PopularSongCard(
     song: SongEntity,
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isPlaying) SurfaceLight else SurfaceLight
-
     Box(
         modifier = Modifier
-            .width(160.dp)
-            .claySurface(
-                borderRadius = 28.dp,
-                backgroundColor = backgroundColor
+            .width(156.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(SurfaceLight)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.6f) else CardBorderOlive
+                ),
+                RoundedCornerShape(20.dp)
             )
             .clickable(onClick = onClick)
+            .padding(12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Box(
                 modifier = Modifier
-                    .size(128.dp)
-                    .clayConcave(borderRadius = 20.dp, backgroundColor = SurfaceContainerLow)
-                    .padding(4.dp),
+                    .size(132.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceContainerLow),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
                     uri = song.albumArt,
-                    size = 120.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    iconSize = 48.dp
+                    title = song.title,
+                    artist = song.artist,
+                    size = 132.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    iconSize = 44.dp
                 )
+
                 if (isPlaying) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(6.dp)
+                            .padding(8.dp)
                             .size(28.dp)
-                            .claySurface(borderRadius = 14.dp, backgroundColor = ClayPrimary),
+                            .clip(CircleShape)
+                            .background(NeonLimePrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = OnPrimary, modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Filled.GraphicEq,
+                            contentDescription = "Playing",
+                            tint = OnNeonLime,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(14.dp))
+
+            Spacer(Modifier.height(10.dp))
+
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurface,
+                color = if (isPlaying) NeonLimePrimary else OnSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(2.dp))
+
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
-// ─── Favorite Song Card (2-col grid) ─────────────────────────────────────────
+// ─── Favorite Song Card (2-Col Grid) ─────────────────────────────────────────
 
 @Composable
 private fun FavoriteSongCard(
@@ -292,41 +535,62 @@ private fun FavoriteSongCard(
 ) {
     Row(
         modifier = modifier
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceLight)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.5f) else CardBorderOlive
+                ),
+                RoundedCornerShape(18.dp)
+            )
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clayConcave(borderRadius = 12.dp)
-                .padding(2.dp)
+                .size(42.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceContainerLow),
+            contentAlignment = Alignment.Center
         ) {
-            AlbumArtImage(uri = song.albumArt, title = song.title, artist = song.artist, size = 40.dp, shape = RoundedCornerShape(10.dp), iconSize = 20.dp)
+            AlbumArtImage(
+                uri = song.albumArt,
+                title = song.title,
+                artist = song.artist,
+                size = 42.dp,
+                shape = RoundedCornerShape(10.dp),
+                iconSize = 20.dp
+            )
         }
+
         Spacer(Modifier.width(10.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) ClayPrimary else OnSurface,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.labelSmall,
                 color = OnSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
-// ─── Trending List Item ───────────────────────────────────────────────────────
+// ─── Dark Song List Item ─────────────────────────────────────────────────────
 
 @Composable
-private fun TrendingListItem(
+private fun DarkSongListItem(
     song: SongEntity,
     isPlaying: Boolean,
     onClick: () -> Unit
@@ -334,46 +598,79 @@ private fun TrendingListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 6.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .padding(horizontal = 24.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceLight)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.5f) else CardBorderOlive
+                ),
+                RoundedCornerShape(18.dp)
+            )
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .clayConcave(borderRadius = 14.dp)
-                .padding(2.dp)
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(SurfaceContainerLow),
+            contentAlignment = Alignment.Center
         ) {
-            AlbumArtImage(uri = song.albumArt, title = song.title, artist = song.artist, size = 48.dp, shape = RoundedCornerShape(12.dp), iconSize = 22.dp)
+            AlbumArtImage(
+                uri = song.albumArt,
+                title = song.title,
+                artist = song.artist,
+                size = 48.dp,
+                shape = RoundedCornerShape(12.dp),
+                iconSize = 22.dp
+            )
         }
-        Spacer(Modifier.width(16.dp))
+
+        Spacer(Modifier.width(14.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = if (isPlaying) ClayPrimary else OnSurface,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        ClayIconButton(onClick = {}, size = 36.dp) {
-            Icon(Icons.Filled.MoreVert, null, tint = OnSurfaceVariant, modifier = Modifier.size(18.dp))
+
+        if (isPlaying) {
+            Icon(
+                Icons.Filled.GraphicEq,
+                contentDescription = "Playing",
+                tint = NeonLimePrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        } else {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = null,
+                tint = OnSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── Empty State ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun PremiumEmptyState() {
+private fun DarkEmptyState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,16 +679,27 @@ private fun PremiumEmptyState() {
     ) {
         Box(
             modifier = Modifier
-                .size(100.dp)
-                .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
+                .size(80.dp)
+                .clip(CircleShape)
+                .background(SurfaceLight)
+                .border(BorderStroke(1.dp, CardBorderOlive), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.LibraryMusic, null, tint = TextMuted, modifier = Modifier.size(48.dp))
+            Icon(
+                Icons.Filled.LibraryMusic,
+                contentDescription = null,
+                tint = NeonLimePrimary,
+                modifier = Modifier.size(40.dp)
+            )
         }
-        Spacer(Modifier.height(24.dp))
-        Text("No music yet", style = MaterialTheme.typography.titleLarge, color = OnSurface)
+        Spacer(Modifier.height(20.dp))
+        Text("No music yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
         Spacer(Modifier.height(8.dp))
-        Text("Search online to stream or download songs", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
+        Text(
+            "Search online to stream or download songs",
+            style = MaterialTheme.typography.bodySmall,
+            color = OnSurfaceVariant
+        )
     }
 }
 
