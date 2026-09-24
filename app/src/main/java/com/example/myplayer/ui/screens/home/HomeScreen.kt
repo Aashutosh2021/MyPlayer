@@ -53,7 +53,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(CloudBlueBackground)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = bottomPadding)
+        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp)
     ) {
         // ── Header ───────────────────────────────────────────────────────────
         item {
