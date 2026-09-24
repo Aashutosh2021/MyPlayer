@@ -118,6 +118,7 @@ fun PlaylistDetailScreen(
             .fillMaxSize()
             .background(CloudBlueBackground)
             .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         // Top Bar
         Row(

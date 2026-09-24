@@ -28,6 +28,7 @@ import com.example.myplayer.ui.theme.*
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToDualBud: () -> Unit = {},
+    bottomPadding: androidx.compose.ui.unit.Dp = 120.dp,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val isAutoplayEnabled by viewModel.isAutoplayEnabled.collectAsStateWithLifecycle()
@@ -131,7 +132,7 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(CloudBlueBackground)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = 40.dp)
+        contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
     ) {
         // Header
         item {

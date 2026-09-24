@@ -191,7 +191,8 @@ fun OnlineSearchScreen(
             RecentSearchesSection(
                 searches = recentSearches,
                 onSearchClick = { q -> viewModel.onSearch(q) },
-                onDeleteClick = { q -> viewModel.deleteRecentSearch(q) }
+                onDeleteClick = { q -> viewModel.deleteRecentSearch(q) },
+                bottomPadding = bottomPadding
             )
         } else {
             OnlineResultsList(
@@ -222,7 +223,8 @@ fun OnlineSearchScreen(
 fun RecentSearchesSection(
     searches: List<RecentSearchEntity>,
     onSearchClick: (String) -> Unit,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (String) -> Unit,
+    bottomPadding: Dp = 100.dp
 ) {
     if (searches.isEmpty()) {
         Box(
@@ -249,7 +251,7 @@ fun RecentSearchesSection(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {

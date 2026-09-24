@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -71,6 +72,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
+    val currentBottomPadding = if (hasAnySong) 190.dp else 120.dp
+
     Box(modifier = Modifier.fillMaxSize()) {
         // ── Content fills entire screen ─────────────────────────────────────
         NavHost(
@@ -83,7 +86,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = if (hasAnySong) 160.dp else 100.dp
+                    bottomPadding = currentBottomPadding
                 )
             }
             composable(Screen.Search.route) {
@@ -91,7 +94,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = if (hasAnySong) 160.dp else 100.dp
+                    bottomPadding = currentBottomPadding
                 )
             }
             composable(Screen.Downloads.route) {
@@ -99,7 +102,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = if (hasAnySong) 160.dp else 100.dp
+                    bottomPadding = currentBottomPadding
                 )
             }
             composable(Screen.Library.route) {
@@ -111,7 +114,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         viewModel.playPlaylist(songs, index)
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = if (hasAnySong) 160.dp else 100.dp
+                    bottomPadding = currentBottomPadding
                 )
             }
             composable("playlist_detail/{playlistId}") { backStackEntry ->
@@ -165,7 +168,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } }
+                    onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
+                    bottomPadding = currentBottomPadding
                 )
             }
             composable(Screen.DualBud.route) {
@@ -180,7 +184,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .zIndex(10f),
                 verticalArrangement = Arrangement.Bottom
             ) {
                 // Mini player above nav bar

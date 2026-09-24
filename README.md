@@ -1,140 +1,123 @@
-<div align="center">
-
-
----
-
-## 📖 Overview
-
-MyPlayer is an advanced Android music player built with a modern technology stack. It seamlessly blends local library playback with online YouTube streaming, powered by a robust MVVM architecture, Media3, and Jetpack Compose.
-
-The application is heavily optimized for performance, boasting 120fps scrolling, zero main-thread blocking, and sub-50ms touch latency.
+# 🎵 MyPlayer
 
 <div align="center">
-  <br/>
-  <i>[ UI Screenshots Placeholder ]</i>
-  <br/>
+
+![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
+![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-FF6F00?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.1-00C853?style=for-the-badge)
+
+<p align="center">
+  <b>A modern, high-performance Android music player combining local library playback, seamless online streaming, intelligent recommendations, real-time synchronized lyrics, and innovative dual-earbud playback.</b>
+</p>
+
 </div>
 
 ---
 
-## ✨ Major Features
+## 🌟 Highlights & Key Features
 
-- **Hybrid Playback Engine:** Play local files and stream online YouTube audio via the same unified Media3 `MusicController`.
-- **Intelligent Autoplay:** A recommendation engine that queues up visually and musically related tracks infinitely once your queue ends, powered by the InnerTube API.
-- **Real-Time Synced Lyrics:** Automatic lyric fetching (via LRCLIB) with smooth, highly-optimized auto-scrolling synced to the playback position.
-- **Premium UI / UX:** A unique, tactile "Clay" Neumorphic design system with fluid animations, micro-interactions, and a floating mini-player.
-- **Performance First:** Engineered for 120Hz displays. Features single-pass layout measurement, lifecycle-aware StateFlow collection, and strict thread isolation.
-- **Offline Support:** Full support for downloading online tracks to local storage for offline listening.
-- **Sleep Timer:** Integrated playback sleep timer.
-
----
-
-## 🏗 Current Architecture
-
-MyPlayer follows a strict **MVVM (Model-View-ViewModel)** pattern with unidirectional data flow (UDF) powered by Kotlin Coroutines and StateFlow.
-
-### Technology Stack & Libraries
-
-| Category                | Technology                                          |
-| ----------------------- | --------------------------------------------------- |
-| **Language**      | Kotlin                                              |
-| **UI Toolkit**    | Jetpack Compose (Material3)                         |
-| **Audio Engine**  | AndroidX Media3 (ExoPlayer, MediaSession)           |
-| **Architecture**  | MVVM, Hilt (Dependency Injection)                   |
-| **Concurrency**   | Kotlin Coroutines, Flow / StateFlow                 |
-| **Local Data**    | Room Database, Jetpack DataStore                    |
-| **Network**       | OkHttp3, YouTube InnerTube API (Reverse Engineered) |
-| **Lyrics API**    | LRCLIB (Open Source, No API Key)                    |
-| **Image Loading** | Coil                                                |
+- **🎧 Dual Bud Mode**: Play two separate, independent audio streams simultaneously—one in your left earbud and another in your right earbud with individual volume controls!
+- **🌐 Hybrid Playback Engine**: Seamlessly switch between local device storage and online YouTube Music streaming through a unified Media3 / ExoPlayer pipeline.
+- **🖼️ 1000×1000 HD Artwork Engine**: Multi-tier artwork resolution integrating iTunes Search API, Deezer API, and YouTube Music to automatically fetch studio-grade HD album covers.
+- **📜 Synced Lyrics**: Real-time synchronized lyrics powered by LRCLIB with silky smooth auto-scrolling and manual line scrubbing.
+- **🧠 Smart Recommendations & Autoplay**: Dynamic next-song recommendation engine that surfaces contextual tracks based on current playback genres and artists.
+- **💾 Offline Downloads & Backup**: Download online audio directly to local storage for offline playback, and export/import full library and playlist states using JSON backup & restore.
+- **🎨 Tactile Claymorphism UI**: Beautiful, custom neumorphic/claymorphic design system (`claySurface`, `clayConcave`) crafted with Jetpack Compose for 120Hz displays.
+- **🛡️ Secure & Resilient**: Built-in runtime integrity checks, network security configuration, and graceful audio fallback handlers.
 
 ---
 
-## 🚀 Installation & Build Instructions
+## 🏗️ Architecture & Technology Stack
+
+MyPlayer is engineered following **Clean Architecture** principles and the **MVVM** pattern with strict Unidirectional Data Flow (UDF).
+
+| Layer | Technologies / Libraries |
+| :--- | :--- |
+| **Language** | [Kotlin](https://kotlinlang.org/) (Coroutines, StateFlow, Flow) |
+| **UI Toolkit** | [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3 & Custom Clay Design System |
+| **Audio Core** | [AndroidX Media3](https://developer.android.com/guide/topics/media/media3) (`ExoPlayer`, `MediaSession`, `MediaController`) |
+| **Dependency Injection** | [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) / Dagger |
+| **Local Persistence** | [Room Database](https://developer.android.com/training/data-storage/room) & Jetpack DataStore |
+| **Networking** | [OkHttp3](https://square.github.io/okhttp/) & [Retrofit](https://square.github.io/retrofit/) |
+| **Image Loading** | [Coil](https://coil-kt.github.io/coil/) (Asynchronous image loading & disk caching) |
+| **Paging** | AndroidX Paging 3 |
+
+---
+
+## 📁 Repository Structure
+
+```text
+MyPlayer/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/example/myplayer/
+│   │   │   │   ├── data/            # Room entities, DAOs, Repositories, Artwork & Lyrics APIs
+│   │   │   │   ├── di/              # Hilt Dependency Injection modules
+│   │   │   │   ├── dualbud/         # Dual-channel audio routing & earbud mixer
+│   │   │   │   ├── playback/        # Media3 MusicController, Service & Source Resolvers
+│   │   │   │   ├── security/        # Integrity and runtime security verification
+│   │   │   │   ├── ui/              # Compose screens, components, theme & navigation
+│   │   │   │   └── util/            # Helpers and background art fetchers
+│   │   │   └── res/                 # Vector drawables, mipmaps, XML security configs
+│   │   └── test/                    # Comprehensive unit tests (Artwork, Playback, Queue, etc.)
+│   └── build.gradle.kts
+├── docs/                            # Architectural design documents & feature breakdowns
+├── gradle/                          # Gradle wrapper and version catalog (libs.versions.toml)
+├── CONTRIBUTING.md                  # Open source contribution guidelines
+├── LICENSE                          # MIT Open Source License
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Android Studio Koala (or newer)
-- JDK 17+
-- Minimum SDK: **24 (Android 7.0)**
-- Target SDK: **34 (Android 14)**
+- **Android Studio Koala (2024.1.1)** or newer
+- **JDK 17** or **JDK 21** (or Android Studio Embedded JBR)
+- Android SDK with:
+  - `compileSdk`: **35**
+  - `minSdk`: **26** (Android 8.0 Oreo)
+  - `targetSdk`: **34**
 
-### Building from Source
+### Clone & Build
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/MyPlayer.git
+   git clone https://github.com/Aashutosh2021/MyPlayer.git
+   cd MyPlayer
    ```
-2. Open the project in Android Studio.
-3. Sync the Gradle files.
-4. Build and Run:
+
+2. Open the project in Android Studio, or build via the command line:
    ```bash
    ./gradlew assembleDebug
    ```
 
-### Permissions Required
-
-- `android.permission.INTERNET`: For streaming music, fetching recommendations, and downloading lyrics.
-- `android.permission.FOREGROUND_SERVICE`: For background audio playback.
-- `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK`: Required in Android 14+ for Media3.
-
----
-
-## 📁 Project Structure
-
-```text
-com.example.myplayer
-├── data/               # Data layer (Room, APIs, Repositories, Recommendations)
-├── di/                 # Hilt Dependency Injection modules
-├── playback/           # Media3 MusicController and Background Service
-├── ui/                 # Presentation layer
-│   ├── common/         # Reusable Compose components
-│   ├── components/     # Specific domain components (Recommendation cards, etc)
-│   ├── navigation/     # NavHost and Routing
-│   ├── screens/        # Main screens (Home, Library, NowPlaying, Search, Settings)
-│   └── theme/          # Clay Design System modifiers, Colors, Typography
-└── MainActivity.kt
-```
-
-*(For a full breakdown, see [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md))*
+3. Run the unit test suite:
+   ```bash
+   ./gradlew testDebugUnitTest
+   ```
 
 ---
 
-## 🚧 Known Limitations
+## 🤝 Contributing
 
-- Background offline syncing of playlists is not currently supported.
-- YouTube API (InnerTube) integration is unofficial and may be subject to undocumented rate limits if abused.
+Contributions are warmly welcome! Whether it's reporting a bug, improving documentation, or proposing new features:
 
----
+1. Check open issues or create a new discussion.
+2. Fork the repository and create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes and ensure all tests pass (`./gradlew testDebugUnitTest`).
+4. Submit a Pull Request targeting `main`.
 
-## 🔮 Future Roadmap
-
-- Android Auto Support
-- Wear OS Companion App
-- Cross-device Playback Sync
-- Desktop App Companion
-- Advanced Material You integration (Dynamic Colors)
-
-*(See [ROADMAP.md](ROADMAP.md) for details)*
+Please review our [Contribution Guide](CONTRIBUTING.md) for details on code style and architecture practices.
 
 ---
-
-## 📚 Documentation Index
-
-Dive deeper into the engineering of MyPlayer:
-
-- [Features Detail](FEATURES.md)
-- [Architecture &amp; Diagrams](ARCHITECTURE.md)
-- [Performance Optimizations](PERFORMANCE.md)
-- [Recommendation Engine](RECOMMENDATION_ENGINE.md)
-- [Security](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-
----
-
-## 🤝 Contribution Guide
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code style, PR process, and development rules.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE_NOTICE.md](LICENSE_NOTICE.md) file for details.
+This project is open-sourced under the [MIT License](LICENSE).
