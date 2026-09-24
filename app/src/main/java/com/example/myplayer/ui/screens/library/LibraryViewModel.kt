@@ -2,7 +2,6 @@ package com.example.myplayer.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.myplayer.data.local.entity.FolderEntity
 import com.example.myplayer.data.local.entity.PlaylistEntity
 import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.data.repository.HybridLibraryRepository
@@ -20,37 +19,11 @@ class LibraryViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository
 ) : ViewModel() {
 
-    val folders: StateFlow<List<FolderEntity>> = repository.getAllFolders()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     val playlists: StateFlow<List<PlaylistEntity>> = repository.getAllPlaylists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val hybridLibrary: StateFlow<List<PlayableSong>> = hybridLibraryRepository.getHybridLibrary()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
-
-    fun addFolder(uri: String, name: String) {
-        viewModelScope.launch {
-            _isScanning.value = true
-            try { repository.addFolder(uri, name) }
-            finally { _isScanning.value = false }
-        }
-    }
-
-    fun removeFolder(folder: FolderEntity) {
-        viewModelScope.launch { repository.removeFolder(folder) }
-    }
-
-    fun rescanFolder(folder: FolderEntity) {
-        viewModelScope.launch {
-            _isScanning.value = true
-            try { repository.rescanAllFolders() }
-            finally { _isScanning.value = false }
-        }
-    }
 
     fun createPlaylist(name: String) {
         viewModelScope.launch { repository.createPlaylist(name) }

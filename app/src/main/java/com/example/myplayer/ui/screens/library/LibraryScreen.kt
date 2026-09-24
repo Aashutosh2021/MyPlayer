@@ -1,8 +1,5 @@
 package com.example.myplayer.ui.screens.library
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -30,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.myplayer.data.local.entity.FolderEntity
 import com.example.myplayer.data.repository.PlayableSong
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
@@ -43,27 +38,10 @@ fun LibraryScreen(
     bottomPadding: Dp = 100.dp,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val hybridLibrary by viewModel.hybridLibrary.collectAsStateWithLifecycle()
-    val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    // SAF folder picker
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flags)
-            val folderName = uri.lastPathSegment?.substringAfterLast(':') ?: uri.toString()
-            viewModel.addFolder(uri.toString(), folderName)
-        }
-    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    var showDeleteDialog by remember { mutableStateOf<FolderEntity?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var songToAddToPlaylist by remember { mutableStateOf<PlayableSong?>(null) }
@@ -91,29 +69,6 @@ fun LibraryScreen(
                     onClick = { songToRemoveDownload = null },
                     colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
                 ) { Text("Cancel") }
-            }
-        )
-    }
-
-    showDeleteDialog?.let { folder ->
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            title = { Text("Remove Folder") },
-            text = { Text("Remove \"${folder.name}\" and delete all its songs from your library?") },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.removeFolder(folder); showDeleteDialog = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
-                ) { Text("Remove") }
-            },
-            dismissButton = { 
-                TextButton(
-                    onClick = { showDeleteDialog = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
-                ) { Text("Cancel") } 
             }
         )
     }
@@ -231,9 +186,6 @@ fun LibraryScreen(
                     color = OnSurfaceVariant
                 )
             }
-            if (isScanning) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = ClayPrimary)
-            }
         }
 
         // Tabs
@@ -247,7 +199,6 @@ fun LibraryScreen(
         ) {
             val tabs = listOf(
                 "All Songs" to Icons.Filled.LibraryMusic,
-                "Folders" to Icons.Filled.Folder,
                 "Playlists" to Icons.AutoMirrored.Filled.QueueMusic
             )
             
@@ -294,14 +245,7 @@ fun LibraryScreen(
                 onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
-            1 -> FoldersTab(
-                folders = folders,
-                onAddFolder = { folderPickerLauncher.launch(null) },
-                onRescan = viewModel::rescanFolder,
-                onDelete = { showDeleteDialog = it },
-                bottomPadding = bottomPadding
-            )
-            2 -> PlaylistsTab(
+            1 -> PlaylistsTab(
                 playlists = playlists,
                 onCreatePlaylist = { showCreatePlaylistDialog = true },
                 onDeletePlaylist = viewModel::deletePlaylist,
@@ -334,7 +278,7 @@ fun HybridSongsTab(
                 Spacer(Modifier.height(24.dp))
                 Text("No songs yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
                 Spacer(Modifier.height(8.dp))
-                Text("Add folders or download songs online", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
+                Text("Download songs online or search to add music", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
             }
         }
         return
@@ -452,67 +396,6 @@ fun HybridSongItem(
 }
 
 @Composable
-fun FoldersTab(
-    folders: List<FolderEntity>,
-    onAddFolder: () -> Unit,
-    onRescan: (FolderEntity) -> Unit,
-    onDelete: (FolderEntity) -> Unit,
-    bottomPadding: Dp
-) {
-    LazyColumn(
-        contentPadding = PaddingValues(bottom = bottomPadding, top = 8.dp),
-        modifier = Modifier.padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("${folders.size} folder(s)", style = MaterialTheme.typography.labelMedium,
-                    color = OnSurfaceVariant)
-                
-                Box(
-                    modifier = Modifier
-                        .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
-                        .clickable(onClick = onAddFolder)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp), tint = ClayPrimary)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Add Folder", style = MaterialTheme.typography.labelMedium, color = ClayPrimary)
-                    }
-                }
-            }
-        }
-        
-        if (folders.isEmpty()) {
-            item {
-                Box(modifier = Modifier.fillMaxWidth().padding(48.dp),
-                    contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.FolderOpen, null, modifier = Modifier.size(48.dp), tint = TextMuted)
-                        }
-                        Spacer(Modifier.height(24.dp))
-                        Text("No folders added yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                    }
-                }
-            }
-        } else {
-            items(folders, key = { it.uri }) { folder -> FolderItem(folder, { onRescan(folder) }, { onDelete(folder) }) }
-        }
-    }
-}
-
-@Composable
 fun PlaylistsTab(
     playlists: List<com.example.myplayer.data.local.entity.PlaylistEntity>,
     onCreatePlaylist: () -> Unit,
@@ -574,49 +457,6 @@ fun PlaylistsTab(
                     onClick = { onPlaylistClick(playlist.id) },
                     onDelete = { onDeletePlaylist(playlist) }
                 ) 
-            }
-        }
-    }
-}
-
-@Composable
-fun FolderItem(folder: FolderEntity, onRescan: () -> Unit, onDelete: () -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clayConcave(borderRadius = 12.dp)
-                .padding(2.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.Folder, null, tint = ClayPrimary, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(folder.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(2.dp))
-            Text(folder.uri, style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Box {
-            ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
-                Icon(Icons.Filled.MoreVert, "More", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
-            }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
-                DropdownMenuItem(text = { Text("Rescan", color = OnSurface) },
-                    leadingIcon = { Icon(Icons.Filled.Refresh, null, tint = OnSurfaceVariant) },
-                    onClick = { showMenu = false; onRescan() })
-                DropdownMenuItem(text = { Text("Remove", color = Color(0xFFBA1A1A)) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
-                    onClick = { showMenu = false; onDelete() })
             }
         }
     }
