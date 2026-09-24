@@ -30,6 +30,24 @@
 
 ---
 
+## 📸 Screenshots
+
+<div align="center">
+  <img width="23%" alt="Home Screen" src="https://github.com/user-attachments/assets/966f5fd6-a381-4da5-808b-637b045afbf6" />
+  <img width="23%" alt="Search Screen" src="https://github.com/user-attachments/assets/2f28e3ed-e120-4f58-b404-813e1edb0bcc" />
+  <img width="23%" alt="Library Screen" src="https://github.com/user-attachments/assets/1eba9d7b-810e-47b7-aa7d-6872a2f26167" />
+  <img width="23%" alt="Downloads Screen" src="https://github.com/user-attachments/assets/7e14d874-19f5-4de8-85b8-c6820d3b9263" />
+</div>
+
+<div align="center">
+  <img width="23%" alt="Now Playing Screen" src="https://github.com/user-attachments/assets/69d3fae6-801b-4a57-b4e3-86d2d01f618a" />
+  <img width="23%" alt="Lyrics Screen" src="https://github.com/user-attachments/assets/e009a6dd-f55a-440e-abe5-fe127ff5efd6" />
+  <img width="23%" alt="Audio Engine" src="https://github.com/user-attachments/assets/e9a0b5da-ca5d-4855-9796-dbca5868e3d3" />
+  <img width="23%" alt="Queue / Settings" src="https://github.com/user-attachments/assets/f183c1ca-572e-4b2f-9e44-552f5777cb87" />
+</div>
+
+---
+
 ## 🏗️ Architecture & Technology Stack
 
 MyPlayer is engineered following **Clean Architecture** principles and the **MVVM** pattern with strict Unidirectional Data Flow (UDF).
