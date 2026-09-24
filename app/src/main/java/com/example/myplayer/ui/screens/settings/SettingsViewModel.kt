@@ -44,9 +44,18 @@ class SettingsViewModel @Inject constructor(
     val downloadFolderUri = preferencesManager.downloadFolderUri
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val userName = settingsDataStore.userName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
+
     fun setAutoplayEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setAutoplayEnabled(enabled)
+        }
+    }
+
+    fun setUserName(name: String) {
+        viewModelScope.launch {
+            settingsDataStore.setUserName(name)
         }
     }
 
