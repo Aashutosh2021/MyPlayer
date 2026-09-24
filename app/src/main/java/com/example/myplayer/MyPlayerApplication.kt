@@ -14,6 +14,7 @@ import com.example.myplayer.util.AudioAlbumArtFetcher
 
 import com.example.myplayer.data.artwork.ArtworkRepository
 import com.example.myplayer.data.artwork.coil.ArtworkFetcher
+import com.example.myplayer.data.update.UpdateCheckScheduler
 import javax.inject.Provider
 
 @HiltAndroidApp
@@ -36,6 +37,9 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
         // All checks run on Dispatchers.IO — this DOES NOT block the main thread.
         // Observe securityManager.securityStatus from MainActivity for results.
         securityManager.initialize()
+
+        // Background update checking
+        UpdateCheckScheduler.schedulePeriodicCheck(this)
     }
 
     override val workManagerConfiguration: Configuration

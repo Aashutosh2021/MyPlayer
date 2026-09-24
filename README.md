@@ -92,6 +92,10 @@
    - Removed folder view clutter; consolidated into clean "All Songs" and "Playlists" tabs.
 6. **High-Fidelity Audio Stream Badges**:
    - Lossless and Hi-Res fidelity pill indicators showing bit depth, sample rate, and codec format.
+7. **Automatic GitHub Releases Updater**:
+   - Automated background updates check every 6 hours via WorkManager.
+   - On-launch update verification and native notification dispatch linking to GitHub Release APKs.
+   - On-demand "Check for Updates" option in Settings with interactive dialogs.
 
 ---
 
