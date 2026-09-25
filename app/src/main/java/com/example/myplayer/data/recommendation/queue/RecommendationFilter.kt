@@ -33,7 +33,7 @@ class RecommendationFilter @Inject constructor(
             }
 
             // Current seed song
-            if (seed?.songId == song.videoId) {
+            if (!seed?.songId.isNullOrBlank() && seed?.songId == song.videoId) {
                 metrics.recordRejected()
                 continue
             }

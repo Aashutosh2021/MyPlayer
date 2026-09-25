@@ -13,32 +13,38 @@ import javax.inject.Singleton
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
 
 @Singleton
-class SettingsDataStore @Inject constructor(
-    @ApplicationContext private val context: Context
+open class SettingsDataStore internal constructor(
+    context: Context?,
+    @Suppress("UNUSED_PARAMETER") isTest: Boolean
 ) {
-    private val dataStore = context.dataStore
+    @Inject
+    constructor(@ApplicationContext context: Context) : this(context, false)
+
+    constructor() : this(null, true)
+
+    private val dataStore = context?.dataStore
 
     companion object {
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val USER_NAME = stringPreferencesKey("user_display_name")
     }
 
-    val isAutoplayEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+    open val isAutoplayEnabled: Flow<Boolean> = dataStore?.data?.map { preferences ->
         preferences[AUTOPLAY_ENABLED] ?: true
-    }
+    } ?: kotlinx.coroutines.flow.flowOf(true)
 
     suspend fun setAutoplayEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
+        dataStore?.edit { preferences ->
             preferences[AUTOPLAY_ENABLED] = enabled
         }
     }
 
-    val userName: Flow<String> = dataStore.data.map { preferences ->
+    val userName: Flow<String> = dataStore?.data?.map { preferences ->
         preferences[USER_NAME] ?: "Alex Rivera"
-    }
+    } ?: kotlinx.coroutines.flow.flowOf("Alex Rivera")
 
     suspend fun setUserName(name: String) {
-        dataStore.edit { preferences ->
+        dataStore?.edit { preferences ->
             preferences[USER_NAME] = name.trim().ifBlank { "User" }
         }
     }

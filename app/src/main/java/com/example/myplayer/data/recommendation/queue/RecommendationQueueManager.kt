@@ -55,8 +55,10 @@ class RecommendationQueueManager @Inject constructor(
             }
         }
         
-        recentPlaybackWindow.add(seed.songId)
-        history.recordState(seed.songId, RecommendationHistoryState.PLAYED)
+        if (seed.songId.isNotBlank()) {
+            recentPlaybackWindow.add(seed.songId)
+            history.recordState(seed.songId, RecommendationHistoryState.PLAYED)
+        }
         checkAndRefillQueue(seed)
     }
 

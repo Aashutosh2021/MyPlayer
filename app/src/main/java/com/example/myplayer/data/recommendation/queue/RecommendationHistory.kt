@@ -42,6 +42,11 @@ class RecommendationHistory @Inject constructor() {
     }
 
     @Synchronized
+    fun hasAnyHistory(): Boolean {
+        return historyMap.isNotEmpty()
+    }
+
+    @Synchronized
     fun clear() {
         historyMap.clear()
     }

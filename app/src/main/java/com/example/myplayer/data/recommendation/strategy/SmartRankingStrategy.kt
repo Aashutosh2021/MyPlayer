@@ -57,7 +57,7 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
             val reasons = mutableListOf<String>()
 
             // 1. Same Artist Bonus
-            if (candidate.artist.equals(seed.artist, ignoreCase = true)) {
+            if (seed.artist.isNotBlank() && candidate.artist.equals(seed.artist, ignoreCase = true)) {
                 score += 25
                 reasons.add("Same Artist")
             }
@@ -79,7 +79,16 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
                 }
             }
 
-            // 3. Hidden Gem Bonus Algorithm (Peak score for sweet spot discoveries)
+            // 3. Source Consensus & Affinity Signals
+            if (candidate.source.contains("YouTubeRadio", ignoreCase = true)) {
+                score += 20
+                reasons.add("Related Radio")
+            } else if (candidate.source.contains("LastFm", ignoreCase = true)) {
+                score += 15
+                reasons.add("Global Chart")
+            }
+
+            // 4. Hidden Gem Bonus Algorithm (Peak score for sweet spot discoveries)
             val gemBonus = calculateGemScore(candidate.popularityScore)
             if (gemBonus > 0) {
                 score += gemBonus
@@ -88,13 +97,15 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
                 score += gemBonus // Minor penalty for extreme mainstream saturation
             }
 
-            // 4. Token Similarity in Titles/Albums
-            val seedTokens = (seed.title + " " + seed.album).lowercase().split(Regex("\\W+")).filter { it.length > 2 }
-            val candidateTokens = (candidate.title + " " + candidate.album).lowercase().split(Regex("\\W+")).filter { it.length > 2 }
-            val commonTokens = seedTokens.intersect(candidateTokens.toSet())
-            if (commonTokens.isNotEmpty()) {
-                score += (commonTokens.size * 4)
-                reasons.add("Title Overlap")
+            // 5. Token Similarity in Titles/Albums
+            if (seed.title.isNotBlank() || seed.album.isNotBlank()) {
+                val seedTokens = (seed.title + " " + seed.album).lowercase().split(Regex("\\W+")).filter { it.length > 2 }
+                val candidateTokens = (candidate.title + " " + candidate.album).lowercase().split(Regex("\\W+")).filter { it.length > 2 }
+                val commonTokens = seedTokens.intersect(candidateTokens.toSet())
+                if (commonTokens.isNotEmpty()) {
+                    score += (commonTokens.size * 4)
+                    reasons.add("Title Overlap")
+                }
             }
 
             candidate.copy(

@@ -26,6 +26,8 @@ class PlaybackRouter @Inject constructor(
 ) {
     val currentAudioQuality: kotlinx.coroutines.flow.StateFlow<AudioQualityInfo> = sourceResolver.currentAudioQuality
     private var activePlayJob: Job? = null
+    private var prefetchJob: Job? = null
+    private var currentRequests: List<PlayRequest> = emptyList()
 
     @Synchronized
     fun prepare(
@@ -36,6 +38,7 @@ class PlaybackRouter @Inject constructor(
         onPrepared: () -> Unit = {}
     ) {
         activePlayJob?.cancel()
+        prefetchJob?.cancel()
         activePlayJob = scope.launch {
             val resolvedPath = sourceResolver.resolve(request) { err ->
                 delegate.setCustomError(err)
@@ -64,6 +67,8 @@ class PlaybackRouter @Inject constructor(
     ) {
         if (requests.isEmpty()) return
         activePlayJob?.cancel()
+        prefetchJob?.cancel()
+        currentRequests = requests
         val clampedIndex = startIndex.coerceIn(0, requests.size - 1)
         val currentRequest = requests[clampedIndex]
 
@@ -88,50 +93,92 @@ class PlaybackRouter @Inject constructor(
                 albumArt = currentRequest.albumArt
             )
 
-            // Make a list of items for the player queue
-            val mediaItems = requests.mapIndexed { i, r ->
-                if (i == clampedIndex) {
-                    currentMediaItem
-                } else {
-                    // Placeholder items
-                    mediaItemFactory.createMediaItem(
-                        songId = r.songId,
-                        path = r.localUri ?: "online://${r.songId}",
-                        title = r.title,
-                        artist = r.artist,
-                        albumArt = r.albumArt
-                    )
-                }
-            }.toMutableList()
+            // CRITICAL: NEVER pass unresolvable "online://" items to ExoPlayer!
+            val hasOnlineItems = requests.any {
+                it.playbackSource == PlaybackSourceType.ONLINE ||
+                it.localUri?.startsWith("online://") == true ||
+                it.localUri?.startsWith("http") == true
+            } || currentPath.startsWith("http")
 
-            // 3. Play items on ExoPlayer via delegate
-            withContext(Dispatchers.Main) {
-                delegate.playMediaItems(mediaItems, clampedIndex)
+            val mediaItems = if (hasOnlineItems || requests.size <= 1) {
+                listOf(currentMediaItem)
+            } else {
+                requests.mapIndexed { i, r ->
+                    if (i == clampedIndex) {
+                        currentMediaItem
+                    } else {
+                        mediaItemFactory.createMediaItem(
+                            songId = r.songId,
+                            path = r.localUri ?: "",
+                            title = r.title,
+                            artist = r.artist,
+                            albumArt = r.albumArt
+                        )
+                    }
+                }
             }
 
-            // 4. Pre-resolve only the immediate next track after playback stabilizes (delay 4s)
-            // This prevents YouTube rate-limiting/throttling from hammering the entire queue.
-            launch(Dispatchers.IO) {
-                kotlinx.coroutines.delay(4000)
-                val nextIndex = clampedIndex + 1
-                if (nextIndex < requests.size) {
-                    val req = requests[nextIndex]
-                    val resolvedPath = sourceResolver.resolve(req) { /* ignore background errors */ }
-                    if (resolvedPath != null && resolvedPath != req.localUri) {
-                        withContext(Dispatchers.Main) {
-                            if (delegate.getMediaItemCount() == requests.size && nextIndex < delegate.getMediaItemCount()) {
-                                val currentItem = delegate.getMediaItemAt(nextIndex)
-                                if (currentItem != null) {
-                                    val resolvedItem = mediaItemFactory.createMediaItem(
-                                        songId = req.songId,
-                                        path = resolvedPath,
-                                        title = req.title,
-                                        artist = req.artist,
-                                        albumArt = req.albumArt
-                                    )
-                                    delegate.replaceMediaItem(nextIndex, resolvedItem)
-                                }
-                            }
+            val targetIndex = if (hasOnlineItems || requests.size <= 1) 0 else clampedIndex
+
+            withContext(Dispatchers.Main) {
+                delegate.playMediaItems(mediaItems, targetIndex)
+            }
+        }
+    }
+
+    fun onTrackTransition(
+        scope: CoroutineScope,
+        delegate: PlaybackRouterDelegate,
+        currentIndex: Int
+    ) {
+        if (currentIndex !in currentRequests.indices) return
+        val currentReq = currentRequests[currentIndex]
+
+        prefetchJob?.cancel()
+        prefetchJob = scope.launch(Dispatchers.Main) {
+            val currentItem = delegate.getMediaItemAt(currentIndex)
+            val currentUri = currentItem?.localConfiguration?.uri?.toString()
+
+            // 1. If current item still has unresolved online:// URI, resolve and replace immediately
+            if (currentUri != null && currentUri.startsWith("online://")) {
+                val resolvedPath = withContext(Dispatchers.IO) {
+                    sourceResolver.resolve(currentReq) { err ->
+                        delegate.setCustomError(err)
+                    }
+                }
+                if (resolvedPath != null && resolvedPath != currentUri) {
+                    val resolvedItem = mediaItemFactory.createMediaItem(
+                        songId = currentReq.songId,
+                        path = resolvedPath,
+                        title = currentReq.title,
+                        artist = currentReq.artist,
+                        albumArt = currentReq.albumArt
+                    )
+                    delegate.replaceMediaItem(currentIndex, resolvedItem)
+                }
+            }
+
+            // 2. Pre-resolve next track after playback stabilizes (delay 2.5s)
+            val nextIndex = currentIndex + 1
+            if (nextIndex in currentRequests.indices) {
+                kotlinx.coroutines.delay(2500)
+                val nextReq = currentRequests[nextIndex]
+                val nextItem = delegate.getMediaItemAt(nextIndex)
+                val nextUri = nextItem?.localConfiguration?.uri?.toString()
+                if (nextUri != null && nextUri.startsWith("online://")) {
+                    val nextResolved = withContext(Dispatchers.IO) {
+                        sourceResolver.resolve(nextReq) { /* ignore background errors */ }
+                    }
+                    if (nextResolved != null && nextResolved != nextUri) {
+                        if (delegate.getMediaItemCount() == currentRequests.size && nextIndex < delegate.getMediaItemCount()) {
+                            val resolvedNextItem = mediaItemFactory.createMediaItem(
+                                songId = nextReq.songId,
+                                path = nextResolved,
+                                title = nextReq.title,
+                                artist = nextReq.artist,
+                                albumArt = nextReq.albumArt
+                            )
+                            delegate.replaceMediaItem(nextIndex, resolvedNextItem)
                         }
                     }
                 }

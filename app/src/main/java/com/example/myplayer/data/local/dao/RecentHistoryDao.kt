@@ -23,6 +23,12 @@ interface RecentHistoryDao {
     @Query("SELECT * FROM recent_history")
     fun getAllRecentHistorySync(): List<RecentHistoryEntity>
 
+    @Query("SELECT COUNT(*) FROM recent_history")
+    suspend fun getHistoryCount(): Int
+
+    @Query("SELECT * FROM recent_history ORDER BY playedAt DESC LIMIT :limit")
+    suspend fun getRecentHistoryEntries(limit: Int): List<RecentHistoryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertRecentHistory(recent: List<RecentHistoryEntity>)
 }

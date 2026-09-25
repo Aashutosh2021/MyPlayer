@@ -17,7 +17,7 @@ abstract class RecommendationModule {
     @Binds
     @Singleton
     abstract fun bindRecommendationSource(
-        youTubeRecommendationSource: YouTubeRecommendationSource
+        router: com.example.myplayer.data.recommendation.api.RecommendationSourceRouter
     ): RecommendationSource
 
     @Binds

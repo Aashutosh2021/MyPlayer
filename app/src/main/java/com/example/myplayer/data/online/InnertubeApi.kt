@@ -117,6 +117,160 @@ class InnertubeApi @Inject constructor(
         }
     }
 
+    /**
+     * Retrieves related/radio recommendation tracks for a given YouTube video ID
+     * using YouTube Music's 'next' endpoint.
+     */
+    suspend fun getNextRadioTracks(videoId: String): List<OnlineSong> = withContext(Dispatchers.IO) {
+        val cleanVideoId = videoId.removePrefix("online://").trim()
+        if (cleanVideoId.isBlank()) return@withContext emptyList()
+
+        try {
+            Log.d(TAG, "YOUTUBE_RADIO_REQUEST: Requesting radio tracks for videoId: $cleanVideoId")
+            // 1. Try with radio playlist ID RDAMVM{videoId}
+            val radioTracks = fetchNextEndpoint(cleanVideoId, playlistId = "RDAMVM$cleanVideoId")
+            if (radioTracks.isNotEmpty()) {
+                Log.d(TAG, "YOUTUBE_RADIO_RESULT: Found ${radioTracks.size} radio tracks with RDAMVM for $cleanVideoId")
+                return@withContext radioTracks
+            }
+
+            // 2. Fallback without playlist ID (direct watch next)
+            Log.d(TAG, "RDAMVM radio returned empty, attempting direct next for $cleanVideoId")
+            val nextTracks = fetchNextEndpoint(cleanVideoId, playlistId = null)
+            Log.d(TAG, "YOUTUBE_RADIO_RESULT: Found ${nextTracks.size} tracks from direct next for $cleanVideoId")
+            nextTracks
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get radio tracks for $cleanVideoId", e)
+            emptyList()
+        }
+    }
+
+    private fun fetchNextEndpoint(videoId: String, playlistId: String?): List<OnlineSong> {
+        try {
+            val bodyJson = JSONObject(CLIENT_CONTEXT).apply {
+                put("videoId", videoId)
+                if (!playlistId.isNullOrBlank()) {
+                    put("playlistId", playlistId)
+                }
+                put("isAudioOnly", true)
+            }
+
+            val request = Request.Builder()
+                .url("$BASE_URL/next?key=$API_KEY&prettyPrint=false")
+                .post(bodyJson.toString().toRequestBody(MEDIA_TYPE_JSON))
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Log.w(TAG, "Next endpoint HTTP error ${response.code} for $videoId")
+                return emptyList()
+            }
+
+            val body = response.body?.string() ?: return emptyList()
+            return parseNextResponse(body, excludeVideoId = videoId)
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchNextEndpoint failed for $videoId (playlistId: $playlistId)", e)
+            return emptyList()
+        }
+    }
+
+    private fun parseNextResponse(json: String, excludeVideoId: String): List<OnlineSong> {
+        val songs = mutableListOf<OnlineSong>()
+        try {
+            val root = JSONObject(json)
+            val tabs = root
+                .optJSONObject("contents")
+                ?.optJSONObject("singleColumnMusicWatchNextResultsRenderer")
+                ?.optJSONObject("tabbedRenderer")
+                ?.optJSONObject("watchNextTabbedResultsRenderer")
+                ?.optJSONArray("tabs") ?: return emptyList()
+
+            for (i in 0 until tabs.length()) {
+                val tab = tabs.optJSONObject(i)?.optJSONObject("tabRenderer") ?: continue
+                val panel = tab.optJSONObject("content")
+                    ?.optJSONObject("musicQueueRenderer")
+                    ?.optJSONObject("content")
+                    ?.optJSONObject("playlistPanelRenderer") ?: continue
+
+                val contents = panel.optJSONArray("contents") ?: continue
+
+                for (j in 0 until contents.length()) {
+                    val item = contents.optJSONObject(j) ?: continue
+                    val renderer = item.optJSONObject("playlistPanelVideoRenderer") ?: continue
+
+                    val videoId = renderer.optString("videoId")
+                    if (videoId.isBlank() || videoId == excludeVideoId) continue
+
+                    val title = renderer.optJSONObject("title")
+                        ?.optJSONArray("runs")
+                        ?.optJSONObject(0)
+                        ?.optString("text") ?: ""
+                    if (title.isBlank()) continue
+
+                    val artist = renderer.optJSONObject("shortBylineText")
+                        ?.optJSONArray("runs")
+                        ?.optJSONObject(0)
+                        ?.optString("text")
+                        ?: renderer.optJSONObject("longBylineText")
+                            ?.optJSONArray("runs")
+                            ?.optJSONObject(0)
+                            ?.optString("text")
+                        ?: "Unknown Artist"
+
+                    val durationText = renderer.optJSONObject("lengthText")
+                        ?.optJSONArray("runs")
+                        ?.optJSONObject(0)
+                        ?.optString("text") ?: ""
+                    val durationMs = parseDurationToMs(durationText)
+
+                    val thumbnails = renderer.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                    val rawThumbnailUrl = if (thumbnails != null && thumbnails.length() > 0) {
+                        thumbnails.optJSONObject(thumbnails.length() - 1)?.optString("url") ?: ""
+                    } else ""
+
+                    val highResThumbnailUrl = formatThumbnailUrl(rawThumbnailUrl)
+
+                    songs.add(
+                        OnlineSong(
+                            videoId = videoId,
+                            title = title,
+                            artist = artist,
+                            thumbnailUrl = highResThumbnailUrl,
+                            durationMs = durationMs,
+                            durationText = durationText
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "parseNextResponse failed", e)
+        }
+        return songs
+    }
+
+    private fun formatThumbnailUrl(rawUrl: String): String {
+        return when {
+            rawUrl.contains("googleusercontent.com") -> {
+                val googleDimRegex = Regex("""=w\d+-h\d+[^=]*$""")
+                if (googleDimRegex.containsMatchIn(rawUrl)) {
+                    rawUrl.replace(googleDimRegex, "=w800-h800-l90-rj")
+                } else if (rawUrl.contains("=")) {
+                    rawUrl.substringBeforeLast("=") + "=w800-h800-l90-rj"
+                } else {
+                    "$rawUrl=w800-h800-l90-rj"
+                }
+            }
+            rawUrl.isNotBlank() -> {
+                rawUrl.replace(Regex("""w\d+-h\d+"""), "w800-h800")
+            }
+            else -> ""
+        }
+    }
+
     private fun parseSearchResponse(json: String): SearchPage {
         val songs = mutableListOf<OnlineSong>()
         var continuationToken: String? = null

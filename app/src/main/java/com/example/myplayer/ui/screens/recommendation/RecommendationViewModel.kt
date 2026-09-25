@@ -2,6 +2,7 @@ package com.example.myplayer.ui.screens.recommendation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.RecommendationCoordinator
 import com.example.myplayer.data.recommendation.model.RecommendationSong
 import com.example.myplayer.data.recommendation.queue.RecommendationQueueManager
@@ -30,9 +31,26 @@ class RecommendationViewModel @Inject constructor(
 
     fun playNow(song: RecommendationSong) {
         viewModelScope.launch {
-            val onlineSong = coordinator.playRecommendation(song)
-            if (onlineSong != null) {
-                musicController.playOnlineSong(onlineSong)
+            val list = recommendations.value
+            val idx = list.indexOfFirst { it.videoId == song.videoId }
+            if (idx != -1 && list.size > 1) {
+                val onlineSongs = list.map { s ->
+                    coordinator.playRecommendation(s) ?: OnlineSong(
+                        videoId = s.videoId,
+                        title = s.title,
+                        artist = s.artist,
+                        thumbnailUrl = s.thumbnailUrl,
+                        durationMs = s.durationMs,
+                        durationText = s.durationMs.toString(),
+                        streamUrl = "online://${s.videoId}"
+                    )
+                }
+                musicController.playOnlineSongs(onlineSongs, idx)
+            } else {
+                val onlineSong = coordinator.playRecommendation(song)
+                if (onlineSong != null) {
+                    musicController.playOnlineSong(onlineSong)
+                }
             }
         }
     }

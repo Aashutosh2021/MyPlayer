@@ -26,6 +26,10 @@ android {
             ?: "0" // Replace 0 with your Google Cloud project number linked to Play Console
         buildConfigField("String", "PLAY_INTEGRITY_PROJECT_NUMBER", "\"$playProjectNumber\"")
 
+        // Read Last.fm API key from local.properties or gradle.properties (never hardcode in Kotlin)
+        val lastFmApiKey = project.findProperty("lastfm.apiKey")?.toString() ?: ""
+        buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmApiKey\"")
+
         // Embed the NDK native library
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
