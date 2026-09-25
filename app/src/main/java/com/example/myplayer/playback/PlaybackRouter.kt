@@ -11,6 +11,7 @@ import javax.inject.Singleton
 
 interface PlaybackRouterDelegate {
     fun playMediaItems(mediaItems: List<MediaItem>, startIndex: Int)
+    fun prepareMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long = 0L, onPrepared: () -> Unit = {}) {}
     fun replaceMediaItem(index: Int, mediaItem: MediaItem)
     fun setCustomError(message: String)
     fun stopPlayback()
@@ -25,6 +26,34 @@ class PlaybackRouter @Inject constructor(
 ) {
     val currentAudioQuality: kotlinx.coroutines.flow.StateFlow<AudioQualityInfo> = sourceResolver.currentAudioQuality
     private var activePlayJob: Job? = null
+
+    @Synchronized
+    fun prepare(
+        scope: CoroutineScope,
+        delegate: PlaybackRouterDelegate,
+        request: PlayRequest,
+        startPositionMs: Long = 0L,
+        onPrepared: () -> Unit = {}
+    ) {
+        activePlayJob?.cancel()
+        activePlayJob = scope.launch {
+            val resolvedPath = sourceResolver.resolve(request) { err ->
+                delegate.setCustomError(err)
+            } ?: return@launch
+
+            val mediaItem = mediaItemFactory.createMediaItem(
+                songId = request.songId,
+                path = resolvedPath,
+                title = request.title,
+                artist = request.artist,
+                albumArt = request.albumArt
+            )
+
+            withContext(Dispatchers.Main) {
+                delegate.prepareMediaItems(listOf(mediaItem), 0, startPositionMs, onPrepared)
+            }
+        }
+    }
 
     @Synchronized
     fun play(

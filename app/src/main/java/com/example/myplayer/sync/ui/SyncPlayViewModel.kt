@@ -25,10 +25,14 @@ class SyncPlayViewModel @Inject constructor(
     fun pause() = syncPlayManager.pause()
     fun resume() = syncPlayManager.resume()
     fun seek(positionMs: Long) = syncPlayManager.seek(positionMs)
+    fun removeSlave(deviceId: String) = syncPlayManager.removeSlaveDevice(deviceId)
     fun leaveRoom() = syncPlayManager.leave()
 
     override fun onCleared() {
         super.onCleared()
-        syncPlayManager.stop()
+        // DO NOT stop SyncPlayManager on ViewModel cleared.
+        // SyncPlayManager is an application-scoped @Singleton. Navigating away from
+        // the screen via Android Back button must NOT terminate the room/transport session.
+        // The session is only terminated when the user explicitly clicks "LEAVE ROOM".
     }
 }

@@ -30,6 +30,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+interface SyncPlaybackInterceptor {
+    fun onPlayRequested(song: SongEntity, startIndex: Int): Boolean
+    fun onPauseRequested(): Boolean = false
+    fun onResumeRequested(): Boolean = false
+    fun onSeekRequested(positionMs: Long): Boolean = false
+    fun onTrackSkipRequested(isNext: Boolean): Boolean = false
+    fun onPlayerIsPlayingChanged(isPlaying: Boolean, positionMs: Long) {}
+}
+
 @Singleton
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -56,6 +65,8 @@ class MusicController @Inject constructor(
     private val _songQueue = mutableListOf<SongEntity>()
     private val _playbackQueue = MutableStateFlow<List<SongEntity>>(emptyList())
     val playbackQueue: StateFlow<List<SongEntity>> = _playbackQueue.asStateFlow()
+
+    @Volatile var syncPlaybackInterceptor: SyncPlaybackInterceptor? = null
 
     // Playback history stack (Phase R9/R10)
     private val playbackHistory = java.util.Stack<Int>()
@@ -100,12 +111,7 @@ class MusicController @Inject constructor(
         playbackStateManager.updateRepeatMode(savedRepeat)
         playbackStateManager.updateShuffle(savedShuffle)
 
-        val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
-        mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        mediaControllerFuture?.addListener({
-            mediaController = mediaControllerFuture?.get()
-            setupController()
-        }, MoreExecutors.directExecutor())
+        initializeMediaController()
 
         scope.launch {
             playbackEventBus.events.collect { event ->
@@ -117,6 +123,37 @@ class MusicController @Inject constructor(
         }
     }
 
+    private fun initializeMediaController() {
+        try {
+            context.startService(android.content.Intent(context, MusicService::class.java))
+        } catch (_: Exception) {}
+
+        val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
+        val future = MediaController.Builder(context, sessionToken)
+            .setListener(object : MediaController.Listener {
+                override fun onDisconnected(controller: MediaController) {
+                    Log.w("MusicController", "MediaController disconnected from MusicService session. Rebuilding connection...")
+                    mediaController = null
+                    scope.launch {
+                        delay(500)
+                        initializeMediaController()
+                    }
+                }
+            })
+            .buildAsync()
+
+        mediaControllerFuture = future
+        future.addListener({
+            try {
+                mediaController = future.get()
+                setupController()
+                Log.d("MusicController", "MediaController successfully connected to MusicService")
+            } catch (e: Exception) {
+                Log.e("MusicController", "Failed to connect MediaController", e)
+            }
+        }, MoreExecutors.directExecutor())
+    }
+
     private fun setupController() {
         val controller = mediaController
         if (controller != null) {
@@ -126,6 +163,7 @@ class MusicController @Inject constructor(
             controller.shuffleModeEnabled = savedShuffle
             playbackStateManager.updateRepeatMode(savedRepeat)
             playbackStateManager.updateShuffle(savedShuffle)
+            updateCurrentSong()
         }
 
         mediaController?.addListener(object : Player.Listener {
@@ -173,6 +211,8 @@ class MusicController @Inject constructor(
                 super.onIsPlayingChanged(isPlaying)
                 playbackStateManager.updatePlayingState(isPlaying)
                 if (isPlaying) startPositionUpdater() else stopPositionUpdater()
+                val pos = mediaController?.currentPosition ?: 0L
+                syncPlaybackInterceptor?.onPlayerIsPlayingChanged(isPlaying, pos)
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -246,15 +286,43 @@ class MusicController @Inject constructor(
 
     private fun updateCurrentSong() {
         val controller = mediaController ?: return
-        val index = controller.currentMediaItemIndex
-        if (index in _songQueue.indices) {
-            playbackStateManager.updateCurrentSong(_songQueue[index])
-        } else {
-            val mediaId = controller.currentMediaItem?.mediaId ?: return
-            val localSong = _songQueue.firstOrNull { it.id == mediaId }
-            if (localSong != null) {
-                playbackStateManager.updateCurrentSong(localSong)
+        val currentItem = controller.currentMediaItem
+        val mediaId = currentItem?.mediaId
+        val uriStr = currentItem?.localConfiguration?.uri?.toString()
+
+        val song = if (currentItem != null) {
+            _songQueue.firstOrNull {
+                (!mediaId.isNullOrBlank() && (it.id == mediaId || it.videoId == mediaId)) ||
+                (!uriStr.isNullOrBlank() && it.path == uriStr)
             }
+        } else null ?: if (controller.mediaItemCount == _songQueue.size && controller.currentMediaItemIndex in _songQueue.indices) {
+            _songQueue[controller.currentMediaItemIndex]
+        } else null
+
+        if (song != null) {
+            val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+            val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                song.copy(albumArt = resolvedArt)
+            } else {
+                song
+            }
+            playbackStateManager.updateCurrentSong(songWithArt)
+        } else if (currentItem != null) {
+            val metadata = currentItem.mediaMetadata
+            val resolvedArt = metadata.artworkUri?.toString()
+                ?: mediaId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+            val fallbackSong = SongEntity(
+                id = mediaId ?: java.util.UUID.randomUUID().toString(),
+                title = metadata.title?.toString() ?: "Unknown Track",
+                artist = metadata.artist?.toString() ?: "Unknown Artist",
+                album = metadata.albumTitle?.toString() ?: "Music",
+                duration = controller.duration.coerceAtLeast(0L),
+                path = uriStr ?: "",
+                albumArt = resolvedArt,
+                dateAdded = System.currentTimeMillis(),
+                videoId = mediaId
+            )
+            playbackStateManager.updateCurrentSong(fallbackSong)
         }
     }
 
@@ -263,6 +331,25 @@ class MusicController @Inject constructor(
     fun playSongs(songs: List<SongEntity>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
         val clampedIndex = startIndex.coerceIn(0, songs.size - 1)
+        val selectedSong = songs[clampedIndex]
+
+        if (syncPlaybackInterceptor?.onPlayRequested(selectedSong, clampedIndex) == true) {
+            Log.d("MusicController", "[SYNC PLAY INTERCEPT] Intercepted playback request for: ${selectedSong.title}")
+            val resolvedArt = selectedSong.albumArt ?: selectedSong.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+            val songWithArt = if (selectedSong.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                selectedSong.copy(albumArt = resolvedArt)
+            } else {
+                selectedSong
+            }
+            val updatedSongs = songs.toMutableList()
+            updatedSongs[clampedIndex] = songWithArt
+            _songQueue.clear()
+            _songQueue.addAll(updatedSongs)
+            _playbackQueue.value = _songQueue.toList()
+            playbackStateManager.updateCurrentSong(songWithArt)
+            return
+        }
+
         Log.d("MusicController", "[QUEUE_CREATED] size=${songs.size} startIndex=$clampedIndex firstId=${songs.firstOrNull()?.id}")
         _songQueue.clear()
         _songQueue.addAll(songs)
@@ -344,6 +431,28 @@ class MusicController @Inject constructor(
     // ── Online Streaming ──────────────────────────────────────────────────────
 
     fun playOnlineSong(song: OnlineSong) {
+        val artUrl = song.thumbnailUrl.ifBlank { "https://img.youtube.com/vi/${song.videoId}/hqdefault.jpg" }
+        val syntheticSong = SongEntity(
+            id = song.videoId,
+            title = song.title,
+            artist = song.artist,
+            album = "Online",
+            duration = song.durationMs,
+            path = song.streamUrl ?: "online://${song.videoId}",
+            albumArt = artUrl,
+            dateAdded = System.currentTimeMillis(),
+            videoId = song.videoId
+        )
+
+        if (syncPlaybackInterceptor?.onPlayRequested(syntheticSong, 0) == true) {
+            Log.d("MusicController", "[SYNC PLAY INTERCEPT] Intercepted online playback request for: ${syntheticSong.title}")
+            _songQueue.clear()
+            _songQueue.add(syntheticSong)
+            _playbackQueue.value = _songQueue.toList()
+            playbackStateManager.updateCurrentSong(syntheticSong)
+            return
+        }
+
         val request = PlayRequest(
             songId = song.videoId,
             title = song.title,
@@ -351,20 +460,9 @@ class MusicController @Inject constructor(
             playbackSource = PlaybackSourceType.ONLINE,
             localUri = "online://${song.videoId}",
             streamUrl = song.streamUrl,
-            albumArt = song.thumbnailUrl
+            albumArt = artUrl
         )
 
-        val syntheticSong = SongEntity(
-            id = song.videoId,
-            title = song.title,
-            artist = song.artist,
-            album = "Online",
-            duration = song.durationMs,
-            path = "online://${song.videoId}",
-            albumArt = song.thumbnailUrl,
-            dateAdded = System.currentTimeMillis(),
-            videoId = song.videoId
-        )
         _songQueue.clear()
         _songQueue.add(syntheticSong)
         _playbackQueue.value = _songQueue.toList()
@@ -423,18 +521,34 @@ class MusicController @Inject constructor(
 
     fun playPause() {
         val controller = mediaController ?: return
-        if (controller.isPlaying) controller.pause() else controller.play()
+        if (controller.isPlaying) {
+            pause()
+        } else {
+            play()
+        }
     }
 
     fun play() {
+        if (syncPlaybackInterceptor?.onResumeRequested() == true) {
+            return
+        }
+        try {
+            context.startService(android.content.Intent(context, MusicService::class.java))
+        } catch (_: Exception) {}
         mediaController?.play()
     }
 
     fun pause() {
+        if (syncPlaybackInterceptor?.onPauseRequested() == true) {
+            return
+        }
         mediaController?.pause()
     }
 
     fun skipToNext() {
+        if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = true) == true) {
+            return
+        }
         val controller = mediaController ?: return
         val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
         if (currentMediaId.isNotEmpty()) {
@@ -447,6 +561,9 @@ class MusicController @Inject constructor(
     }
 
     fun skipToPrevious() {
+        if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = false) == true) {
+            return
+        }
         val controller = mediaController ?: return
         Log.d("MusicController", "[SKIP_PREV] pos=${controller.currentPosition} hasPrev=${controller.hasPreviousMediaItem()} historySize=${playbackHistory.size}")
         if (controller.currentPosition > 3000L) {
@@ -470,6 +587,9 @@ class MusicController @Inject constructor(
     }
 
     fun seekTo(positionMs: Long) {
+        if (syncPlaybackInterceptor?.onSeekRequested(positionMs) == true) {
+            return
+        }
         mediaController?.seekTo(positionMs)
         playbackStateManager.updatePosition(positionMs)
     }
@@ -519,17 +639,128 @@ class MusicController @Inject constructor(
 
     override fun playMediaItems(mediaItems: List<MediaItem>, startIndex: Int) {
         val controller = mediaController ?: return
-        if (startIndex >= 0) {
+        if (startIndex >= 0 && startIndex < mediaItems.size) {
             controller.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
             controller.prepare()
             controller.play()
 
-            if (startIndex < _songQueue.size) {
-                playbackStateManager.updateCurrentSong(_songQueue[startIndex])
+            val targetItem = mediaItems.getOrNull(startIndex)
+            val mId = targetItem?.mediaId
+            val uriStr = targetItem?.localConfiguration?.uri?.toString()
+            val song = if (targetItem != null) {
+                _songQueue.firstOrNull {
+                    (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
+                    (!uriStr.isNullOrBlank() && it.path == uriStr)
+                }
+            } else null ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
+                _songQueue[startIndex]
+            } else null
+
+            if (song != null) {
+                val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                    song.copy(albumArt = resolvedArt)
+                } else {
+                    song
+                }
+                playbackStateManager.updateCurrentSong(songWithArt)
                 playbackStateManager.updatePosition(0L)
                 playbackStateManager.updatePlayingState(true)
             }
         }
+    }
+
+    override fun prepareMediaItems(
+        mediaItems: List<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long,
+        onPrepared: () -> Unit
+    ) {
+        val controller = mediaController ?: return
+        if (startIndex >= 0 && startIndex < mediaItems.size) {
+            controller.setMediaItems(mediaItems, startIndex, startPositionMs)
+            controller.playWhenReady = false
+            controller.prepare()
+
+            val targetItem = mediaItems.getOrNull(startIndex)
+            val mId = targetItem?.mediaId
+            val uriStr = targetItem?.localConfiguration?.uri?.toString()
+            val song = if (targetItem != null) {
+                _songQueue.firstOrNull {
+                    (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
+                    (!uriStr.isNullOrBlank() && it.path == uriStr)
+                }
+            } else null ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
+                _songQueue[startIndex]
+            } else null
+
+            if (song != null) {
+                val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                    song.copy(albumArt = resolvedArt)
+                } else {
+                    song
+                }
+                playbackStateManager.updateCurrentSong(songWithArt)
+                playbackStateManager.updatePosition(startPositionMs)
+                playbackStateManager.updatePlayingState(false)
+            }
+
+            if (controller.playbackState == Player.STATE_READY) {
+                onPrepared()
+            } else {
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                            controller.removeListener(this)
+                            onPrepared()
+                        }
+                    }
+                    override fun onPlayerError(error: PlaybackException) {
+                        controller.removeListener(this)
+                        Log.e("MusicController", "prepareMediaItems player error", error)
+                    }
+                }
+                controller.addListener(listener)
+            }
+        }
+    }
+
+    fun prepareForSync(song: SongEntity, startPositionMs: Long = 0L, onPrepared: () -> Unit = {}) {
+        val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+        val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+            song.copy(albumArt = resolvedArt)
+        } else {
+            song
+        }
+
+        if (!_songQueue.any { it.id == songWithArt.id || (it.videoId != null && it.videoId == songWithArt.videoId) }) {
+            _songQueue.clear()
+            _songQueue.add(songWithArt)
+            _playbackQueue.value = _songQueue.toList()
+        }
+        playbackStateManager.updateCurrentSong(songWithArt)
+
+        val request = PlayRequest(
+            songId = songWithArt.id,
+            title = songWithArt.title,
+            artist = songWithArt.artist,
+            playbackSource = if (songWithArt.path.startsWith("/") || songWithArt.path.startsWith("content://") || java.io.File(songWithArt.path).exists()) PlaybackSourceType.LOCAL else PlaybackSourceType.ONLINE,
+            localUri = songWithArt.path,
+            streamUrl = if (songWithArt.path.startsWith("http")) songWithArt.path else null,
+            albumArt = songWithArt.albumArt
+        )
+        playbackRouter.prepare(scope, this, request, startPositionMs, onPrepared)
+    }
+
+    fun startPreparedSyncPlayback(positionMs: Long = 0L) {
+        val controller = mediaController ?: return
+        if (positionMs > 0L && Math.abs(controller.currentPosition - positionMs) > 1000L) {
+            controller.seekTo(positionMs)
+        }
+        controller.playWhenReady = true
+        controller.play()
+        playbackStateManager.updatePlayingState(true)
     }
 
     override fun replaceMediaItem(index: Int, mediaItem: MediaItem) {
@@ -543,6 +774,7 @@ class MusicController @Inject constructor(
         mediaController?.stop()
         playbackStateManager.updatePlayingState(false)
         playbackStateManager.updateCurrentSong(null)
+        playbackStateManager.updateCurrentOnlineSong(null)
     }
 
     override fun getMediaItemAt(index: Int): MediaItem? {

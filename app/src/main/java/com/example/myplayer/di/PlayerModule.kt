@@ -58,7 +58,6 @@ object PlayerModule {
     }
 
     @Provides
-    @Singleton
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,

@@ -3,9 +3,8 @@ package com.example.myplayer.sync
 import org.json.JSONObject
 
 /**
- * V1 protocol subset. Deliberately excludes CLOCK_PING/PONG and SYNC_STATE/drift
- * correction — see SyncPlayManager's doc comment for why. Every message still
- * carries sessionId/senderId/sequence/timestamp so stale or cross-session
+ * Sync Play V1+ protocol message definitions.
+ * Every message carries sessionId/senderId/sequence/timestamp so stale or cross-session
  * messages can be rejected safely (SyncPlayManager.handleIncoming does this).
  */
 sealed class SyncMessage {
@@ -38,9 +37,28 @@ sealed class SyncMessage {
         val title: String,
         val artist: String,
         val durationMs: Long,
-        val startPositionMs: Long
+        val startPositionMs: Long,
+        val streamUrl: String? = null,
+        val albumArt: String? = null
     ) : SyncMessage()
 
+    data class TrackDownloadProgress(
+        override val sessionId: String,
+        override val senderId: String,
+        override val sequence: Long,
+        override val timestamp: Long,
+        val progress: Int
+    ) : SyncMessage()
+
+    data class TrackPrepareFailed(
+        override val sessionId: String,
+        override val senderId: String,
+        override val sequence: Long,
+        override val timestamp: Long,
+        val reason: String
+    ) : SyncMessage()
+
+    /** Serves as READY_ACK when trackAvailable = true */
     data class Ready(
         override val sessionId: String,
         override val senderId: String,
@@ -83,6 +101,14 @@ sealed class SyncMessage {
         override val timestamp: Long
     ) : SyncMessage()
 
+    data class Kick(
+        override val sessionId: String,
+        override val senderId: String,
+        override val sequence: Long,
+        override val timestamp: Long,
+        val targetDeviceId: String
+    ) : SyncMessage()
+
     data class Error(
         override val sessionId: String,
         override val senderId: String,
@@ -116,6 +142,20 @@ object SyncMessageCodec {
                 json.put("artist", message.artist)
                 json.put("durationMs", message.durationMs)
                 json.put("startPositionMs", message.startPositionMs)
+                if (message.streamUrl != null) {
+                    json.put("streamUrl", message.streamUrl)
+                }
+                if (message.albumArt != null) {
+                    json.put("albumArt", message.albumArt)
+                }
+            }
+            is SyncMessage.TrackDownloadProgress -> {
+                json.put("type", "TRACK_DOWNLOAD_PROGRESS")
+                json.put("progress", message.progress)
+            }
+            is SyncMessage.TrackPrepareFailed -> {
+                json.put("type", "TRACK_PREPARE_FAILED")
+                json.put("reason", message.reason)
             }
             is SyncMessage.Ready -> {
                 json.put("type", "READY")
@@ -135,6 +175,10 @@ object SyncMessageCodec {
                 json.put("positionMs", message.positionMs)
             }
             is SyncMessage.Leave -> json.put("type", "LEAVE")
+            is SyncMessage.Kick -> {
+                json.put("type", "KICK")
+                json.put("targetDeviceId", message.targetDeviceId)
+            }
             is SyncMessage.Error -> {
                 json.put("type", "ERROR")
                 json.put("reason", message.reason)
@@ -164,7 +208,17 @@ object SyncMessageCodec {
                     title = json.optString("title", ""),
                     artist = json.optString("artist", ""),
                     durationMs = json.optLong("durationMs", 0L),
-                    startPositionMs = json.optLong("startPositionMs", 0L)
+                    startPositionMs = json.optLong("startPositionMs", 0L),
+                    streamUrl = json.optString("streamUrl").takeIf { it.isNotBlank() },
+                    albumArt = json.optString("albumArt").takeIf { it.isNotBlank() }
+                )
+                "TRACK_DOWNLOAD_PROGRESS" -> SyncMessage.TrackDownloadProgress(
+                    sessionId, senderId, sequence, timestamp,
+                    progress = json.optInt("progress", 0)
+                )
+                "TRACK_PREPARE_FAILED" -> SyncMessage.TrackPrepareFailed(
+                    sessionId, senderId, sequence, timestamp,
+                    reason = json.optString("reason", "Unknown failure")
                 )
                 "READY" -> SyncMessage.Ready(
                     sessionId, senderId, sequence, timestamp,
@@ -184,6 +238,10 @@ object SyncMessageCodec {
                     positionMs = json.optLong("positionMs", 0L)
                 )
                 "LEAVE" -> SyncMessage.Leave(sessionId, senderId, sequence, timestamp)
+                "KICK" -> SyncMessage.Kick(
+                    sessionId, senderId, sequence, timestamp,
+                    targetDeviceId = json.optString("targetDeviceId", "")
+                )
                 "ERROR" -> SyncMessage.Error(
                     sessionId, senderId, sequence, timestamp,
                     reason = json.optString("reason", "unknown")

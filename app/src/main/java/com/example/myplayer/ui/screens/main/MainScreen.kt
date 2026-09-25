@@ -90,7 +90,13 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     if (hasAnySong) {
                         // Memoize synthetic SongEntity: only rebuild when the online song reference
                         // changes, not on every isPlaying / position / any-state recomposition.
-                        val miniSong = currentSong ?: remember(currentOnlineSong) {
+                        val miniSong = currentSong?.let {
+                            if (it.albumArt.isNullOrBlank() && !displayArt.isNullOrBlank()) {
+                                it.copy(albumArt = displayArt)
+                            } else {
+                                it
+                            }
+                        } ?: remember(currentOnlineSong, displayArt) {
                             com.example.myplayer.data.local.entity.SongEntity(
                                 id = currentOnlineSong?.videoId ?: "",
                                 title = displayTitle ?: "",

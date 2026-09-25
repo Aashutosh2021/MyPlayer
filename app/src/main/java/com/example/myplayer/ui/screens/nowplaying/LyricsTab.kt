@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +45,7 @@ fun LyricsTab(
     lyricsState: LyricsUiState,
     positionMs: State<Long>,
     onSeek: (Long) -> Unit = {},
+    onAddCustomLyrics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -78,26 +83,50 @@ fun LyricsTab(
 
             is LyricsUiState.NotFound -> {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clayConcave(borderRadius = 40.dp, backgroundColor = SurfaceLight),
+                            .size(72.dp)
+                            .clayConcave(borderRadius = 36.dp, backgroundColor = SurfaceLight),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(36.dp))
+                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(32.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
                     Text("No lyrics found", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        "Lyrics not available for this song",
+                        "Lyrics not available online for this song",
                         style = MaterialTheme.typography.bodySmall,
                         color = OnSurfaceVariant
                     )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onAddCustomLyrics,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonLimePrimary,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.EditNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Add Custom Lyrics",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -110,6 +139,21 @@ fun LyricsTab(
                     )
                 } else {
                     PlainLyricsView(text = lyricsState.result.plainLyrics ?: "")
+                }
+
+                IconButton(
+                    onClick = onAddCustomLyrics,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Edit Lyrics",
+                        tint = OnSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

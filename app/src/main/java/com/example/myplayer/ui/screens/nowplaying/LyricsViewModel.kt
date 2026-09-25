@@ -76,6 +76,31 @@ class LyricsViewModel @Inject constructor(
         lastMetadata?.let { fetchLyrics(it) }
     }
 
+    fun saveCustomLyrics(lyricsText: String) {
+        val metadata = lastMetadata ?: return
+        viewModelScope.launch {
+            _lyricsState.value = LyricsUiState.Loading
+            val result = lyricsRepository.saveCustomLyrics(
+                songId = metadata.songId,
+                trackName = metadata.title,
+                artistName = metadata.artist,
+                lyricsText = lyricsText
+            )
+            val synced = result.syncedLyrics?.let { lyricsRepository.parseSyncedLyrics(it) } ?: emptyList()
+            _lyricsState.value = LyricsUiState.Found(result, synced)
+        }
+    }
+
+    fun deleteLyrics() {
+        val metadata = lastMetadata ?: return
+        viewModelScope.launch {
+            lyricsRepository.deleteLyrics(metadata.songId)
+            retryLyrics()
+        }
+    }
+
+    fun getCurrentMetadata(): LyricsMetadata? = lastMetadata
+
     fun fetchLyrics(metadata: LyricsMetadata) {
         viewModelScope.launch {
             _lyricsState.value = LyricsUiState.Loading
