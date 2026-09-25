@@ -1,14 +1,9 @@
 package com.example.myplayer.sync
 
-import com.example.myplayer.data.local.dao.DownloadedSongDao
 import com.example.myplayer.data.local.dao.SongDao
-import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.local.entity.SongEntity
-import com.example.myplayer.data.repository.PlayableSong
-import com.example.myplayer.sync.model.SyncTrack
-import com.example.myplayer.sync.track.SyncTrackMatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
@@ -17,32 +12,20 @@ import org.junit.Test
 class SyncTrackMatcherTest {
 
     private val localSongs = mutableListOf<SongEntity>()
-    private val downloadedSongs = mutableListOf<DownloadedSongEntity>()
 
     private val fakeSongDao = object : SongDao {
-        override fun getAllSongs(): Flow<List<SongEntity>> = emptyFlow()
-        override fun getTrendingSongs(): Flow<List<SongEntity>> = emptyFlow()
+        override fun getAllSongs(): Flow<List<SongEntity>> = flowOf(localSongs)
+        override fun getTrendingSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
         override fun getSongById(id: String): SongEntity? = localSongs.find { it.id == id }
         override fun insertSongs(songs: List<SongEntity>) { localSongs.addAll(songs) }
         override fun deleteSongsByFolder(folderUri: String) {}
-        override fun getRecentlyAddedSongs(): Flow<List<SongEntity>> = emptyFlow()
-        override fun getMostPlayedSongs(): Flow<List<SongEntity>> = emptyFlow()
+        override fun getRecentlyAddedSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
+        override fun getMostPlayedSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
         override fun incrementPlayCount(id: String) {}
         override fun updateSongPath(id: String, path: String) {}
-        override fun searchSongs(query: String): Flow<List<SongEntity>> = emptyFlow()
+        override fun searchSongs(query: String): Flow<List<SongEntity>> = flowOf(emptyList())
         override suspend fun getAllSongsSync(): List<SongEntity> = localSongs.toList()
         override suspend fun getSongByVideoId(videoId: String): SongEntity? = localSongs.find { it.videoId == videoId }
-    }
-
-    private val fakeDownloadedSongDao = object : DownloadedSongDao {
-        override fun getAllDownloads(): Flow<List<DownloadedSongEntity>> = emptyFlow()
-        override fun getAllDownloadsSync(): List<DownloadedSongEntity> = downloadedSongs.toList()
-        override fun insertDownloads(downloads: List<DownloadedSongEntity>) { downloadedSongs.addAll(downloads) }
-        override suspend fun getById(id: String): DownloadedSongEntity? = downloadedSongs.find { it.id == id }
-        override suspend fun existsById(id: String): Boolean = downloadedSongs.any { it.id == id }
-        override suspend fun insert(song: DownloadedSongEntity) { downloadedSongs.add(song) }
-        override suspend fun deleteById(id: String) { downloadedSongs.removeIf { it.id == id } }
-        override fun searchDownloads(query: String): Flow<List<DownloadedSongEntity>> = emptyFlow()
     }
 
     private lateinit var matcher: SyncTrackMatcher
@@ -50,8 +33,7 @@ class SyncTrackMatcherTest {
     @Before
     fun setUp() {
         localSongs.clear()
-        downloadedSongs.clear()
-        matcher = SyncTrackMatcher(fakeSongDao, fakeDownloadedSongDao)
+        matcher = SyncTrackMatcher(fakeSongDao)
     }
 
     @Test
@@ -70,22 +52,20 @@ class SyncTrackMatcherTest {
             )
         )
 
-        val target = SyncTrack(
+        val target = SyncTrackRef(
+            videoId = "vid-123",
             title = "Starboy (Official)",
             artist = "Weeknd",
-            album = "Starboy",
-            durationMs = 230000L,
-            videoId = "vid-123"
+            durationMs = 230000L
         )
 
-        val match = matcher.findMatchingSong(target)
+        val match = matcher.findLocalMatch(target)
         assertNotNull(match)
-        assertTrue(match is PlayableSong.Local)
-        assertEquals("local-1", (match as PlayableSong.Local).entity.id)
+        assertEquals("local-1", match?.id)
     }
 
     @Test
-    fun testMatchByExactTitleAndArtistWithinDuration() = runBlocking {
+    fun testMatchByMetadataWithinTolerance() = runBlocking {
         localSongs.add(
             SongEntity(
                 id = "local-2",
@@ -99,69 +79,41 @@ class SyncTrackMatcherTest {
             )
         )
 
-        val target = SyncTrack(
-            title = "Blinding Lights",
-            artist = "The Weeknd",
-            album = "After Hours",
-            durationMs = 200000L // 500ms difference within 4000ms tolerance
+        val target = SyncTrackRef(
+            videoId = null,
+            title = "blinding lights",
+            artist = "the weeknd",
+            durationMs = 201500L // 1000ms difference, within 2000ms tolerance
         )
 
-        val match = matcher.findMatchingSong(target)
+        val match = matcher.findLocalMatch(target)
         assertNotNull(match)
-        assertTrue(match is PlayableSong.Local)
-        assertEquals("Blinding Lights", (match as PlayableSong.Local).entity.title)
+        assertEquals("local-2", match?.id)
     }
 
     @Test
-    fun testMatchFailsWhenSongNotPresent() = runBlocking {
+    fun testNoMatchOutsideTolerance() = runBlocking {
         localSongs.add(
             SongEntity(
                 id = "local-3",
-                title = "Different Song",
-                artist = "Artist A",
-                album = "Album",
-                duration = 180000L,
-                path = "/music/diff.mp3",
+                title = "Blinding Lights",
+                artist = "The Weeknd",
+                album = "After Hours",
+                duration = 200000L,
+                path = "/music/blinding.mp3",
                 albumArt = null,
-                dateAdded = 300L
+                dateAdded = 200L
             )
         )
 
-        val target = SyncTrack(
-            title = "Nonexistent Song",
-            artist = "Artist B",
-            album = "None",
-            durationMs = 210000L
+        val target = SyncTrackRef(
+            videoId = null,
+            title = "Blinding Lights",
+            artist = "The Weeknd",
+            durationMs = 210000L // 10000ms difference, exceeds tolerance
         )
 
-        val match = matcher.findMatchingSong(target)
-        assertNull(match)
-    }
-
-    @Test
-    fun testMatchFailsWhenDurationDiffersTooMuch() = runBlocking {
-        localSongs.add(
-            SongEntity(
-                id = "local-4",
-                title = "Hello",
-                artist = "Adele",
-                album = "25",
-                duration = 295000L,
-                path = "/music/hello.mp3",
-                albumArt = null,
-                dateAdded = 400L
-            )
-        )
-
-        // Same title and artist, but completely different duration (e.g. preview or live cut)
-        val target = SyncTrack(
-            title = "Hello",
-            artist = "Adele",
-            album = "25",
-            durationMs = 120000L // 175s difference
-        )
-
-        val match = matcher.findMatchingSong(target)
+        val match = matcher.findLocalMatch(target)
         assertNull(match)
     }
 }
