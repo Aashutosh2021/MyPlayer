@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,7 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.dualbud.model.DualBudModeState
 import com.example.myplayer.dualbud.model.DualChannelId
 import com.example.myplayer.dualbud.model.DualChannelState
@@ -43,11 +47,27 @@ fun DualBudScreen(
     viewModel: DualBudViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val librarySongs by viewModel.librarySongs.collectAsStateWithLifecycle(initialValue = emptyList())
+    val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val loadingChannel by viewModel.loadingChannel.collectAsStateWithLifecycle()
+    val resolvingSongId by viewModel.resolvingSongId.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var pickingChannel by remember { mutableStateOf<DualChannelId?>(null) }
+    var selectedPickerTab by remember { mutableIntStateOf(0) } // 0: Online Search, 1: Downloaded
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -116,7 +136,11 @@ fun DualBudScreen(
                     channelLabel = "LEFT EARBUD",
                     channelState = uiState.leftChannel,
                     isPhysicallyRouted = !uiState.isSwapped,
-                    onPickSong = { pickingChannel = DualChannelId.LEFT },
+                    isChannelLoading = loadingChannel == DualChannelId.LEFT,
+                    onPickSong = {
+                        pickingChannel = DualChannelId.LEFT
+                        selectedPickerTab = 0
+                    },
                     onPlayPause = { viewModel.togglePlayPause(DualChannelId.LEFT) },
                     onSeek = { viewModel.seekTo(DualChannelId.LEFT, it) },
                     onVolumeChange = { viewModel.setVolume(DualChannelId.LEFT, it) }
@@ -155,7 +179,11 @@ fun DualBudScreen(
                     channelLabel = "RIGHT EARBUD",
                     channelState = uiState.rightChannel,
                     isPhysicallyRouted = uiState.isSwapped,
-                    onPickSong = { pickingChannel = DualChannelId.RIGHT },
+                    isChannelLoading = loadingChannel == DualChannelId.RIGHT,
+                    onPickSong = {
+                        pickingChannel = DualChannelId.RIGHT
+                        selectedPickerTab = 0
+                    },
                     onPlayPause = { viewModel.togglePlayPause(DualChannelId.RIGHT) },
                     onSeek = { viewModel.seekTo(DualChannelId.RIGHT, it) },
                     onVolumeChange = { viewModel.setVolume(DualChannelId.RIGHT, it) }
@@ -202,10 +230,13 @@ fun DualBudScreen(
         }
     }
 
-    // Song Selection Bottom Sheet
+    // Online & Downloaded Song Selection Bottom Sheet
     pickingChannel?.let { targetChannel ->
         ModalBottomSheet(
-            onDismissRequest = { pickingChannel = null },
+            onDismissRequest = {
+                pickingChannel = null
+                viewModel.clearSearch()
+            },
             containerColor = SurfaceLight,
             tonalElevation = 8.dp
         ) {
@@ -215,37 +246,241 @@ fun DualBudScreen(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 32.dp)
             ) {
-                Text(
-                    text = "Select Song for ${if (targetChannel == DualChannelId.LEFT) "Left" else "Right"} Ear",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OnSurface,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Select Song",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = OnSurface
+                        )
+                        Text(
+                            text = "For ${if (targetChannel == DualChannelId.LEFT) "Left" else "Right"} Earbud",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ClayPrimary
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = ClayPrimary.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = if (targetChannel == DualChannelId.LEFT) "LEFT BUD" else "RIGHT BUD",
+                            color = ClayPrimary,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // Search Input
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChange(it) },
+                    placeholder = {
+                        Text(
+                            if (selectedPickerTab == 0) "Search online songs (YouTube)..." else "Filter downloaded songs...",
+                            color = OnSurfaceVariant
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null, tint = ClayPrimary)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.clearSearch() }) {
+                                Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = OnSurfaceVariant)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ClayPrimary,
+                        unfocusedBorderColor = SurfaceContainerHigh,
+                        focusedTextColor = OnSurface,
+                        unfocusedTextColor = OnSurface,
+                        cursorColor = ClayPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
                 )
 
-                if (librarySongs.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No songs found in local library", color = OnSurfaceVariant)
+                // Tabs: Online Search vs Downloaded Section
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(SurfaceContainerLow)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val tabs = listOf(
+                        "Search Online" to Icons.Filled.Cloud,
+                        "Downloaded (${downloadedSongs.size})" to Icons.Filled.DownloadDone
+                    )
+                    tabs.forEachIndexed { index, (label, icon) ->
+                        val active = selectedPickerTab == index
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (active) SurfaceLight else Color.Transparent,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedPickerTab = index }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    icon,
+                                    contentDescription = null,
+                                    tint = if (active) ClayPrimary else OnSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (active) ClayPrimary else OnSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                // Tab Content
+                if (selectedPickerTab == 0) {
+                    // Online Search Tab
+                    when {
+                        isSearching -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(
+                                        color = ClayPrimary,
+                                        modifier = Modifier.size(36.dp),
+                                        strokeWidth = 3.dp
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Text("Searching online...", color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        searchQuery.trim().length < 2 -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Filled.Search, null, tint = ClayPrimary.copy(alpha = 0.6f), modifier = Modifier.size(40.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("Search Online Music", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Type artist, song, or title to stream directly", style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+                                }
+                            }
+                        }
+                        searchResults.isEmpty() -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No online songs found for '$searchQuery'", color = OnSurfaceVariant)
+                            }
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 400.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(searchResults, key = { it.videoId }) { song ->
+                                    OnlineSongPickerRow(
+                                        song = song,
+                                        isResolving = resolvingSongId == song.videoId,
+                                        onClick = {
+                                            viewModel.selectOnlineSong(targetChannel, song) {
+                                                pickingChannel = null
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(librarySongs, key = { it.id }) { song ->
-                            SongPickerRow(
-                                song = song,
-                                onClick = {
-                                    viewModel.selectSong(targetChannel, song)
-                                    pickingChannel = null
-                                }
-                            )
+                    // Downloaded Tab (Only music saved from downloaded section)
+                    val filteredDownloads = remember(downloadedSongs, searchQuery) {
+                        if (searchQuery.isBlank()) downloadedSongs
+                        else downloadedSongs.filter {
+                            it.title.contains(searchQuery, ignoreCase = true) ||
+                            it.artist.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+
+                    if (filteredDownloads.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Filled.Download, null, tint = OnSurfaceVariant, modifier = Modifier.size(40.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    if (downloadedSongs.isEmpty()) "No Downloaded Music" else "No matching downloads",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = OnSurface
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Save songs from online search to play offline here",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = OnSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(filteredDownloads, key = { it.id }) { downloaded ->
+                                DownloadedSongPickerRow(
+                                    song = downloaded,
+                                    onClick = {
+                                        viewModel.selectDownloadedSong(targetChannel, downloaded) {
+                                            pickingChannel = null
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -259,8 +494,8 @@ private fun DualBudStatusBanner(
     state: DualBudModeState,
     onSwap: () -> Unit
 ) {
-    val leftSongTitle = state.physicalLeftSong?.title ?: "No Song Selected"
-    val rightSongTitle = state.physicalRightSong?.title ?: "No Song Selected"
+    val leftSongTitle = state.leftChannel.song?.title ?: "Empty"
+    val rightSongTitle = state.rightChannel.song?.title ?: "Empty"
 
     Column(
         modifier = Modifier
@@ -331,6 +566,7 @@ private fun ChannelControlCard(
     channelLabel: String,
     channelState: DualChannelState,
     isPhysicallyRouted: Boolean,
+    isChannelLoading: Boolean,
     onPickSong: () -> Unit,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -407,7 +643,7 @@ private fun ChannelControlCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = song?.artist ?: "Independent PCM decoder",
+                    text = song?.artist ?: "Online stream or downloaded",
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariant,
                     maxLines = 1,
@@ -426,12 +662,12 @@ private fun ChannelControlCard(
             // Transport: Play/Pause Button
             IconButton(
                 onClick = onPlayPause,
-                enabled = song != null,
+                enabled = song != null && !isChannelLoading,
                 modifier = Modifier
                     .size(48.dp)
                     .clayConcave(borderRadius = 24.dp, backgroundColor = SurfaceContainerLow)
             ) {
-                if (channelState.isLoading) {
+                if (channelState.isLoading || isChannelLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.5.dp,
@@ -467,27 +703,37 @@ private fun ChannelControlCard(
                     activeTrackColor = accentColor,
                     inactiveTrackColor = SurfaceContainerLow
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(formatDuration(currentPos), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-                Text(formatDuration(duration), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                Text(
+                    text = formatDuration(currentPos),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariant
+                )
+                Text(
+                    text = formatDuration(duration),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariant
+                )
             }
+
+            Spacer(Modifier.height(10.dp))
         }
 
-        Spacer(Modifier.height(8.dp))
-
-        // Independent Channel Volume Slider (0% -> 100%)
+        // Volume Slider
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                if (channelState.volume > 0f) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                if (channelState.volume == 0f) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                 contentDescription = "Volume",
                 tint = accentColor,
                 modifier = Modifier.size(20.dp)
@@ -496,6 +742,7 @@ private fun ChannelControlCard(
             Slider(
                 value = channelState.volume,
                 onValueChange = onVolumeChange,
+                valueRange = 0.0f..1.0f,
                 colors = SliderDefaults.colors(
                     thumbColor = accentColor,
                     activeTrackColor = accentColor,
@@ -516,27 +763,37 @@ private fun ChannelControlCard(
 }
 
 @Composable
-private fun SongPickerRow(
-    song: SongEntity,
+private fun OnlineSongPickerRow(
+    song: OnlineSong,
+    isResolving: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .claySurface(borderRadius = 16.dp, backgroundColor = SurfaceContainerLow)
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainerLow)
+            .clickable(enabled = !isResolving, onClick = onClick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AlbumArtImage(
-            uri = song.albumArt ?: song.path,
-            title = song.title,
-            artist = song.artist,
-            album = song.album,
+        Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
-        )
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceContainerHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            val art = song.thumbnailUrl.ifBlank {
+                "https://img.youtube.com/vi/${song.videoId}/hqdefault.jpg"
+            }
+            AsyncImage(
+                model = art,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -546,6 +803,7 @@ private fun SongPickerRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
@@ -554,11 +812,101 @@ private fun SongPickerRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Text(
-            text = formatDuration(song.duration),
-            style = MaterialTheme.typography.labelSmall,
-            color = OnSurfaceVariant
-        )
+        if (isResolving) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = ClayPrimary
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = formatDuration(song.durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariant
+                )
+                Spacer(Modifier.height(2.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = ClayPrimary.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "ONLINE",
+                        color = ClayPrimary,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadedSongPickerRow(
+    song: DownloadedSongEntity,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainerLow)
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceContainerHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = song.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = song.artist,
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = formatDuration(song.durationMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant
+            )
+            Spacer(Modifier.height(2.dp))
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = NeonLimePrimary.copy(alpha = 0.15f)
+            ) {
+                Text(
+                    text = "SAVED",
+                    color = NeonLimePrimary,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+        }
     }
 }
 

@@ -7,7 +7,7 @@ import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.model.MusicItem
 import com.example.myplayer.data.model.toMusicItem
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,91 +50,43 @@ sealed class PlayableSong {
 
 @Singleton
 class HybridLibraryRepository @Inject constructor(
-    private val songDao: SongDao,
-    private val downloadedSongDao: DownloadedSongDao
+    private val downloadedSongDao: DownloadedSongDao,
+    private val songDao: SongDao? = null
 ) {
     /**
-     * Returns a combined flow of local device songs and downloaded online songs.
-     * Deduplicated by videoId — a downloaded song takes precedence over a local song
-     * if they somehow share the same ID (which they wouldn't normally).
-     *
-     * @deprecated Prefer [getHybridLibraryAsItems] which returns the canonical [MusicItem].
+     * Returns a flow of downloaded online songs.
+     * Pure local scanned files have been removed — only music saved from the downloaded section is kept.
      */
     fun getHybridLibrary(): Flow<List<PlayableSong>> {
-        return combine(
-            songDao.getAllSongs(),
-            downloadedSongDao.getAllDownloads()
-        ) { localSongs, downloadedSongs ->
-            val list = mutableListOf<PlayableSong>()
-
-            // Prioritize downloaded songs so they appear as SAVED
-            val downloadedIds = downloadedSongs.map { it.id }.toSet()
-
-            localSongs
-                .filter { it.id !in downloadedIds }
-                .mapTo(list) { PlayableSong.Local(it) }
-
-            downloadedSongs
-                .mapTo(list) { PlayableSong.Downloaded(it) }
-
-            list.sortedBy { it.title }
+        return downloadedSongDao.getAllDownloads().map { downloadedSongs ->
+            downloadedSongs.map { PlayableSong.Downloaded(it) }.sortedBy { it.title }
         }
     }
 
     /**
-     * Returns a combined flow using the canonical [MusicItem] model.
-     * Downloads take precedence over local song entries with the same ID.
-     * Use this in new code going forward.
+     * Returns a flow using the canonical [MusicItem] model from downloaded songs.
      */
     fun getHybridLibraryAsItems(): Flow<List<MusicItem>> {
-        return combine(
-            songDao.getAllSongs(),
-            downloadedSongDao.getAllDownloads()
-        ) { localSongs, downloadedSongs ->
-            val list = mutableListOf<MusicItem>()
-            val downloadedIds = downloadedSongs.map { it.id }.toSet()
-
-            localSongs
-                .filter { it.id !in downloadedIds }
-                .mapTo(list) { it.toMusicItem() }
-
-            downloadedSongs
-                .mapTo(list) { it.toMusicItem() }
-
-            list.sortedBy { it.title }
+        return downloadedSongDao.getAllDownloads().map { downloadedSongs ->
+            downloadedSongs.map { it.toMusicItem() }.sortedBy { it.title }
         }
     }
 
     /**
-     * Search across both local and downloaded songs.
-     *
-     * @deprecated Prefer [searchHybridLibraryAsItems] which returns the canonical [MusicItem].
+     * Search across downloaded songs.
      */
     fun searchHybridLibrary(query: String): Flow<List<PlayableSong>> {
-        return combine(
-            songDao.searchSongs(query),
-            downloadedSongDao.searchDownloads(query)
-        ) { localSongs, downloadedSongs ->
-            val list = mutableListOf<PlayableSong>()
-            localSongs.mapTo(list) { PlayableSong.Local(it) }
-            downloadedSongs.mapTo(list) { PlayableSong.Downloaded(it) }
-            list.sortedBy { it.title }
+        return downloadedSongDao.searchDownloads(query).map { downloadedSongs ->
+            downloadedSongs.map { PlayableSong.Downloaded(it) }.sortedBy { it.title }
         }
     }
 
     /**
-     * Search across both local and downloaded songs, returning canonical [MusicItem].
-     * Use this in new code going forward.
+     * Search across downloaded songs, returning canonical [MusicItem].
      */
     fun searchHybridLibraryAsItems(query: String): Flow<List<MusicItem>> {
-        return combine(
-            songDao.searchSongs(query),
-            downloadedSongDao.searchDownloads(query)
-        ) { localSongs, downloadedSongs ->
-            val list = mutableListOf<MusicItem>()
-            localSongs.mapTo(list) { it.toMusicItem() }
-            downloadedSongs.mapTo(list) { it.toMusicItem() }
-            list.sortedBy { it.title }
+        return downloadedSongDao.searchDownloads(query).map { downloadedSongs ->
+            downloadedSongs.map { it.toMusicItem() }.sortedBy { it.title }
         }
     }
 }

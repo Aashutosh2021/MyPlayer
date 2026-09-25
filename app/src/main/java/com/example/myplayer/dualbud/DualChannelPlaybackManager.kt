@@ -45,6 +45,7 @@ import javax.inject.Singleton
 @Singleton
 class DualChannelPlaybackManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val cacheDataSourceFactory: androidx.media3.datasource.cache.CacheDataSource.Factory? = null,
     outputDevice: AudioOutputDevice = AndroidAudioTrackOutput()
 ) {
     companion object {
@@ -244,8 +245,19 @@ class DualChannelPlaybackManager @Inject constructor(
             }
         }
 
+        val mediaSourceFactory = if (cacheDataSourceFactory != null) {
+            DefaultMediaSourceFactory(cacheDataSourceFactory)
+        } else {
+            val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(15_000)
+                .setReadTimeoutMs(15_000)
+            val defaultDsFactory = androidx.media3.datasource.DefaultDataSource.Factory(context, httpFactory)
+            DefaultMediaSourceFactory(defaultDsFactory)
+        }
+
         val player = ExoPlayer.Builder(context, renderersFactory)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(context))
+            .setMediaSourceFactory(mediaSourceFactory)
             .build()
 
         player.addListener(createPlayerListener(channel))
