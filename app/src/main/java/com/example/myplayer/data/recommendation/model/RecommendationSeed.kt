@@ -11,4 +11,13 @@ data class RecommendationSeed(
     val year: Int = 0,
     val durationMs: Long = 0,
     val source: String = "unknown"
-)
+) {
+    companion object {
+        val ColdStartSeed = RecommendationSeed(
+            songId = "",
+            artist = "",
+            title = "Global Trending",
+            source = "cold_start"
+        )
+    }
+}

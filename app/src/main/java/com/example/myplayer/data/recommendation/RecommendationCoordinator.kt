@@ -3,6 +3,7 @@ package com.example.myplayer.data.recommendation
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.online.model.OnlineSong
@@ -22,26 +23,109 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class RecommendationCoordinator @Inject constructor(
-    @ApplicationContext private val context: Context,
+open class RecommendationCoordinator internal constructor(
+    context: Context?,
     private val playbackEventBus: PlaybackEventBus,
     private val settingsDataStore: SettingsDataStore,
     private val recommendationManager: RecommendationManager,
     private val queueManager: RecommendationQueueManager,
     private val playbackRepository: RecommendationPlaybackRepository,
-    private val logger: RecommendationLogger
+    private val logger: RecommendationLogger,
+    @Suppress("UNUSED_PARAMETER") isTest: Boolean
 ) {
+    private val context: Context? = context
+
+    @Inject
+    constructor(
+        @ApplicationContext context: Context,
+        playbackEventBus: PlaybackEventBus,
+        settingsDataStore: SettingsDataStore,
+        recommendationManager: RecommendationManager,
+        queueManager: RecommendationQueueManager,
+        playbackRepository: RecommendationPlaybackRepository,
+        logger: RecommendationLogger
+    ) : this(
+        context,
+        playbackEventBus,
+        settingsDataStore,
+        recommendationManager,
+        queueManager,
+        playbackRepository,
+        logger,
+        false
+    )
+
+    constructor(
+        playbackEventBus: PlaybackEventBus,
+        settingsDataStore: SettingsDataStore,
+        recommendationManager: RecommendationManager,
+        queueManager: RecommendationQueueManager,
+        playbackRepository: RecommendationPlaybackRepository,
+        logger: RecommendationLogger
+    ) : this(
+        null,
+        playbackEventBus,
+        settingsDataStore,
+        recommendationManager,
+        queueManager,
+        playbackRepository,
+        logger,
+        true
+    )
+
+    var networkAvailabilityOverride: Boolean? = null
+    companion object {
+        private const val TAG = "RecommendationCoord"
+    }
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     init {
-        // Auto-recommendation background engine disabled to keep app lightweight, fast, and smooth
+        // Collect playback events to seed recommendations and drive safe autoplay
+        scope.launch {
+            playbackEventBus.events.collect { event ->
+                handlePlaybackEvent(event)
+            }
+        }
     }
 
     private suspend fun handlePlaybackEvent(event: PlaybackEvent) {
-        // Auto-recommendation seeding and autoplay disabled
+        when (event) {
+            is PlaybackEvent.SongStarted -> {
+                Log.d(TAG, "PlaybackStarted event: ${event.songId} (${event.title})")
+                // Mark accepted in queue history if it was a recommendation
+                queueManager.acceptSong(event.songId)
+                val seed = RecommendationSeed(
+                    songId = event.songId,
+                    title = event.title,
+                    artist = event.artist,
+                    source = if (event.isOnline) "youtube" else "local"
+                )
+                startRecommendationSession(seed)
+            }
+            is PlaybackEvent.SongCompleted -> {
+                Log.d(TAG, "SongCompleted event for: ${event.songId}. Evaluating autoplay...")
+                triggerAutoplay()
+            }
+            is PlaybackEvent.SongSkipped -> {
+                queueManager.skipSong(event.songId)
+            }
+            is PlaybackEvent.SongError -> {
+                queueManager.rejectSong(event.songId)
+            }
+            is PlaybackEvent.QueueEmpty -> {
+                triggerAutoplay()
+            }
+            is PlaybackEvent.AutoplayRequested -> {
+                triggerAutoplay()
+            }
+            is PlaybackEvent.PlayRequestReady -> {
+                // Handled by MusicController
+            }
+        }
     }
 
-    private fun startRecommendationSession(seed: RecommendationSeed) {
+    fun startRecommendationSession(seed: RecommendationSeed) {
         scope.launch {
             try {
                 logger.logEvent("PlaybackStarted", mapOf(
@@ -60,8 +144,64 @@ class RecommendationCoordinator @Inject constructor(
         }
     }
 
+    fun prefetchRecommendations(seed: RecommendationSeed = RecommendationSeed.ColdStartSeed) {
+        scope.launch {
+            if (queueManager.isEmpty()) {
+                Log.d(TAG, "Recommendations prefetch requested with seed: ${seed.songId.ifBlank { seed.title }}")
+                startRecommendationSession(seed)
+            }
+        }
+    }
+
+    fun prefetchColdStartIfNeeded() {
+        prefetchRecommendations(RecommendationSeed.ColdStartSeed)
+    }
+
     private suspend fun triggerAutoplay() {
-        // Disabled: No autoplay recommendations
+        val isAutoplayEnabled = settingsDataStore.isAutoplayEnabled.firstOrNull() ?: true
+        if (!isAutoplayEnabled) {
+            Log.d(TAG, "AUTOPLAY_SKIPPED: Autoplay is disabled by user settings")
+            logger.logEvent("AUTOPLAY_SKIPPED", mapOf("reason" to "DisabledInSettings"))
+            return
+        }
+
+        if (!isNetworkAvailable()) {
+            Log.w(TAG, "AUTOPLAY_SKIPPED: Network unavailable for recommendation autoplay")
+            logger.logEvent("AUTOPLAY_SKIPPED", mapOf("reason" to "NetworkUnavailable"))
+            return
+        }
+
+        var nextSong = queueManager.dequeue()
+
+        // If queue was empty, attempt synchronous recovery
+        if (nextSong == null) {
+            Log.d(TAG, "Queue empty during autoplay, attempting recovery...")
+            val recovered = queueManager.recoverQueueSynchronously()
+            if (recovered) {
+                nextSong = queueManager.dequeue()
+            }
+        }
+
+        if (nextSong != null) {
+            Log.i(TAG, "AUTOPLAY_RECOMMENDATION_SELECTED: Next track -> ${nextSong.title} by ${nextSong.artist} (${nextSong.videoId})")
+            logger.logEvent("AUTOPLAY_RECOMMENDATION_SELECTED", mapOf(
+                "videoId" to nextSong.videoId,
+                "title" to nextSong.title,
+                "artist" to nextSong.artist,
+                "source" to nextSong.source
+            ))
+
+            val playRequest = playbackRepository.preparePlayRequest(nextSong)
+            playbackEventBus.emit(
+                PlaybackEvent.PlayRequestReady(
+                    requests = listOf(playRequest),
+                    startIndex = 0
+                )
+            )
+        } else {
+            Log.w(TAG, "AUTOPLAY_SKIPPED: No recommendation candidates available")
+            logger.logEvent("AUTOPLAY_SKIPPED", mapOf("reason" to "NoCandidatesAvailable"))
+        }
     }
 
     val queueState = queueManager.queueState
@@ -94,7 +234,8 @@ class RecommendationCoordinator @Inject constructor(
     }
 
     private fun isNetworkAvailable(): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        networkAvailabilityOverride?.let { return it }
+        val cm = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
         val network = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(network) ?: return false

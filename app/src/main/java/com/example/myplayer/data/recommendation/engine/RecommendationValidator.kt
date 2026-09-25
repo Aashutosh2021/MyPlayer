@@ -28,7 +28,7 @@ class RecommendationValidator @Inject constructor(
             }
 
             // Reject: Current playing song
-            if (candidate.videoId == seed.songId) {
+            if (seed.songId.isNotBlank() && candidate.videoId == seed.songId) {
                 // This is expected, no need to log as failure unless verbose
                 continue
             }

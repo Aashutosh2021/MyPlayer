@@ -28,4 +28,21 @@ class RecentHistoryRepository @Inject constructor(
             android.util.Log.e("RecentHistoryRepository", "Failed to add recent history for $songId", e)
         }
     }
+
+    suspend fun getHistoryCount(): Int = withContext(Dispatchers.IO) {
+        try {
+            recentHistoryDao.getHistoryCount()
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    suspend fun getRecentHistoryEntries(limit: Int = 50): List<RecentHistoryEntity> = withContext(Dispatchers.IO) {
+        try {
+            recentHistoryDao.getRecentHistoryEntries(limit)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }
+

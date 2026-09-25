@@ -30,6 +30,12 @@ class PlaybackSourceResolver @Inject constructor(
     val currentAudioQuality: StateFlow<AudioQualityInfo> = _currentAudioQuality.asStateFlow()
 
     suspend fun resolve(request: PlayRequest, setCustomError: (String) -> Unit): String? {
+        val streamUrl = request.streamUrl
+        if (streamUrl != null && (streamUrl.startsWith("http://") || streamUrl.startsWith("https://"))) {
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl, isLocalFile = false)
+            return streamUrl
+        }
+
         val path = request.localUri
 
         // If it starts with http:// or https://, it is already a resolved streaming URL

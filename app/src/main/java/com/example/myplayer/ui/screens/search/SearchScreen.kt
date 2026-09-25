@@ -55,7 +55,7 @@ fun SearchScreen(
                     onValueChange = onlineViewModel::onQueryChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                        .padding(horizontal = 3.dp, vertical = 1.5.dp),
                     placeholder = {
                         Text(
                             "Search songs, artists, albums…",
