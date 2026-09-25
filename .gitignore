@@ -30,6 +30,7 @@ proguard/
 # Log files
 *.log
 app_logs.txt
+*applog.txt
 
 # Android Studio / IntelliJ IDEA
 *.iml
