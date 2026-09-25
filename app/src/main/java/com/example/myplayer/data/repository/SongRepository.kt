@@ -37,34 +37,19 @@ class SongRepository @Inject constructor(
         }
     }
 
-    // Folder Management
+    // Folder Management (Disabled: pure local device storage scanning removed)
     fun getAllFolders(): Flow<List<FolderEntity>> = folderDao.getAllFolders()
 
     suspend fun addFolder(uri: String, name: String) = withContext(Dispatchers.IO) {
-        try {
-            val folder = FolderEntity(uri, name)
-            folderDao.addFolder(folder)
-            mediaScanner.scanFolder(folder)
-        } catch (e: Exception) {
-            android.util.Log.e("SongRepository", "Failed to add folder $uri", e)
-        }
+        // Disabled: no local folders
     }
 
     suspend fun removeFolder(folder: FolderEntity) = withContext(Dispatchers.IO) {
-        try {
-            folderDao.deleteFolder(folder)
-            songDao.deleteSongsByFolder(folder.uri)
-        } catch (e: Exception) {
-            android.util.Log.e("SongRepository", "Failed to remove folder ${folder.uri}", e)
-        }
+        // Disabled: no local folders
     }
 
     suspend fun rescanAllFolders() = withContext(Dispatchers.IO) {
-        try {
-            mediaScanner.scanAllFolders()
-        } catch (e: Exception) {
-            android.util.Log.e("SongRepository", "Rescan failed", e)
-        }
+        // Disabled: no local folders
     }
 
     suspend fun getSongById(id: String): SongEntity? = withContext(Dispatchers.IO) {

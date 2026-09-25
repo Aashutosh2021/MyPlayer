@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.playback.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,13 +20,31 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val repository: MusicRepository,
     val musicController: MusicController,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val downloadRepository: DownloadRepository
 ) : ViewModel() {
 
     val userName: StateFlow<String> = settingsDataStore.userName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
 
-    val recentSongs: StateFlow<List<SongEntity>> = repository.getRecentlyAddedSongs()
+    private val downloadedEntities: Flow<List<SongEntity>> = downloadRepository.getAllDownloads()
+        .map { list ->
+            list.map { d ->
+                SongEntity(
+                    id = d.id,
+                    title = d.title,
+                    artist = d.artist,
+                    album = d.album.ifBlank { "Downloaded" },
+                    duration = d.durationMs,
+                    path = d.localPath,
+                    albumArt = d.thumbnailUrl,
+                    dateAdded = d.downloadedAt,
+                    videoId = d.id
+                )
+            }
+        }
+
+    val recentSongs: StateFlow<List<SongEntity>> = downloadedEntities
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val mostPlayed: StateFlow<List<SongEntity>> = repository.getMostPlayedSongs()
@@ -32,7 +53,7 @@ class HomeViewModel @Inject constructor(
     val favoriteSongs: StateFlow<List<SongEntity>> = repository.getFavoriteSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allSongs: StateFlow<List<SongEntity>> = repository.getTrendingSongs()
+    val allSongs: StateFlow<List<SongEntity>> = downloadedEntities
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val currentSong = musicController.currentSong
