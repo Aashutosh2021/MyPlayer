@@ -42,6 +42,12 @@ class SyncPlayViewModel @Inject constructor(
         }
     }
 
+    fun joinRoomByIp(ip: String, port: Int = 48950) {
+        viewModelScope.launch {
+            syncPlayManager.joinSessionByAddress(host = ip, port = port)
+        }
+    }
+
     fun leaveRoom() {
         syncPlayManager.leaveSession()
     }

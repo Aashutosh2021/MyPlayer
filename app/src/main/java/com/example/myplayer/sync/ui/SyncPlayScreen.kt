@@ -43,6 +43,10 @@ fun SyncPlayScreen(
 
     var showCreateRoomDialog by remember { mutableStateOf(false) }
     var roomNameInput by remember { mutableStateOf("") }
+    var showJoinByIpDialog by remember { mutableStateOf(false) }
+    var joinIpInput by remember { mutableStateOf("") }
+    var joinPortInput by remember { mutableStateOf("48950") }
+    var emulatorWarningSession by remember { mutableStateOf<DiscoveredSession?>(null) }
 
     // Auto-scan when opening screen in NONE role
     LaunchedEffect(uiState.role) {
@@ -135,6 +139,136 @@ fun SyncPlayScreen(
         )
     }
 
+    // Join by IP Dialog
+    if (showJoinByIpDialog) {
+        AlertDialog(
+            onDismissRequest = { showJoinByIpDialog = false },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            icon = { Icon(Icons.Filled.Sensors, contentDescription = null, tint = NeonLimePrimary) },
+            title = { Text("Join by IP Address", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        "Connect directly using Master device's IP address. Useful if mDNS discovery is blocked on your router, or connecting across an Android emulator / PC host.",
+                        fontSize = 12.sp,
+                        color = OnSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = joinIpInput,
+                        onValueChange = { joinIpInput = it },
+                        singleLine = true,
+                        label = { Text("Master IP Address", color = TextMuted) },
+                        placeholder = { Text("e.g. 172.16.225.115 or 192.168.1.x", color = TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonLimePrimary,
+                            unfocusedBorderColor = CardBorderOlive,
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface,
+                            cursorColor = NeonLimePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = joinPortInput,
+                        onValueChange = { joinPortInput = it },
+                        singleLine = true,
+                        label = { Text("Port", color = TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonLimePrimary,
+                            unfocusedBorderColor = CardBorderOlive,
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface,
+                            cursorColor = NeonLimePrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val port = joinPortInput.toIntOrNull() ?: 48950
+                        if (joinIpInput.isNotBlank()) {
+                            viewModel.joinRoomByIp(joinIpInput.trim(), port)
+                            showJoinByIpDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonLimePrimary,
+                        contentColor = OnNeonLime
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Connect", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showJoinByIpDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Emulator Warning Dialog
+    if (emulatorWarningSession != null) {
+        val emuSession = emulatorWarningSession!!
+        AlertDialog(
+            onDismissRequest = { emulatorWarningSession = null },
+            containerColor = SurfaceLight,
+            titleContentColor = OnSurface,
+            textContentColor = OnSurfaceVariant,
+            icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = Color(0xFFFFB300)) },
+            title = { Text("Emulator Room Detected", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        "Room '${emuSession.sessionName}' is hosted on an Android Emulator (${emuSession.hostAddress}).\n\nAndroid emulators run in a private virtual network that cannot be reached directly by physical phones over Wi-Fi.\n\nRecommended: Host the room on your physical phone instead and join from the emulator!\n\nAlternatively, if you configured 'adb forward tcp:48950 tcp:48950' on your PC, you can enter your PC's Wi-Fi IP address below.",
+                        fontSize = 13.sp,
+                        color = OnSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        emulatorWarningSession = null
+                        joinIpInput = ""
+                        showJoinByIpDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonLimePrimary,
+                        contentColor = OnNeonLime
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Enter PC IP", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        val session = emuSession
+                        emulatorWarningSession = null
+                        viewModel.joinRoom(session)
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) {
+                    Text("Try Anyway")
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = CloudBlueBackground
@@ -213,7 +347,18 @@ fun SyncPlayScreen(
                             showCreateRoomDialog = true
                         },
                         onScanClick = { viewModel.startScanning() },
-                        onJoinSession = { session -> viewModel.joinRoom(session) }
+                        onJoinByIpClick = {
+                            joinIpInput = ""
+                            joinPortInput = "48950"
+                            showJoinByIpDialog = true
+                        },
+                        onJoinSession = { session ->
+                            if (session.isEmulatorHost && !uiState.isEmulator) {
+                                emulatorWarningSession = session
+                            } else {
+                                viewModel.joinRoom(session)
+                            }
+                        }
                     )
                 }
 
@@ -247,6 +392,7 @@ private fun NoneRoleContent(
     uiState: SyncUiState,
     onHostRoomClick: () -> Unit,
     onScanClick: () -> Unit,
+    onJoinByIpClick: () -> Unit,
     onJoinSession: (DiscoveredSession) -> Unit
 ) {
     LazyColumn(
@@ -255,6 +401,46 @@ private fun NoneRoleContent(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Network & Local IP Status Chip
+        if (uiState.localIp != null) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = SurfaceLight,
+                    border = BorderStroke(1.dp, if (uiState.isEmulator) Color(0xFF664400) else CardBorderOlive),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (uiState.isEmulator) Color(0xFFFFB300) else if (uiState.isWifiConnected) Color(0xFF4CAF50) else Color(0xFFFF6B6B))
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (uiState.isEmulator) "Android Emulator • IP: ${uiState.localIp}" else "Wi-Fi Connected • Your IP: ${uiState.localIp}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (uiState.isEmulator) Color(0xFFFFD54F) else OnSurface
+                            )
+                            if (uiState.isEmulator) {
+                                Text(
+                                    text = "To sync with real phones, host on your physical device instead",
+                                    fontSize = 10.sp,
+                                    color = OnSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Hero info card
         item {
             Box(
@@ -284,7 +470,7 @@ private fun NoneRoleContent(
                     }
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        "Sync Play connects 2–4 nearby phones over local Wi-Fi. The Master phone controls playback (play, pause, seek, tracks) while Slaves play the matching local songs in exact lockstep.",
+                        "Sync Play connects 2–4 nearby phones over local Wi-Fi. The Master phone controls playback (play, pause, seek, tracks) while Slaves play matching local songs in exact lockstep.",
                         style = MaterialTheme.typography.bodySmall,
                         color = OnSurfaceVariant,
                         lineHeight = 18.sp
@@ -292,32 +478,47 @@ private fun NoneRoleContent(
                     Spacer(Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
                             onClick = onHostRoomClick,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1.2f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = NeonLimePrimary,
                                 contentColor = OnNeonLime
                             ),
-                            shape = RoundedCornerShape(14.dp)
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Host Room", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Host", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
 
                         OutlinedButton(
                             onClick = onScanClick,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1.1f),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = OnSurface),
                             border = BorderStroke(1.dp, CardBorderOlive),
-                            shape = RoundedCornerShape(14.dp)
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Scan Rooms")
+                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Scan", fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = onJoinByIpClick,
+                            modifier = Modifier.weight(1.3f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonLimePrimary),
+                            border = BorderStroke(1.dp, NeonLimePrimary.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Filled.Sensors, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Join by IP", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                         }
                     }
                 }
@@ -370,7 +571,7 @@ private fun NoneRoleContent(
                         Text("No active rooms found", style = MaterialTheme.typography.bodyMedium, color = OnSurface, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Start a room on another phone connected to this Wi-Fi network to begin.",
+                            "Start a room on another phone connected to this Wi-Fi network, or tap 'Join by IP' to connect directly.",
                             style = MaterialTheme.typography.bodySmall,
                             color = OnSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -398,7 +599,7 @@ private fun DiscoveredSessionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(SurfaceLight)
-            .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(18.dp))
+            .border(BorderStroke(1.dp, if (session.isEmulatorHost) Color(0xFF664400) else CardBorderOlive), RoundedCornerShape(18.dp))
             .clickable { onJoin() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -407,27 +608,46 @@ private fun DiscoveredSessionCard(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(SurfaceContainerHigh),
+                .background(if (session.isEmulatorHost) Color(0xFF332200) else SurfaceContainerHigh),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.SpeakerGroup, contentDescription = null, tint = NeonLimePrimary, modifier = Modifier.size(24.dp))
+            Icon(
+                if (session.isEmulatorHost) Icons.Filled.Warning else Icons.Filled.SpeakerGroup,
+                contentDescription = null,
+                tint = if (session.isEmulatorHost) Color(0xFFFFB300) else NeonLimePrimary,
+                modifier = Modifier.size(24.dp)
+            )
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(session.sessionName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = OnSurface)
-            Text("Host: ${session.masterName} • ${session.sessionId}", style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(session.sessionName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = OnSurface)
+                if (session.isEmulatorHost) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "EMULATOR",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFB300),
+                        modifier = Modifier
+                            .background(Color(0xFF443300), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Text("Host: ${session.masterName} • ${session.hostAddress}:${session.port}", style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
         }
         Spacer(Modifier.width(8.dp))
         Button(
             onClick = onJoin,
             colors = ButtonDefaults.buttonColors(
-                containerColor = NeonLimePrimary,
-                contentColor = OnNeonLime
+                containerColor = if (session.isEmulatorHost) Color(0xFFFFB300) else NeonLimePrimary,
+                contentColor = if (session.isEmulatorHost) Color.Black else OnNeonLime
             ),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
         ) {
-            Text("Join", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(if (session.isEmulatorHost) "Resolve" else "Join", fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }
@@ -487,6 +707,34 @@ private fun MasterRoleContent(
                         fontWeight = FontWeight.Bold,
                         color = OnSurface
                     )
+                    Row(
+                        modifier = Modifier.padding(top = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "IP: ${uiState.localIp ?: "Detecting..."} : ${uiState.session?.port ?: 48950}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeonLimePrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (uiState.isEmulator) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF2C2411),
+                            border = BorderStroke(1.dp, Color(0xFF5C4A21)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Hosted on Android Emulator (${uiState.localIp ?: "10.0.2.16"}). Physical phones cannot connect directly over Wi-Fi without PC port forwarding (adb forward tcp:48950 tcp:48950). For easiest setup, host on your physical phone instead!",
+                                fontSize = 11.sp,
+                                color = Color(0xFFFFD54F),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = "Any song you play, pause, or seek on this phone will broadcast in lockstep to connected devices.",
                         style = MaterialTheme.typography.bodySmall,
