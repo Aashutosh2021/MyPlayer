@@ -33,6 +33,7 @@ import com.example.myplayer.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.media3.common.Player
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +71,7 @@ fun NowPlayingScreen(
     var showSleepTimer by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
     var showQualityDetails by remember { mutableStateOf(false) }
+    var showCustomLyricsDialog by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(1L)
@@ -154,6 +156,27 @@ fun NowPlayingScreen(
             containerColor = SurfaceLight,
             titleContentColor = OnSurface,
             textContentColor = OnSurfaceVariant
+        )
+    }
+
+    if (showCustomLyricsDialog) {
+        val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+        val currentLyrics = when (val state = lyricsState) {
+            is LyricsUiState.Found -> state.result.syncedLyrics ?: state.result.plainLyrics ?: ""
+            else -> ""
+        }
+        val isCustomPresent = lyricsState is LyricsUiState.Found
+        CustomLyricsDialog(
+            initialLyrics = currentLyrics,
+            trackTitle = title,
+            trackArtist = artist,
+            onDismiss = { showCustomLyricsDialog = false },
+            onSave = { customText ->
+                lyricsViewModel.saveCustomLyrics(customText)
+            },
+            onDelete = if (isCustomPresent) {
+                { lyricsViewModel.deleteLyrics() }
+            } else null
         )
     }
 
@@ -492,6 +515,7 @@ fun NowPlayingScreen(
                 lyricsState = lyricsState,
                 positionMs = lyricsPositionState,
                 onSeek = onSeek,
+                onAddCustomLyrics = { showCustomLyricsDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 180.dp, max = 380.dp)
@@ -575,3 +599,158 @@ fun formatDuration(durationMs: Long): String {
     val s = durationMs / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
+
+// ── Custom Lyrics Dialog ──────────────────────────────────────────────────────
+
+@Composable
+fun CustomLyricsDialog(
+    initialLyrics: String = "",
+    trackTitle: String?,
+    trackArtist: String?,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    var text by remember(initialLyrics) { mutableStateOf(initialLyrics) }
+    val clipboardManager = LocalClipboardManager.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceLight,
+        titleContentColor = OnSurface,
+        textContentColor = OnSurfaceVariant,
+        icon = {
+            Icon(
+                Icons.Filled.EditNote,
+                contentDescription = null,
+                tint = NeonLimePrimary,
+                modifier = Modifier.size(28.dp)
+            )
+        },
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Add Custom Lyrics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!trackTitle.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "$trackTitle ${if (!trackArtist.isNullOrBlank()) "• $trackArtist" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Enter or paste plain text lyrics or synced LRC lines (e.g. [00:15.20] line):",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = {
+                        Text(
+                            "Paste lyrics here...\n\nPlain text or [mm:ss.xx] timestamped lines supported.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NeonLimePrimary,
+                        unfocusedBorderColor = CardBorderOlive,
+                        cursorColor = NeonLimePrimary,
+                        focusedTextColor = OnSurface,
+                        unfocusedTextColor = OnSurface
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            val clip = clipboardManager.getText()?.text
+                            if (!clip.isNullOrBlank()) {
+                                text = clip
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = NeonLimePrimary)
+                    ) {
+                        Icon(Icons.Filled.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Paste from Clipboard", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    if (text.isNotBlank()) {
+                        Text(
+                            text = "${text.lines().size} lines",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSave(text)
+                        onDismiss()
+                    }
+                },
+                enabled = text.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonLimePrimary,
+                    contentColor = Color.Black,
+                    disabledContainerColor = SurfaceContainerHigh,
+                    disabledContentColor = TextMuted
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Save Lyrics", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = {
+                            onDelete()
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))
+                    ) {
+                        Text("Remove")
+                    }
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+

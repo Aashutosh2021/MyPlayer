@@ -117,6 +117,66 @@ class LyricsRepository @Inject constructor(
     }
 
     /**
+     * Saves user-provided custom lyrics directly to the Room cache for [songId].
+     * Supports both plain text and timestamped LRC format.
+     */
+    suspend fun saveCustomLyrics(
+        songId: String,
+        trackName: String,
+        artistName: String,
+        lyricsText: String
+    ): LyricsResult = withContext(Dispatchers.IO) {
+        val trimmed = lyricsText.trim()
+        val parsedSynced = parseSyncedLyrics(trimmed)
+        val hasSynced = parsedSynced.isNotEmpty()
+
+        val syncedLyrics = if (hasSynced) trimmed else null
+        val plainLyrics = if (hasSynced) {
+            trimmed.lines().joinToString("\n") { line ->
+                val match = LRC_LINE_REGEX.matchEntire(line.trim())
+                match?.groupValues?.get(4) ?: line
+            }.trim()
+        } else {
+            trimmed
+        }
+
+        val entity = CachedLyricsEntity(
+            songId = songId,
+            plainLyrics = plainLyrics,
+            syncedLyrics = syncedLyrics,
+            trackName = trackName,
+            artistName = artistName,
+            cachedAt = System.currentTimeMillis()
+        )
+
+        try {
+            cachedLyricsDao.insertLyrics(entity)
+            Log.d(TAG, "Saved custom lyrics locally for: $trackName ($songId, synced=$hasSynced)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save custom lyrics for $songId", e)
+        }
+
+        LyricsResult(
+            plainLyrics = plainLyrics,
+            syncedLyrics = syncedLyrics,
+            trackName = trackName,
+            artistName = artistName
+        )
+    }
+
+    /**
+     * Deletes cached lyrics for [songId] so they can be re-fetched.
+     */
+    suspend fun deleteLyrics(songId: String) = withContext(Dispatchers.IO) {
+        try {
+            cachedLyricsDao.deleteLyricsForSong(songId)
+            Log.d(TAG, "Deleted cached lyrics for $songId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete lyrics for $songId", e)
+        }
+    }
+
+    /**
      * Multi-tier LRCLIB fetching:
      * Tier 1: /api/get (clean track & artist + duration)
      * Tier 2: /api/get (clean track & artist, no duration)

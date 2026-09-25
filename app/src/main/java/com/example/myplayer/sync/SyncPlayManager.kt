@@ -2,34 +2,37 @@ package com.example.myplayer.sync
 
 import android.os.Build
 import android.util.Log
+import com.example.myplayer.data.local.dao.DownloadedSongDao
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.data.online.InnertubeApi
+import com.example.myplayer.data.online.model.OnlineSong
+import com.example.myplayer.data.repository.DownloadRepository
 import com.example.myplayer.playback.MusicController
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
+import com.example.myplayer.playback.SyncPlaybackInterceptor
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
-import java.util.Collections
-import java.util.UUID
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "SyncPlayManager"
-private const val PLAY_AT_LEAD_MS = 2500L
+private const val PLAY_AT_LEAD_MS = 1500L
 
 @Singleton
 class SyncPlayManager @Inject constructor(
     private val discovery: SyncDiscovery,
     private val trackMatcher: SyncTrackMatcher,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    private val innertubeApi: InnertubeApi,
+    private val downloadRepository: DownloadRepository,
+    private val downloadedSongDao: DownloadedSongDao
 ) {
     private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -41,9 +44,15 @@ class SyncPlayManager @Inject constructor(
     private var transportJob: Job? = null
     private var advertiseJob: Job? = null
     private var discoveryJob: Job? = null
+    private var slavePrepareJob: Job? = null
 
     private var pendingTrack: SongEntity? = null
     private var pendingStartPositionMs: Long = 0L
+    private var isMasterPrepared = false
+    private var isPlaybackScheduled = false
+
+    // Multi-device tracking on Master (supporting N concurrent Slaves)
+    private val connectedDevices = ConcurrentHashMap<String, SyncDevice>()
 
     private val _uiState = MutableStateFlow(SyncUiState(isEmulator = isEmulator()))
     val uiState: StateFlow<SyncUiState> = _uiState.asStateFlow()
@@ -64,13 +73,93 @@ class SyncPlayManager @Inject constructor(
         sessionId = UUID.randomUUID().toString()
         val localIp = getLocalIpAddress()
         val isEmu = isEmulator()
+        connectedDevices.clear()
+
         updateState {
             SyncUiState(
                 role = SyncRole.MASTER,
                 connectionState = SyncConnectionState.ADVERTISING,
+                playbackState = SyncPlaybackState.IDLE,
                 localIpAddress = localIp,
-                isEmulator = isEmu
+                isEmulator = isEmu,
+                devices = emptyList()
             )
+        }
+
+        // Install playback interceptor so normal MyPlayer UI controls (play/pause/seek/skip) sync to Slaves
+        musicController.syncPlaybackInterceptor = object : SyncPlaybackInterceptor {
+            override fun onPlayRequested(song: SongEntity, startIndex: Int): Boolean {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    Log.i(TAG, "SyncPlay intercepting playback on Master for: ${song.title}")
+                    initiateMasterSyncTrack(song, 0L)
+                    return true
+                }
+                return false
+            }
+
+            override fun onPauseRequested(): Boolean {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    Log.i(TAG, "SyncPlay intercepting PAUSE on Master")
+                    pause()
+                    return true
+                }
+                return false
+            }
+
+            override fun onResumeRequested(): Boolean {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    Log.i(TAG, "SyncPlay intercepting RESUME on Master")
+                    resume()
+                    return true
+                }
+                return false
+            }
+
+            override fun onSeekRequested(positionMs: Long): Boolean {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    Log.i(TAG, "SyncPlay intercepting SEEK on Master to ${positionMs}ms")
+                    seek(positionMs)
+                    return true
+                }
+                return false
+            }
+
+            override fun onTrackSkipRequested(isNext: Boolean): Boolean {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    val queue = musicController.getSongQueue()
+                    val current = musicController.currentSong.value
+                    val currentIndex = if (current != null) queue.indexOfFirst { it.id == current.id } else -1
+                    val targetIndex = if (isNext) currentIndex + 1 else currentIndex - 1
+                    if (targetIndex in queue.indices) {
+                        val targetSong = queue[targetIndex]
+                        Log.i(TAG, "SyncPlay intercepting SKIP (${if (isNext) "next" else "prev"}) to: ${targetSong.title}")
+                        initiateMasterSyncTrack(targetSong, 0L)
+                        return true
+                    }
+                }
+                return false
+            }
+
+            override fun onPlayerIsPlayingChanged(isPlaying: Boolean, positionMs: Long) {
+                if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
+                    if (!isPlaying && _uiState.value.playbackState == SyncPlaybackState.PLAYING) {
+                        Log.i(TAG, "Master player paused via system/notification at ${positionMs}ms. Broadcasting PAUSE to slaves.")
+                        sendMessage(
+                            SyncMessage.Pause(
+                                sessionId = sessionId,
+                                senderId = deviceId,
+                                sequence = nextSeq(),
+                                timestamp = System.currentTimeMillis(),
+                                positionMs = positionMs
+                            )
+                        )
+                        updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
+                    } else if (isPlaying && _uiState.value.playbackState == SyncPlaybackState.PAUSED) {
+                        Log.i(TAG, "Master player resumed via system/notification at ${positionMs}ms. Synchronizing slaves.")
+                        resume()
+                    }
+                }
+            }
         }
 
         val server = LanServerTransport()
@@ -87,29 +176,30 @@ class SyncPlayManager @Inject constructor(
                         }
                     }
                     is TransportEvent.PeerConnected -> {
-                        Log.d(TAG, "Master: PeerConnected received")
-                        updateState {
-                            it.copy(
-                                connectionState = SyncConnectionState.CONNECTED,
-                                devices = if (it.devices.isEmpty()) {
-                                    listOf(SyncDevice("peer", "Client device", isMaster = false))
-                                } else it.devices
-                            )
-                        }
+                        Log.d(TAG, "Master: PeerConnected event received at transport layer")
+                        updateState { it.copy(connectionState = SyncConnectionState.CONNECTED) }
                     }
                     is TransportEvent.Message -> handleIncoming(event.message)
                     is TransportEvent.Disconnected -> {
-                        Log.d(TAG, "Master: Peer disconnected")
-                        updateState {
-                            it.copy(
-                                connectionState = SyncConnectionState.ADVERTISING,
-                                devices = emptyList()
-                            )
+                        Log.d(TAG, "Master: All clients disconnected or transport closed")
+                        if (connectedDevices.isEmpty()) {
+                            updateState {
+                                it.copy(
+                                    connectionState = SyncConnectionState.ADVERTISING,
+                                    playbackState = SyncPlaybackState.IDLE,
+                                    devices = emptyList()
+                                )
+                            }
                         }
                     }
                     is TransportEvent.Error -> {
                         Log.e(TAG, "Master transport error", event.throwable)
-                        updateState { it.copy(connectionState = SyncConnectionState.ERROR, errorMessage = event.throwable.message) }
+                        updateState {
+                            it.copy(
+                                connectionState = SyncConnectionState.ERROR,
+                                errorMessage = event.throwable.message
+                            )
+                        }
                     }
                 }
             }
@@ -122,7 +212,61 @@ class SyncPlayManager @Inject constructor(
             updateState { it.copy(errorMessage = "Play a song locally first, then start Sync Play") }
             return
         }
-        pendingStartPositionMs = musicController.getCurrentPosition()
+        val pos = musicController.getCurrentPosition()
+        initiateMasterSyncTrack(song, pos)
+    }
+
+    private fun initiateMasterSyncTrack(song: SongEntity, startPositionMs: Long) {
+        pendingTrack = song
+        pendingStartPositionMs = startPositionMs
+        isMasterPrepared = false
+        isPlaybackScheduled = false
+
+        val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+        val trackRef = SyncTrackRef(
+            videoId = song.videoId,
+            title = song.title,
+            artist = song.artist,
+            durationMs = song.duration,
+            streamUrl = if (song.path.startsWith("http")) song.path else null,
+            albumArt = resolvedArt
+        )
+
+        // Reset all connected slaves to PREPARING status
+        for ((id, dev) in connectedDevices) {
+            connectedDevices[id] = dev.copy(
+                status = DeviceSyncStatus.PREPARING,
+                downloadProgress = 0,
+                errorMessage = null
+            )
+        }
+
+        updateState {
+            it.copy(
+                playbackState = SyncPlaybackState.WAITING_FOR_READY,
+                currentTrack = trackRef,
+                devices = connectedDevices.values.toList(),
+                errorMessage = null
+            )
+        }
+
+        val trackSource = if (song.path.startsWith("http") || song.path.startsWith("online://")) "STREAM" else "LOCAL"
+        Log.i(TAG, "SYNC PREPARE:\ntrackId=${song.videoId ?: song.id}\ndevice=all\nsource=$trackSource")
+
+        val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+            song.copy(albumArt = resolvedArt)
+        } else {
+            song
+        }
+
+        // 1. Prepare Master player (buffering without immediate playback)
+        musicController.prepareForSync(songWithArt, startPositionMs) {
+            Log.d(TAG, "Master player buffer PREPARED and READY")
+            isMasterPrepared = true
+            checkMasterBarrierAndStart()
+        }
+
+        // 2. Broadcast TRACK_PREPARE to all Slaves
         sendMessage(
             SyncMessage.TrackPrepare(
                 sessionId = sessionId,
@@ -133,9 +277,65 @@ class SyncPlayManager @Inject constructor(
                 title = song.title,
                 artist = song.artist,
                 durationMs = song.duration,
-                startPositionMs = pendingStartPositionMs
+                startPositionMs = startPositionMs,
+                streamUrl = trackRef.streamUrl,
+                albumArt = trackRef.albumArt
             )
         )
+    }
+
+    private fun checkMasterBarrierAndStart() {
+        if (_uiState.value.role != SyncRole.MASTER) return
+        if (!isMasterPrepared) {
+            Log.d(TAG, "Master barrier waiting: Master player buffer not yet ready.")
+            return
+        }
+
+        val slaves = connectedDevices.values.filter { !it.isMaster }
+        if (slaves.isEmpty()) {
+            Log.i(TAG, "Master barrier satisfied: No slaves connected. Scheduling PLAY_AT.")
+            scheduleSynchronizedStart()
+            return
+        }
+
+        val allSlavesReady = slaves.all { it.status == DeviceSyncStatus.READY }
+        if (allSlavesReady) {
+            Log.i(TAG, "Master barrier satisfied: all ${slaves.size} slave(s) are READY. Scheduling PLAY_AT.")
+            scheduleSynchronizedStart()
+        } else {
+            val readyCount = slaves.count { it.status == DeviceSyncStatus.READY }
+            Log.d(TAG, "Master barrier waiting: $readyCount/${slaves.size} slave(s) ready.")
+        }
+    }
+
+    private fun scheduleSynchronizedStart() {
+        if (isPlaybackScheduled) return
+        isPlaybackScheduled = true
+
+        val leadMs = PLAY_AT_LEAD_MS
+        val startPos = pendingStartPositionMs
+        val targetTimestamp = System.currentTimeMillis() + leadMs
+
+        Log.i(TAG, "SYNC PLAY_AT:\ntimestamp=$targetTimestamp\nposition=$startPos")
+        updateState { it.copy(playbackState = SyncPlaybackState.SCHEDULED) }
+
+        sendMessage(
+            SyncMessage.PlayAt(
+                sessionId = sessionId,
+                senderId = deviceId,
+                sequence = nextSeq(),
+                timestamp = System.currentTimeMillis(),
+                startDelayMs = leadMs,
+                positionMs = startPos
+            )
+        )
+
+        managerScope.launch {
+            delay(leadMs)
+            Log.i(TAG, "SYNC START:\ndevice=Master\nposition=$startPos")
+            musicController.startPreparedSyncPlayback(startPos)
+            updateState { it.copy(playbackState = SyncPlaybackState.PLAYING) }
+        }
     }
 
     // ---------------------------------------------------------------
@@ -149,6 +349,7 @@ class SyncPlayManager @Inject constructor(
             SyncUiState(
                 role = SyncRole.SLAVE,
                 connectionState = SyncConnectionState.DISCOVERING,
+                playbackState = SyncPlaybackState.IDLE,
                 isEmulator = isEmu
             )
         }
@@ -167,7 +368,6 @@ class SyncPlayManager @Inject constructor(
 
         val hostIp = host.host.hostAddress ?: ""
 
-        // Check if discovered host is an emulator's private virtual IP (10.0.2.x) from a physical device
         if (hostIp.startsWith("10.0.2.") && !isEmulator()) {
             Log.w(TAG, "Discovered emulator IP $hostIp from physical device")
             updateState {
@@ -194,6 +394,7 @@ class SyncPlayManager @Inject constructor(
             SyncUiState(
                 role = SyncRole.SLAVE,
                 connectionState = SyncConnectionState.CONNECTING,
+                playbackState = SyncPlaybackState.IDLE,
                 roomHostAddress = cleanIp,
                 isEmulator = isEmu
             )
@@ -251,7 +452,13 @@ class SyncPlayManager @Inject constructor(
                     is TransportEvent.Message -> handleIncoming(event.message)
                     is TransportEvent.Disconnected -> {
                         Log.d(TAG, "Slave: Disconnected from Master")
-                        updateState { it.copy(connectionState = SyncConnectionState.DISCONNECTED) }
+                        updateState {
+                            it.copy(
+                                connectionState = SyncConnectionState.DISCONNECTED,
+                                playbackState = SyncPlaybackState.IDLE,
+                                devices = emptyList()
+                            )
+                        }
                     }
                     is TransportEvent.Error -> {
                         Log.e(TAG, "Slave transport error", event.throwable)
@@ -294,11 +501,43 @@ class SyncPlayManager @Inject constructor(
                         timestamp = System.currentTimeMillis()
                     )
                 )
+
+                val newDevice = SyncDevice(
+                    deviceId = message.senderId,
+                    displayName = message.displayName,
+                    isMaster = false,
+                    status = DeviceSyncStatus.IDLE
+                )
+                connectedDevices[message.senderId] = newDevice
                 updateState {
                     it.copy(
                         connectionState = SyncConnectionState.CONNECTED,
-                        devices = listOf(SyncDevice(message.senderId, message.displayName, isMaster = false))
+                        devices = connectedDevices.values.toList()
                     )
+                }
+
+                // If music is already playing when a new Slave joins, synchronize it without restarting existing devices
+                if (_uiState.value.playbackState == SyncPlaybackState.PLAYING || musicController.isPlaying.value) {
+                    val currentSong = musicController.currentSong.value
+                    if (currentSong != null) {
+                        val currentPos = musicController.getCurrentPosition()
+                        Log.i(TAG, "Synchronizing late-joining device ${message.displayName} to current track at ${currentPos}ms")
+                        sendMessage(
+                            SyncMessage.TrackPrepare(
+                                sessionId = sessionId,
+                                senderId = deviceId,
+                                sequence = nextSeq(),
+                                timestamp = System.currentTimeMillis(),
+                                videoId = currentSong.videoId,
+                                title = currentSong.title,
+                                artist = currentSong.artist,
+                                durationMs = currentSong.duration,
+                                startPositionMs = currentPos + 2500L,
+                                streamUrl = if (currentSong.path.startsWith("http")) currentSong.path else null,
+                                albumArt = currentSong.albumArt ?: currentSong.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                            )
+                        )
+                    }
                 }
             }
 
@@ -311,45 +550,107 @@ class SyncPlayManager @Inject constructor(
             }
 
             is SyncMessage.TrackPrepare -> {
-                managerScope.launch {
-                    val ref = SyncTrackRef(message.videoId, message.title, message.artist, message.durationMs)
-                    val local = trackMatcher.findLocalMatch(ref)
-                    if (local == null) {
-                        sendMessage(SyncMessage.Ready(sessionId, deviceId, nextSeq(), System.currentTimeMillis(), trackAvailable = false))
-                        updateState { it.copy(errorMessage = "Track not found locally: ${message.title}") }
-                        return@launch
-                    }
-                    pendingTrack = local
-                    pendingStartPositionMs = message.startPositionMs
-                    sendMessage(SyncMessage.Ready(sessionId, deviceId, nextSeq(), System.currentTimeMillis(), trackAvailable = true))
+                handleSlaveTrackPrepare(message)
+            }
+
+            is SyncMessage.TrackDownloadProgress -> {
+                val dev = connectedDevices[message.senderId]
+                if (dev != null) {
+                    connectedDevices[message.senderId] = dev.copy(
+                        status = DeviceSyncStatus.DOWNLOADING,
+                        downloadProgress = message.progress
+                    )
+                    updateState { it.copy(devices = connectedDevices.values.toList()) }
                 }
+                Log.i(TAG, "SYNC DOWNLOAD:\ndevice=${message.senderId}\nprogress=${message.progress}")
+            }
+
+            is SyncMessage.TrackPrepareFailed -> {
+                val dev = connectedDevices[message.senderId]
+                if (dev != null) {
+                    connectedDevices[message.senderId] = dev.copy(
+                        status = DeviceSyncStatus.FAILED,
+                        errorMessage = message.reason
+                    )
+                    updateState { it.copy(devices = connectedDevices.values.toList()) }
+                }
+                Log.e(TAG, "SYNC FAILURE:\ndevice=${message.senderId}\nreason=${message.reason}")
             }
 
             is SyncMessage.Ready -> {
+                val dev = connectedDevices[message.senderId]
                 if (message.trackAvailable) {
-                    scheduleSynchronizedStart()
+                    if (dev != null) {
+                        connectedDevices[message.senderId] = dev.copy(
+                            status = DeviceSyncStatus.READY,
+                            downloadProgress = 100
+                        )
+                        updateState { it.copy(devices = connectedDevices.values.toList()) }
+                    }
+                    Log.i(TAG, "SYNC READY:\ndevice=${message.senderId}")
+                    checkMasterBarrierAndStart()
                 } else {
-                    updateState { it.copy(errorMessage = "The other device is missing this track") }
+                    if (dev != null) {
+                        connectedDevices[message.senderId] = dev.copy(
+                            status = DeviceSyncStatus.FAILED,
+                            errorMessage = "Track unavailable"
+                        )
+                        updateState { it.copy(devices = connectedDevices.values.toList()) }
+                    }
+                    Log.w(TAG, "SYNC FAILURE:\ndevice=${message.senderId}\nreason=Track unavailable")
                 }
             }
 
             is SyncMessage.PlayAt -> {
+                updateState { it.copy(playbackState = SyncPlaybackState.SCHEDULED) }
                 managerScope.launch {
                     delay(message.startDelayMs)
-                    val song = pendingTrack ?: return@launch
-                    musicController.playSongs(listOf(song), 0)
-                    if (message.positionMs > 0) {
-                        musicController.seekTo(message.positionMs)
+                    Log.i(TAG, "SYNC START:\ndevice=Slave\nposition=${message.positionMs}")
+                    musicController.startPreparedSyncPlayback(message.positionMs)
+                    updateState { it.copy(playbackState = SyncPlaybackState.PLAYING) }
+                }
+            }
+
+            is SyncMessage.Pause -> {
+                musicController.getMediaController()?.pause()
+                updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
+            }
+
+            is SyncMessage.Seek -> {
+                musicController.seekTo(message.positionMs)
+            }
+
+            is SyncMessage.Leave -> {
+                if (_uiState.value.role == SyncRole.MASTER) {
+                    connectedDevices.remove(message.senderId)
+                    updateState { it.copy(devices = connectedDevices.values.toList()) }
+                    Log.i(TAG, "Slave left room: ${message.senderId}")
+                    checkMasterBarrierAndStart()
+                } else {
+                    Log.i(TAG, "Master left room. Room closed.")
+                    updateState {
+                        it.copy(
+                            connectionState = SyncConnectionState.DISCONNECTED,
+                            playbackState = SyncPlaybackState.IDLE,
+                            devices = emptyList()
+                        )
                     }
                 }
             }
 
-            is SyncMessage.Pause -> musicController.getMediaController()?.pause()
-
-            is SyncMessage.Seek -> musicController.seekTo(message.positionMs)
-
-            is SyncMessage.Leave -> {
-                updateState { it.copy(connectionState = SyncConnectionState.DISCONNECTED, devices = emptyList()) }
+            is SyncMessage.Kick -> {
+                if (message.targetDeviceId == deviceId) {
+                    Log.i(TAG, "Device was kicked from room by Master: $deviceId")
+                    stop()
+                    updateState {
+                        it.copy(
+                            connectionState = SyncConnectionState.DISCONNECTED,
+                            playbackState = SyncPlaybackState.IDLE,
+                            devices = emptyList(),
+                            errorMessage = "You were removed from the room by the host"
+                        )
+                    }
+                }
             }
 
             is SyncMessage.Error -> {
@@ -358,24 +659,261 @@ class SyncPlayManager @Inject constructor(
         }
     }
 
-    private fun scheduleSynchronizedStart() {
-        sendMessage(
-            SyncMessage.PlayAt(
-                sessionId = sessionId,
-                senderId = deviceId,
-                sequence = nextSeq(),
-                timestamp = System.currentTimeMillis(),
-                startDelayMs = PLAY_AT_LEAD_MS,
-                positionMs = pendingStartPositionMs
-            )
+    // ---------------------------------------------------------------
+    // SLAVE TRACK PREPARATION PIPELINE
+    // ---------------------------------------------------------------
+
+    private fun handleSlaveTrackPrepare(message: SyncMessage.TrackPrepare) {
+        slavePrepareJob?.cancel()
+        val resolvedArt = message.albumArt ?: message.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+        val ref = SyncTrackRef(
+            videoId = message.videoId,
+            title = message.title,
+            artist = message.artist,
+            durationMs = message.durationMs,
+            streamUrl = message.streamUrl,
+            albumArt = resolvedArt
         )
-        managerScope.launch {
-            delay(PLAY_AT_LEAD_MS)
-            val song = musicController.currentSong.value ?: return@launch
-            musicController.playSongs(listOf(song), 0)
-            if (pendingStartPositionMs > 0) {
-                musicController.seekTo(pendingStartPositionMs)
+
+        updateState {
+            it.copy(
+                playbackState = SyncPlaybackState.PREPARING,
+                currentTrack = ref,
+                errorMessage = null
+            )
+        }
+
+        slavePrepareJob = managerScope.launch(Dispatchers.IO) {
+            // STEP 1: Check whether exact track already exists locally
+            val localSong = trackMatcher.findLocalFileMatch(ref)
+            if (localSong != null) {
+                Log.i(TAG, "SYNC PREPARE:\ntrackId=${ref.videoId ?: ref.title}\ndevice=Slave\nsource=LOCAL")
+                val localWithArt = if (localSong.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                    localSong.copy(albumArt = resolvedArt)
+                } else localSong
+                withContext(Dispatchers.Main) {
+                    musicController.prepareForSync(localWithArt, message.startPositionMs) {
+                        Log.i(TAG, "SYNC READY:\ndevice=Slave")
+                        sendMessage(
+                            SyncMessage.Ready(
+                                sessionId = sessionId,
+                                senderId = deviceId,
+                                sequence = nextSeq(),
+                                timestamp = System.currentTimeMillis(),
+                                trackAvailable = true
+                            )
+                        )
+                        updateState { it.copy(playbackState = SyncPlaybackState.WAITING_FOR_READY) }
+                    }
+                }
+                return@launch
             }
+
+            // STEP 2: Local file does NOT exist -> Download pipeline
+            Log.i(TAG, "SYNC PREPARE:\ntrackId=${ref.videoId ?: ref.title}\ndevice=Slave\nsource=DOWNLOAD")
+            sendMessage(
+                SyncMessage.TrackDownloadProgress(
+                    sessionId = sessionId,
+                    senderId = deviceId,
+                    sequence = nextSeq(),
+                    timestamp = System.currentTimeMillis(),
+                    progress = 0
+                )
+            )
+
+            val downloadedSong = downloadMissingTrack(ref)
+            if (downloadedSong != null) {
+                val dlWithArt = if (downloadedSong.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                    downloadedSong.copy(albumArt = resolvedArt)
+                } else downloadedSong
+                Log.i(TAG, "Downloaded file verified for ${dlWithArt.title}. Preparing Media3...")
+                withContext(Dispatchers.Main) {
+                    musicController.prepareForSync(dlWithArt, message.startPositionMs) {
+                        Log.i(TAG, "SYNC READY:\ndevice=Slave")
+                        sendMessage(
+                            SyncMessage.Ready(
+                                sessionId = sessionId,
+                                senderId = deviceId,
+                                sequence = nextSeq(),
+                                timestamp = System.currentTimeMillis(),
+                                trackAvailable = true
+                            )
+                        )
+                        updateState { it.copy(playbackState = SyncPlaybackState.WAITING_FOR_READY) }
+                    }
+                }
+                return@launch
+            }
+
+            // STEP 3: Download failed -> Fall back to online streaming safely
+            Log.w(TAG, "SYNC FAILURE:\ndevice=Slave\nreason=Download failed, trying streaming fallback")
+            val streamSong = prepareStreamingFallback(ref)
+            if (streamSong != null) {
+                withContext(Dispatchers.Main) {
+                    musicController.prepareForSync(streamSong, message.startPositionMs) {
+                        Log.i(TAG, "SYNC READY:\ndevice=Slave (streaming fallback)")
+                        sendMessage(
+                            SyncMessage.Ready(
+                                sessionId = sessionId,
+                                senderId = deviceId,
+                                sequence = nextSeq(),
+                                timestamp = System.currentTimeMillis(),
+                                trackAvailable = true
+                            )
+                        )
+                        updateState { it.copy(playbackState = SyncPlaybackState.WAITING_FOR_READY) }
+                    }
+                }
+                return@launch
+            }
+
+            // STEP 4: Both download and streaming preparation failed
+            Log.e(TAG, "SYNC FAILURE:\ndevice=Slave\nreason=Could not download or stream track")
+            sendMessage(
+                SyncMessage.TrackPrepareFailed(
+                    sessionId = sessionId,
+                    senderId = deviceId,
+                    sequence = nextSeq(),
+                    timestamp = System.currentTimeMillis(),
+                    reason = "Could not prepare track: ${ref.title}"
+                )
+            )
+            withContext(Dispatchers.Main) {
+                updateState {
+                    it.copy(
+                        playbackState = SyncPlaybackState.ERROR,
+                        errorMessage = "Failed to prepare track: ${ref.title}"
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun downloadMissingTrack(ref: SyncTrackRef): SongEntity? = withContext(Dispatchers.IO) {
+        try {
+            // Resolve YouTube videoId
+            val videoId = if (!ref.videoId.isNullOrBlank()) {
+                ref.videoId
+            } else {
+                val searchResult = innertubeApi.search("${ref.title} ${ref.artist}")
+                val firstMatch = searchResult.songs.firstOrNull()
+                firstMatch?.videoId ?: return@withContext null
+            }
+
+            // Check if already in downloadedSongDao
+            val existing = downloadedSongDao.getById(videoId)
+            if (existing != null && File(existing.localPath).let { it.exists() && it.length() > 0 }) {
+                return@withContext SongEntity(
+                    id = existing.id,
+                    title = existing.title,
+                    artist = existing.artist,
+                    album = existing.album.ifBlank { "Downloads" },
+                    duration = existing.durationMs,
+                    path = existing.localPath,
+                    albumArt = existing.thumbnailUrl,
+                    dateAdded = existing.downloadedAt,
+                    videoId = existing.id
+                )
+            }
+
+            // Resolve stream URL
+            val streamUrl = ref.streamUrl ?: innertubeApi.getStreamUrl(videoId)
+            if (streamUrl.isNullOrBlank()) {
+                Log.w(TAG, "Could not resolve stream URL for download of $videoId")
+                return@withContext null
+            }
+
+            val onlineSong = OnlineSong(
+                videoId = videoId,
+                title = ref.title,
+                artist = ref.artist,
+                thumbnailUrl = "",
+                durationMs = ref.durationMs,
+                streamUrl = streamUrl
+            )
+
+            val enqueued = downloadRepository.startDownload(onlineSong)
+            if (!enqueued) return@withContext null
+
+            // Monitor download progress and wait for verified local file
+            var lastReported = -1
+            val startTime = System.currentTimeMillis()
+            val maxWaitMs = 60_000L
+
+            while (System.currentTimeMillis() - startTime < maxWaitMs) {
+                // Check if file is written and persisted in DB
+                val downloaded = downloadedSongDao.getById(videoId)
+                if (downloaded != null) {
+                    val file = File(downloaded.localPath)
+                    if (file.exists() && file.isFile && file.length() > 0) {
+                        Log.i(TAG, "Verified downloaded file at ${file.absolutePath} (${file.length()} bytes)")
+                        val resolvedArt = downloaded.thumbnailUrl.ifBlank {
+                            ref.albumArt ?: ref.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" } ?: ""
+                        }
+                        return@withContext SongEntity(
+                            id = downloaded.id,
+                            title = downloaded.title,
+                            artist = downloaded.artist,
+                            album = downloaded.album.ifBlank { "Downloads" },
+                            duration = downloaded.durationMs,
+                            path = downloaded.localPath,
+                            albumArt = resolvedArt,
+                            dateAdded = downloaded.downloadedAt,
+                            videoId = downloaded.id
+                        )
+                    }
+                }
+
+                // Check and report progress to Master
+                val progress = downloadRepository.downloadProgress.value[videoId] ?: 0
+                if (progress != lastReported && progress in 0..100) {
+                    lastReported = progress
+                    Log.i(TAG, "SYNC DOWNLOAD:\ndevice=Slave\nprogress=$progress")
+                    sendMessage(
+                        SyncMessage.TrackDownloadProgress(
+                            sessionId = sessionId,
+                            senderId = deviceId,
+                            sequence = nextSeq(),
+                            timestamp = System.currentTimeMillis(),
+                            progress = progress
+                        )
+                    )
+                }
+
+                delay(300)
+            }
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in downloadMissingTrack", e)
+            null
+        }
+    }
+
+    private suspend fun prepareStreamingFallback(ref: SyncTrackRef): SongEntity? = withContext(Dispatchers.IO) {
+        val defaultArt = ref.albumArt ?: ref.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+        try {
+            val url = ref.streamUrl ?: if (!ref.videoId.isNullOrBlank()) {
+                innertubeApi.getStreamUrl(ref.videoId)
+            } else null
+
+            if (!url.isNullOrBlank()) {
+                SongEntity(
+                    id = ref.videoId ?: UUID.randomUUID().toString(),
+                    title = ref.title,
+                    artist = ref.artist,
+                    album = "Sync Play Online",
+                    duration = ref.durationMs,
+                    path = url,
+                    albumArt = defaultArt,
+                    dateAdded = System.currentTimeMillis(),
+                    videoId = ref.videoId
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error preparing streaming fallback", e)
+            null
         }
     }
 
@@ -390,29 +928,86 @@ class SyncPlayManager @Inject constructor(
     fun pause() {
         musicController.getMediaController()?.pause()
         if (_uiState.value.role == SyncRole.MASTER) {
-            sendMessage(SyncMessage.Pause(sessionId, deviceId, nextSeq(), System.currentTimeMillis(), musicController.getCurrentPosition()))
+            sendMessage(
+                SyncMessage.Pause(
+                    sessionId = sessionId,
+                    senderId = deviceId,
+                    sequence = nextSeq(),
+                    timestamp = System.currentTimeMillis(),
+                    positionMs = musicController.getCurrentPosition()
+                )
+            )
         }
+        updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
     }
 
     fun resume() {
-        musicController.getMediaController()?.play()
+        if (_uiState.value.role == SyncRole.MASTER) {
+            pendingStartPositionMs = musicController.getCurrentPosition()
+            isPlaybackScheduled = false
+            scheduleSynchronizedStart()
+        } else {
+            musicController.getMediaController()?.play()
+            updateState { it.copy(playbackState = SyncPlaybackState.PLAYING) }
+        }
     }
 
     fun seek(positionMs: Long) {
         musicController.seekTo(positionMs)
         if (_uiState.value.role == SyncRole.MASTER) {
-            sendMessage(SyncMessage.Seek(sessionId, deviceId, nextSeq(), System.currentTimeMillis(), positionMs))
+            sendMessage(
+                SyncMessage.Seek(
+                    sessionId = sessionId,
+                    senderId = deviceId,
+                    sequence = nextSeq(),
+                    timestamp = System.currentTimeMillis(),
+                    positionMs = positionMs
+                )
+            )
         }
     }
 
+    /** Master removes/kicks an individual slave device from the room. */
+    fun removeSlaveDevice(targetDeviceId: String) {
+        if (_uiState.value.role != SyncRole.MASTER) return
+        val dev = connectedDevices[targetDeviceId] ?: return
+        Log.i(TAG, "Master removing slave device: ${dev.displayName} ($targetDeviceId)")
+
+        sendMessage(
+            SyncMessage.Kick(
+                sessionId = sessionId,
+                senderId = deviceId,
+                sequence = nextSeq(),
+                timestamp = System.currentTimeMillis(),
+                targetDeviceId = targetDeviceId
+            )
+        )
+
+        connectedDevices.remove(targetDeviceId)
+        updateState { it.copy(devices = connectedDevices.values.toList()) }
+
+        // Re-check barrier in case this slave was pending preparation and blocking start
+        checkMasterBarrierAndStart()
+    }
+
+    /** Explicit Leave Room UI action — terminates the session cleanly. */
     fun leave() {
         if (sessionId.isNotBlank()) {
-            sendMessage(SyncMessage.Leave(sessionId, deviceId, nextSeq(), System.currentTimeMillis()))
+            sendMessage(
+                SyncMessage.Leave(
+                    sessionId = sessionId,
+                    senderId = deviceId,
+                    sequence = nextSeq(),
+                    timestamp = System.currentTimeMillis()
+                )
+            )
         }
         stop()
     }
 
     fun stop() {
+        musicController.syncPlaybackInterceptor = null
+        slavePrepareJob?.cancel(); slavePrepareJob = null
         discoveryJob?.cancel(); discoveryJob = null
         advertiseJob?.cancel(); advertiseJob = null
         transportJob?.cancel(); transportJob = null
@@ -421,8 +1016,11 @@ class SyncPlayManager @Inject constructor(
         discovery.stopAdvertising()
         discovery.stopDiscovery()
 
+        connectedDevices.clear()
         pendingTrack = null
         pendingStartPositionMs = 0L
+        isMasterPrepared = false
+        isPlaybackScheduled = false
         sequenceCounter = 0L
         sessionId = ""
         val isEmu = isEmulator()

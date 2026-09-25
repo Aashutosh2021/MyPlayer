@@ -180,6 +180,68 @@ class LyricsRepositoryTest {
     }
 
     // ==========================================
+    // 7. Custom Lyrics Tests
+    // ==========================================
+
+    @Test
+    fun saveCustomLyrics_plainText_savesAndFetchesCorrectly() = runBlocking {
+        val plain = "Line 1 of lyrics\nLine 2 of lyrics"
+        val saved = repository.saveCustomLyrics(
+            songId = "custom_1",
+            trackName = "My Song",
+            artistName = "My Artist",
+            lyricsText = plain
+        )
+
+        assertEquals(plain, saved.plainLyrics)
+        assertNull(saved.syncedLyrics)
+        assertEquals("My Song", saved.trackName)
+        assertEquals("My Artist", saved.artistName)
+
+        // Verify it is cached and retrieved on fetchLyrics
+        val fetched = repository.fetchLyrics("custom_1", "My Song", "My Artist")
+        assertNotNull(fetched)
+        assertEquals(plain, fetched?.plainLyrics)
+        assertNull(fetched?.syncedLyrics)
+    }
+
+    @Test
+    fun saveCustomLyrics_syncedLrc_parsesAndSavesCorrectly() = runBlocking {
+        val lrc = "[00:12.50] Hello world\n[00:18.00] This is synced"
+        val saved = repository.saveCustomLyrics(
+            songId = "custom_2",
+            trackName = "Synced Track",
+            artistName = "Synced Artist",
+            lyricsText = lrc
+        )
+
+        assertEquals(lrc, saved.syncedLyrics)
+        assertEquals("Hello world\nThis is synced", saved.plainLyrics)
+
+        // Verify parseSyncedLyrics
+        val parsed = repository.parseSyncedLyrics(saved.syncedLyrics!!)
+        assertEquals(2, parsed.size)
+        assertEquals(12500L, parsed[0].first)
+        assertEquals("Hello world", parsed[0].second)
+        assertEquals(18000L, parsed[1].first)
+        assertEquals("This is synced", parsed[1].second)
+    }
+
+    @Test
+    fun deleteLyrics_removesFromCache() = runBlocking {
+        repository.saveCustomLyrics(
+            songId = "to_delete",
+            trackName = "Track",
+            artistName = "Artist",
+            lyricsText = "Some lyrics"
+        )
+        assertNotNull(fakeDao.getLyricsForSong("to_delete"))
+
+        repository.deleteLyrics("to_delete")
+        assertNull(fakeDao.getLyricsForSong("to_delete"))
+    }
+
+    // ==========================================
     // Test Double for Room DAO
     // ==========================================
 

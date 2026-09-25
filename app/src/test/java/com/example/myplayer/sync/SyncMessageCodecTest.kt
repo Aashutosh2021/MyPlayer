@@ -66,6 +66,34 @@ class SyncMessageCodecTest {
         assertEquals("Rick Astley", msg.artist)
         assertEquals(213000L, msg.durationMs)
         assertEquals(15000L, msg.startPositionMs)
+        assertNull(msg.albumArt)
+    }
+
+    @Test
+    fun testTrackPrepareWithAlbumArtEncodeDecode() {
+        val original = SyncMessage.TrackPrepare(
+            sessionId = "sess-1",
+            senderId = "dev-master",
+            sequence = 3L,
+            timestamp = 3000L,
+            videoId = "dQw4w9WgXcQ",
+            title = "Never Gonna Give You Up",
+            artist = "Rick Astley",
+            durationMs = 213000L,
+            startPositionMs = 15000L,
+            albumArt = "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        )
+        val encoded = SyncMessageCodec.encode(original)
+        val decoded = SyncMessageCodec.decode(encoded)
+
+        assertTrue(decoded is SyncMessage.TrackPrepare)
+        val msg = decoded as SyncMessage.TrackPrepare
+        assertEquals("dQw4w9WgXcQ", msg.videoId)
+        assertEquals("Never Gonna Give You Up", msg.title)
+        assertEquals("Rick Astley", msg.artist)
+        assertEquals(213000L, msg.durationMs)
+        assertEquals(15000L, msg.startPositionMs)
+        assertEquals("https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", msg.albumArt)
     }
 
     @Test

@@ -15,9 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Sync
@@ -33,8 +35,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.myplayer.sync.DeviceSyncStatus
 import com.example.myplayer.sync.SyncConnectionState
+import com.example.myplayer.sync.SyncDevice
+import com.example.myplayer.sync.SyncPlaybackState
 import com.example.myplayer.sync.SyncRole
+import com.example.myplayer.ui.common.AlbumArtImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,19 +209,15 @@ fun SyncPlayScreen(
                                     .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+                                AlbumArtImage(
+                                    uri = currentSong?.albumArt,
+                                    title = currentSong?.title,
+                                    artist = currentSong?.artist,
+                                    album = currentSong?.album,
+                                    size = 42.dp,
+                                    shape = RoundedCornerShape(8.dp),
+                                    iconSize = 20.dp
+                                )
                                 Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -395,20 +397,20 @@ fun SyncPlayScreen(
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            "Device Connected!",
+                                            "Connected Devices (${state.devices.size})",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(10.dp))
                                 for (device in state.devices) {
-                                    Text(
-                                        "• ${device.displayName}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    DeviceItemCard(
+                                        device = device,
+                                        onRemove = { viewModel.removeSlave(device.deviceId) }
                                     )
+                                    Spacer(Modifier.height(6.dp))
                                 }
                             } else if (state.connectionState == SyncConnectionState.ERROR) {
                                 state.errorMessage?.let { msg ->
@@ -423,25 +425,114 @@ fun SyncPlayScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    val masterTrackTitle = currentSong?.title ?: state.currentTrack?.title
+                    val masterTrackArtist = currentSong?.artist ?: state.currentTrack?.artist
+                    val masterTrackArt = currentSong?.albumArt ?: state.currentTrack?.albumArt
 
-                    Button(
-                        onClick = { viewModel.startSyncPlayback() },
-                        enabled = state.connectionState == SyncConnectionState.CONNECTED,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (state.connectionState == SyncConnectionState.CONNECTED)
-                                "START SYNC PLAY"
-                            else
-                                "WAITING FOR DEVICE TO JOIN...",
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (!masterTrackTitle.isNullOrBlank()) {
+                        Spacer(Modifier.height(14.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AlbumArtImage(
+                                    uri = masterTrackArt,
+                                    title = masterTrackTitle,
+                                    artist = masterTrackArtist,
+                                    size = 46.dp,
+                                    shape = RoundedCornerShape(8.dp),
+                                    iconSize = 22.dp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        masterTrackTitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        masterTrackArtist ?: "",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+
+                    val buttonText = when (state.playbackState) {
+                        SyncPlaybackState.WAITING_FOR_READY,
+                        SyncPlaybackState.PREPARING -> "PREPARING TRACK..."
+                        SyncPlaybackState.SCHEDULED -> "STARTING IN SYNC..."
+                        SyncPlaybackState.PLAYING -> "PLAYING IN SYNC"
+                        SyncPlaybackState.PAUSED -> "RESUME SYNC PLAY"
+                        else -> if (state.connectionState == SyncConnectionState.CONNECTED) "START SYNC PLAY" else "WAITING FOR DEVICE TO JOIN..."
+                    }
+
+                    if (state.playbackState == SyncPlaybackState.PLAYING) {
+                        Button(
+                            onClick = { viewModel.pause() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.Pause, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("PAUSE SYNC PLAY", fontWeight = FontWeight.Bold)
+                        }
+                    } else if (state.playbackState == SyncPlaybackState.PAUSED) {
+                        Button(
+                            onClick = { viewModel.resume() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("RESUME SYNC PLAY", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Button(
+                            onClick = { viewModel.startSyncPlayback() },
+                            enabled = state.connectionState == SyncConnectionState.CONNECTED &&
+                                    state.playbackState != SyncPlaybackState.WAITING_FOR_READY &&
+                                    state.playbackState != SyncPlaybackState.PREPARING,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            if (state.playbackState == SyncPlaybackState.WAITING_FOR_READY ||
+                                state.playbackState == SyncPlaybackState.PREPARING) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(Modifier.width(10.dp))
+                            } else {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(buttonText, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
@@ -512,11 +603,104 @@ fun SyncPlayScreen(
                                         }
                                     }
                                     Spacer(Modifier.height(10.dp))
-                                    Text(
-                                        "Ready! Waiting for Host to start music...",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    when (state.playbackState) {
+                                        SyncPlaybackState.PREPARING -> {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    "Preparing track: ${state.currentTrack?.title ?: "..."}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                        SyncPlaybackState.WAITING_FOR_READY -> {
+                                            Text(
+                                                "Track ready! Waiting for Host to schedule start...",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        SyncPlaybackState.SCHEDULED -> {
+                                            Text(
+                                                "Starting synchronized playback...",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        SyncPlaybackState.PLAYING -> {
+                                            Text(
+                                                "Playing in sync with Host!",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        SyncPlaybackState.PAUSED -> {
+                                            Text(
+                                                "Playback paused by Host",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        else -> {
+                                            Text(
+                                                "Ready! Waiting for Host to start music...",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    val slaveTrackTitle = state.currentTrack?.title ?: currentSong?.title
+                                    val slaveTrackArtist = state.currentTrack?.artist ?: currentSong?.artist
+                                    val slaveTrackArt = state.currentTrack?.albumArt ?: currentSong?.albumArt
+
+                                    if (!slaveTrackTitle.isNullOrBlank()) {
+                                        Spacer(Modifier.height(12.dp))
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surface
+                                            ),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                AlbumArtImage(
+                                                    uri = slaveTrackArt,
+                                                    title = slaveTrackTitle,
+                                                    artist = slaveTrackArtist,
+                                                    size = 46.dp,
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    iconSize = 22.dp
+                                                )
+                                                Spacer(Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        slaveTrackTitle,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        slaveTrackArtist ?: "",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 SyncConnectionState.DISCOVERING -> {
                                     CircularProgressIndicator(
@@ -674,6 +858,135 @@ private fun StatusBadge(connectionState: SyncConnectionState) {
                 color = color,
                 fontWeight = FontWeight.SemiBold
             )
+        }
+    }
+}
+
+@Composable
+private fun DeviceItemCard(
+    device: SyncDevice,
+    onRemove: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Text(
+                        text = device.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    when (device.status) {
+                        DeviceSyncStatus.IDLE -> {
+                            Text(
+                                "Connected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        DeviceSyncStatus.PREPARING -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 1.5.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "Preparing...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        DeviceSyncStatus.DOWNLOADING -> {
+                            Text(
+                                "Downloading ${device.downloadProgress}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        DeviceSyncStatus.READY -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Ready",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        DeviceSyncStatus.FAILED -> {
+                            Text(
+                                device.errorMessage ?: "Failed",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        DeviceSyncStatus.DISCONNECTED -> {
+                            Text(
+                                "Disconnected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+
+                    if (onRemove != null && !device.isMaster) {
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(
+                            onClick = onRemove,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Remove device",
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            if (device.status == DeviceSyncStatus.DOWNLOADING) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { (device.downloadProgress.coerceIn(0, 100)) / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

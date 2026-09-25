@@ -1,11 +1,15 @@
 package com.example.myplayer.sync
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
@@ -15,6 +19,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.CopyOnWriteArrayList
 
 private const val TAG = "SyncTransport"
 const val SYNC_PORT_RANGE_START = 45200
@@ -35,12 +40,13 @@ interface SyncTransport {
     fun close()
 }
 
-/** Master side — binds a free port and continuously accepts Slave connections. */
+/** Master side — binds a free port and continuously accepts Slave connections (supports N concurrent Slaves). */
 class LanServerTransport : SyncTransport {
 
     private var serverSocket: ServerSocket? = null
-    private var clientSocket: Socket? = null
-    @Volatile private var writer: OutputStream? = null
+    private val clientSockets = CopyOnWriteArrayList<Socket>()
+    private val clientWriters = CopyOnWriteArrayList<OutputStream>()
+    private val transportScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun events(): Flow<TransportEvent> = callbackFlow {
         var boundPort = -1
@@ -65,7 +71,7 @@ class LanServerTransport : SyncTransport {
         }
         trySend(TransportEvent.PortBound(boundPort))
 
-        // Continuous accept loop: handles reconnections if the client disconnects
+        // Non-blocking accept loop: accepts multiple concurrent Slaves
         try {
             while (serverSocket?.isClosed == false) {
                 Log.d(TAG, "Server waiting for incoming client connection on port $boundPort...")
@@ -80,33 +86,48 @@ class LanServerTransport : SyncTransport {
 
                 Log.d(TAG, "Accepted client connection from ${socket.inetAddress?.hostAddress}:${socket.port}")
                 socket.tcpNoDelay = true
-                clientSocket = socket
-                writer = socket.getOutputStream()
+                val writer = try {
+                    socket.getOutputStream()
+                } catch (e: IOException) {
+                    Log.w(TAG, "Failed to get socket output stream: ${e.message}")
+                    try { socket.close() } catch (_: Exception) {}
+                    continue
+                }
+
+                clientSockets.add(socket)
+                clientWriters.add(writer)
                 trySend(TransportEvent.PeerConnected)
 
-                try {
-                    val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
-                    while (!socket.isClosed) {
-                        val line = try {
-                            reader.readLine()
-                        } catch (e: IOException) {
-                            null
-                        } ?: break
+                // Launch per-client read loop in background coroutine so accept() is never blocked
+                transportScope.launch {
+                    try {
+                        val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
+                        while (!socket.isClosed) {
+                            val line = try {
+                                reader.readLine()
+                            } catch (e: IOException) {
+                                null
+                            } ?: break
 
-                        val message = SyncMessageCodec.decode(line)
-                        if (message != null) {
-                            Log.d(TAG, "Server received message: ${message.javaClass.simpleName}")
-                            trySend(TransportEvent.Message(message))
-                        } else {
-                            Log.w(TAG, "Server dropped malformed message line")
+                            val message = SyncMessageCodec.decode(line)
+                            if (message != null) {
+                                Log.d(TAG, "Server received message: ${message.javaClass.simpleName} from ${message.senderId}")
+                                trySend(TransportEvent.Message(message))
+                            } else {
+                                Log.w(TAG, "Server dropped malformed message line")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Client read loop error or closed: ${e.message}")
+                    } finally {
+                        Log.d(TAG, "Client socket disconnected: ${socket.inetAddress?.hostAddress}:${socket.port}")
+                        clientWriters.remove(writer)
+                        clientSockets.remove(socket)
+                        try { socket.close() } catch (_: Exception) {}
+                        if (clientSockets.isEmpty()) {
+                            trySend(TransportEvent.Disconnected)
                         }
                     }
-                } finally {
-                    Log.d(TAG, "Client socket disconnected")
-                    writer = null
-                    try { socket.close() } catch (_: Exception) {}
-                    clientSocket = null
-                    trySend(TransportEvent.Disconnected)
                 }
             }
         } catch (e: Exception) {
@@ -119,30 +140,39 @@ class LanServerTransport : SyncTransport {
     }.flowOn(Dispatchers.IO)
 
     override suspend fun send(message: SyncMessage): Boolean = withContext(Dispatchers.IO) {
-        val out = writer ?: run {
-            Log.w(TAG, "Server send failed: no active client writer")
+        if (clientWriters.isEmpty()) {
+            Log.w(TAG, "Server send failed: no active client writers")
             return@withContext false
         }
-        try {
-            val encoded = SyncMessageCodec.encode(message) + "\n"
-            Log.d(TAG, "Server sending: ${message.javaClass.simpleName}")
-            out.write(encoded.toByteArray(Charsets.UTF_8))
-            out.flush()
-            true
-        } catch (e: IOException) {
-            Log.w(TAG, "Server send error", e)
-            false
+        val encoded = SyncMessageCodec.encode(message) + "\n"
+        val bytes = encoded.toByteArray(Charsets.UTF_8)
+        Log.d(TAG, "Server broadcasting to ${clientWriters.size} client(s): ${message.javaClass.simpleName}")
+        var anySuccess = false
+        val iterator = clientWriters.iterator()
+        while (iterator.hasNext()) {
+            val out = iterator.next()
+            try {
+                out.write(bytes)
+                out.flush()
+                anySuccess = true
+            } catch (e: IOException) {
+                Log.w(TAG, "Server error writing to client writer: ${e.message}")
+            }
         }
+        anySuccess
     }
 
     override fun close() = closeInternal()
 
     private fun closeInternal() {
-        try { clientSocket?.close() } catch (_: IOException) {}
+        transportScope.cancel()
+        for (s in clientSockets) {
+            try { s.close() } catch (_: IOException) {}
+        }
+        clientSockets.clear()
+        clientWriters.clear()
         try { serverSocket?.close() } catch (_: IOException) {}
-        clientSocket = null
         serverSocket = null
-        writer = null
     }
 }
 
