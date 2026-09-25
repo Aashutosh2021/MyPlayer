@@ -52,6 +52,44 @@ class NsdSyncDiscovery @Inject constructor(
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
+    override fun getLocalIpAddress(): String? {
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val network = cm?.activeNetwork
+            if (network != null) {
+                val linkProps = cm.getLinkProperties(network)
+                val ip = linkProps?.linkAddresses?.firstOrNull {
+                    it.address is java.net.Inet4Address && !it.address.isLoopbackAddress
+                }?.address?.hostAddress
+                if (!ip.isNullOrBlank()) return ip
+            }
+
+            // Fallback: check network interfaces (wlan, ap, eth)
+            val interfaces = java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())
+            for (intf in interfaces) {
+                if (intf.isUp && (intf.name.contains("wlan") || intf.name.contains("ap") || intf.name.contains("eth"))) {
+                    for (addr in java.util.Collections.list(intf.inetAddresses)) {
+                        if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
+                            return addr.hostAddress
+                        }
+                    }
+                }
+            }
+            for (intf in interfaces) {
+                if (intf.isUp) {
+                    for (addr in java.util.Collections.list(intf.inetAddresses)) {
+                        if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
+                            return addr.hostAddress
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get local IP: ${e.message}")
+        }
+        return null
+    }
+
     private fun acquireMulticastLock() {
         try {
             if (multicastLock == null) {
@@ -84,6 +122,7 @@ class NsdSyncDiscovery @Inject constructor(
         stopAdvertising()
         acquireMulticastLock()
 
+        val localIp = getLocalIpAddress()
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = "MyPlayer-$sessionId"
             serviceType = SERVICE_TYPE
@@ -91,12 +130,15 @@ class NsdSyncDiscovery @Inject constructor(
             setAttribute("sessionId", sessionId)
             setAttribute("sessionName", sessionName)
             setAttribute("masterName", masterName)
+            if (!localIp.isNullOrBlank()) {
+                setAttribute("hostIp", localIp)
+            }
         }
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
                 isAdvertising = true
-                Log.i(TAG, "NSD Service registered: ${NsdServiceInfo.serviceName} on port $port")
+                Log.i(TAG, "NSD Service registered: ${NsdServiceInfo.serviceName} on port $port, ip=$localIp")
             }
 
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
@@ -195,7 +237,13 @@ class NsdSyncDiscovery @Inject constructor(
                 }
 
                 override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
-                    val host = resolvedInfo.host?.hostAddress
+                    val directIpAttr = resolvedInfo.attributes["hostIp"]?.let { String(it, Charsets.UTF_8) }
+                    val nsdHost = resolvedInfo.host?.hostAddress
+                    val host = when {
+                        !directIpAttr.isNullOrBlank() && !directIpAttr.startsWith("10.0.2.") -> directIpAttr
+                        !nsdHost.isNullOrBlank() -> nsdHost
+                        else -> directIpAttr
+                    }
                     val port = resolvedInfo.port
                     if (host != null && port > 0) {
                         val sessionId = resolvedInfo.attributes["sessionId"]?.let { String(it, Charsets.UTF_8) }
@@ -214,7 +262,7 @@ class NsdSyncDiscovery @Inject constructor(
                         )
                         sessionsMap[resolvedInfo.serviceName] = session
                         _discoveredSessions.value = sessionsMap.values.toList()
-                        Log.i(TAG, "Resolved session: $sessionName at $host:$port (id=$sessionId)")
+                        Log.i(TAG, "Resolved session: $sessionName at $host:$port (id=$sessionId, nsdHost=$nsdHost, hostIpAttr=$directIpAttr)")
                     }
                     completer.complete(Unit)
                 }

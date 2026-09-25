@@ -15,7 +15,9 @@ data class DiscoveredSession(
     val masterName: String,
     val hostAddress: String,
     val port: Int
-)
+) {
+    val isEmulatorHost: Boolean get() = hostAddress.startsWith("10.0.2.")
+}
 
 data class SyncUiState(
     val role: SyncRole = SyncRole.NONE,
@@ -31,5 +33,7 @@ data class SyncUiState(
     val latencyMs: Long = 0L,
     val driftMs: Long = 0L,
     val errorMessage: String? = null,
-    val isWifiConnected: Boolean = true
+    val isWifiConnected: Boolean = true,
+    val localIp: String? = null,
+    val isEmulator: Boolean = false
 )

@@ -48,6 +48,8 @@ class SyncPlayManager @Inject constructor(
     val uiState: StateFlow<SyncUiState> = _uiState.asStateFlow()
 
     init {
+        updateNetworkInfo()
+
         // Collect discovery sessions
         scope.launch {
             discovery.discoveredSessions.collect { sessions ->
@@ -155,6 +157,7 @@ class SyncPlayManager @Inject constructor(
     }
 
     fun startDiscovery() {
+        updateNetworkInfo()
         if (!discovery.isWifiConnected()) {
             _uiState.update { it.copy(isWifiConnected = false, errorMessage = "Please connect to a Wi-Fi network to use Sync Play") }
             return
@@ -170,7 +173,29 @@ class SyncPlayManager @Inject constructor(
         }
     }
 
+    fun updateNetworkInfo() {
+        val ip = discovery.getLocalIpAddress()
+        val isEmu = isEmulatorDevice() || ip?.startsWith("10.0.2.") == true
+        _uiState.update { it.copy(localIp = ip, isEmulator = isEmu) }
+    }
+
+    private fun isEmulatorDevice(): Boolean {
+        return (android.os.Build.FINGERPRINT.startsWith("generic")
+                || android.os.Build.FINGERPRINT.startsWith("unknown")
+                || android.os.Build.MODEL.contains("google_sdk")
+                || android.os.Build.MODEL.contains("Emulator")
+                || android.os.Build.MODEL.contains("Android SDK built for x86")
+                || android.os.Build.MANUFACTURER.contains("Genymotion")
+                || android.os.Build.HARDWARE.contains("goldfish")
+                || android.os.Build.HARDWARE.contains("ranchu")
+                || android.os.Build.PRODUCT.contains("sdk_google")
+                || android.os.Build.PRODUCT.contains("google_sdk")
+                || android.os.Build.PRODUCT.contains("sdk")
+                || android.os.Build.PRODUCT.contains("vbox86p"))
+    }
+
     suspend fun createMasterSession(customRoomName: String? = null) {
+        updateNetworkInfo()
         if (!discovery.isWifiConnected()) {
             _uiState.update { it.copy(isWifiConnected = false, errorMessage = "Wi-Fi connection is required to host a Sync Room") }
             return
@@ -212,6 +237,24 @@ class SyncPlayManager @Inject constructor(
         Log.i(TAG, "Master session created successfully: $sessionId on port $boundPort")
     }
 
+    suspend fun joinSessionByAddress(
+        host: String,
+        port: Int = SocketSyncServer.DEFAULT_PORT,
+        sessionId: String = "MANUAL-${(1000..9999).random()}",
+        sessionName: String = "Direct Room",
+        masterName: String = "Master ($host)"
+    ) {
+        val cleanHost = host.trim().removePrefix("http://").removePrefix("https://").removePrefix("/")
+        val session = DiscoveredSession(
+            sessionId = sessionId,
+            sessionName = sessionName,
+            masterName = masterName,
+            hostAddress = cleanHost,
+            port = port
+        )
+        joinSlaveSession(session)
+    }
+
     suspend fun joinSlaveSession(session: DiscoveredSession) {
         if (!discovery.isWifiConnected()) {
             _uiState.update { it.copy(isWifiConnected = false, errorMessage = "Wi-Fi connection is required to join a Sync Room") }
@@ -238,10 +281,15 @@ class SyncPlayManager @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to Master: ${e.message}", e)
+            val friendlyMsg = if (session.hostAddress.startsWith("10.0.2.")) {
+                "Cannot connect to Android Emulator IP (${session.hostAddress}) from a physical device. Host the room on your physical phone instead, or use 'Join by IP' with your PC's Wi-Fi IP."
+            } else {
+                "Failed to connect to room at ${session.hostAddress}:${session.port}: ${e.message ?: "Connection timed out"}"
+            }
             _uiState.update { it.copy(
                 role = SyncRole.NONE,
                 connectionStatus = ConnectionStatus.ERROR,
-                errorMessage = "Failed to connect to room: ${e.message}"
+                errorMessage = friendlyMsg
             ) }
         }
     }

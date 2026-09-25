@@ -10,4 +10,5 @@ interface SyncDiscovery {
     fun startDiscovery()
     fun stopDiscovery()
     fun isWifiConnected(): Boolean
+    fun getLocalIpAddress(): String?
 }
