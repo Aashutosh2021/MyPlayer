@@ -279,7 +279,7 @@ fun NowPlayingScreen(
                         scaleX = artScale
                         scaleY = artScale
                     }
-                    .shadow(elevation = 20.dp, shape = RoundedCornerShape(28.dp), spotColor = Color.Black)
+                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(28.dp), spotColor = Color.Black)
                     .clip(RoundedCornerShape(28.dp))
                     .background(SurfaceLight)
                     .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(28.dp))
@@ -423,15 +423,16 @@ fun NowPlayingScreen(
             Spacer(Modifier.height(20.dp))
 
             // ── Hero Radial / Circular Audio Controller ──────────────────────
-            RadialAudioController(
-                positionMs = positionState.value,
+            // IsolatedPlaybackControls reads positionState.value internally so only
+            // this subtree recomposes on every position tick (Phase 4).
+            IsolatedPlaybackControls(
+                positionState = positionState,
                 durationMs = duration,
                 isPlaying = isPlaying,
                 onSeek = onSeek,
                 onPlayPauseClick = onPlayPauseClick,
                 isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite,
-                modifier = Modifier.padding(vertical = 4.dp)
+                onToggleFavorite = onToggleFavorite
             )
 
             Spacer(Modifier.height(16.dp))
@@ -524,6 +525,31 @@ fun NowPlayingScreen(
             Spacer(Modifier.height(32.dp))
         }
     }
+}
+
+// ── Isolated Playback Controls (Phase 4: position read isolation) ─────────────
+// This composable intentionally reads positionState.value so that only it —
+// not NowPlayingScreen — recomposes on every 200 ms position tick.
+@Composable
+private fun IsolatedPlaybackControls(
+    positionState: State<Long>,
+    durationMs: Long,
+    isPlaying: Boolean,
+    onSeek: (Long) -> Unit,
+    onPlayPauseClick: () -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit
+) {
+    RadialAudioController(
+        positionMs = positionState.value,
+        durationMs = durationMs,
+        isPlaying = isPlaying,
+        onSeek = onSeek,
+        onPlayPauseClick = onPlayPauseClick,
+        isFavorite = isFavorite,
+        onToggleFavorite = onToggleFavorite,
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
 }
 
 // ── Sleep Timer Dialog ────────────────────────────────────────────────────────
