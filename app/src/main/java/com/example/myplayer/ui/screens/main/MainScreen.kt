@@ -71,7 +71,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
     Scaffold(
@@ -222,12 +222,19 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
+                    onNavigateToSyncPlay = { navController.navigate(Screen.SyncPlay.route) { launchSingleTop = true } },
                     bottomPadding = 16.dp
                 )
             }
             composable(Screen.DualBud.route) {
                 com.example.myplayer.dualbud.ui.DualBudScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.SyncPlay.route) {
+                com.example.myplayer.sync.ui.SyncPlayScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToNowPlaying = { navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true } }
                 )
             }
         }

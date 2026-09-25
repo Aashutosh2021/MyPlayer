@@ -38,4 +38,10 @@ interface SongDao {
     
     @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' OR artist LIKE '%' || :query || '%' OR album LIKE '%' || :query || '%'")
     fun searchSongs(query: String): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs")
+    suspend fun getAllSongsSync(): List<SongEntity>
+
+    @Query("SELECT * FROM songs WHERE videoId = :videoId LIMIT 1")
+    suspend fun getSongByVideoId(videoId: String): SongEntity?
 }

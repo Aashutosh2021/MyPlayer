@@ -28,6 +28,7 @@ import com.example.myplayer.ui.theme.*
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToDualBud: () -> Unit = {},
+    onNavigateToSyncPlay: () -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 120.dp,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -404,6 +405,15 @@ fun SettingsScreen(
 
         // Section: Experimental Features
         item { SettingsSectionHeader(title = "Experimental Features") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.GroupWork,
+                title = "Sync Play",
+                subtitle = "Synchronize playback with nearby phones over local Wi-Fi",
+                onClick = onNavigateToSyncPlay
+            )
+        }
 
         item {
             SettingsNavigationRow(

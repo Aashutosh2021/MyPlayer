@@ -426,6 +426,14 @@ class MusicController @Inject constructor(
         if (controller.isPlaying) controller.pause() else controller.play()
     }
 
+    fun play() {
+        mediaController?.play()
+    }
+
+    fun pause() {
+        mediaController?.pause()
+    }
+
     fun skipToNext() {
         val controller = mediaController ?: return
         val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
