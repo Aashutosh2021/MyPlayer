@@ -7,7 +7,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-FF6F00?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-3.3-D2F83A?style=for-the-badge&logoColor=black)
+![Version](https://img.shields.io/badge/Version-3.3.5-D2F83A?style=for-the-badge&logoColor=black)
 
 <p align="center">
   <b>A modern, high-performance Android music player combining local library playback, seamless online streaming, intelligent recommendations, real-time synchronized lyrics, innovative dual-earbud playback, multi-device synchronized Sync Play, and an ultra-modern Dark Olive & Electric Neon Lime design system.</b>

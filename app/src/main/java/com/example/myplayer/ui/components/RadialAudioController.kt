@@ -54,6 +54,8 @@ fun RadialAudioController(
     modifier: Modifier = Modifier,
     dialSize: Dp = 250.dp
 ) {
+    // positionMs accepted as Long; caller already passes positionState.value so
+    // reads are scoped to this composable only (Phase 4 handled in caller).
     val duration = durationMs.coerceAtLeast(1L)
     val density = LocalDensity.current
 
@@ -100,80 +102,99 @@ fun RadialAudioController(
         val strokeWidthPx = with(density) { 5.dp.toPx() }
         val thumbRadiusPx = with(density) { 7.dp.toPx() }
 
-        // ── Canvas: Concentric Aura Waves & Radial Seek Arc ───────────────────
+        // ── Phase 2: Pulse-only Canvas (reads pulseScale/pulseAlpha; never triggers arc redraws) ──
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val baseRadius = 38.dp.toPx()
+            if (isPlaying) {
+                drawCircle(
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.9f),
+                    radius = (baseRadius + 14.dp.toPx()) * pulseScale,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+                drawCircle(
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.5f),
+                    radius = (baseRadius + 28.dp.toPx()) * pulseScale,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
+                drawCircle(
+                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.25f),
+                    radius = (baseRadius + 42.dp.toPx()) * pulseScale,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            } else {
+                drawCircle(
+                    color = CardBorderOlive.copy(alpha = 0.5f),
+                    radius = baseRadius + 14.dp.toPx(),
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+        }
+
+        // ── Phase 1: Arc + gesture Canvas (reads currentProgress only; never reads pulse state) ──
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(duration) {
-                    fun updateFromOffset(offset: Offset) {
+                    // Tap: update local progress only; fire seek on release.
+                    fun angleToProgress(offset: Offset): Float {
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
                         val dx = offset.x - centerX
                         val dy = offset.y - centerY
                         var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
                         if (angleDeg < 0) angleDeg += 360f
-
-                        // Arc runs from 135° to 405° (sweep 270°)
-                        val relativeAngle = if (angleDeg >= 135f) {
-                            angleDeg - 135f
-                        } else {
-                            (angleDeg + 360f) - 135f
-                        }
-
-                        val progress = if (relativeAngle <= 270f) {
-                            (relativeAngle / 270f).coerceIn(0f, 1f)
-                        } else {
-                            // Gap between 45° and 135° (90° bottom zone)
-                            if (relativeAngle < 315f) 1f else 0f
-                        }
-
-                        dragProgress = progress
-                        onSeek((progress * duration).toLong())
+                        val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
+                        return if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
+                        else if (relativeAngle < 315f) 1f else 0f
                     }
 
                     detectTapGestures(
                         onPress = { offset ->
                             isDragging = true
-                            updateFromOffset(offset)
+                            dragProgress = angleToProgress(offset)
                             tryAwaitRelease()
+                            // Seek fires exactly once — on release.
+                            onSeek((dragProgress * duration).toLong())
                             isDragging = false
                         }
                     )
                 }
                 .pointerInput(duration) {
+                    fun angleToProgress(offset: Offset): Float {
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val dx = offset.x - centerX
+                        val dy = offset.y - centerY
+                        var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                        if (angleDeg < 0) angleDeg += 360f
+                        val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
+                        return if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
+                        else if (relativeAngle < 315f) 1f else 0f
+                    }
+
                     detectDragGestures(
                         onDragStart = { offset ->
                             isDragging = true
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val dx = offset.x - centerX
-                            val dy = offset.y - centerY
-                            var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                            if (angleDeg < 0) angleDeg += 360f
-                            val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
-                            val progress = if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
-                            else if (relativeAngle < 315f) 1f else 0f
-                            dragProgress = progress
+                            // Capture start position for immediate visual feedback.
+                            dragProgress = angleToProgress(offset)
+                        },
+                        onDrag = { change, _ ->
+                            // Only update local UI state — NO onSeek here.
+                            dragProgress = angleToProgress(change.position)
                         },
                         onDragEnd = {
-                            isDragging = false
+                            // Seek fires exactly once per drag interaction.
                             onSeek((dragProgress * duration).toLong())
+                            isDragging = false
                         },
                         onDragCancel = {
                             isDragging = false
-                        },
-                        onDrag = { change, _ ->
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val dx = change.position.x - centerX
-                            val dy = change.position.y - centerY
-                            var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                            if (angleDeg < 0) angleDeg += 360f
-                            val relativeAngle = if (angleDeg >= 135f) angleDeg - 135f else (angleDeg + 360f) - 135f
-                            val progress = if (relativeAngle <= 270f) (relativeAngle / 270f).coerceIn(0f, 1f)
-                            else if (relativeAngle < 315f) 1f else 0f
-                            dragProgress = progress
-                            onSeek((progress * duration).toLong())
                         }
                     )
                 }
@@ -182,41 +203,7 @@ fun RadialAudioController(
             val centerY = size.height / 2f
             val arcRadius = (min(size.width, size.height) / 2f) - thumbRadiusPx - 4.dp.toPx()
 
-            // 1. Concentric Sound Rings (behind center button)
-            val baseRadius = 38.dp.toPx()
-            if (isPlaying) {
-                // Ring 1
-                drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.9f),
-                    radius = (baseRadius + 14.dp.toPx()) * pulseScale,
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.5.dp.toPx())
-                )
-                // Ring 2
-                drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.5f),
-                    radius = (baseRadius + 28.dp.toPx()) * pulseScale,
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.2.dp.toPx())
-                )
-                // Ring 3
-                drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.25f),
-                    radius = (baseRadius + 42.dp.toPx()) * pulseScale,
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.dp.toPx())
-                )
-            } else {
-                // Subtle static rings when paused
-                drawCircle(
-                    color = CardBorderOlive.copy(alpha = 0.5f),
-                    radius = baseRadius + 14.dp.toPx(),
-                    center = Offset(centerX, centerY),
-                    style = Stroke(width = 1.dp.toPx())
-                )
-            }
-
-            // 2. Background Inactive Arc (135° to 405°, sweep 270°)
+            // 1. Background Inactive Arc (135° to 405°, sweep 270°)
             val arcRectTopLeft = Offset(centerX - arcRadius, centerY - arcRadius)
             val arcRectSize = Size(arcRadius * 2, arcRadius * 2)
 
