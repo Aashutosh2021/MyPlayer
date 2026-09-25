@@ -18,6 +18,8 @@ class AriaSdkTests {
     // Manual stub implementations for Room DAOs
     private class StubSongDao : SongDao {
         override fun getAllSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
+        override suspend fun getAllSongsSync(): List<SongEntity> = emptyList()
+        override suspend fun getSongByVideoId(videoId: String): SongEntity? = null
         override fun getTrendingSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
         override fun getSongById(id: String): SongEntity? = null
         override fun insertSongs(songs: List<SongEntity>) {}

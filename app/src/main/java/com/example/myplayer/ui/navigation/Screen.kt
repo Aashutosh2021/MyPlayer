@@ -8,4 +8,5 @@ sealed class Screen(val route: String) {
     object Downloads : Screen("downloads")
     object Settings : Screen("settings")
     object DualBud : Screen("dual_bud")
+    object SyncPlay : Screen("sync_play")
 }
