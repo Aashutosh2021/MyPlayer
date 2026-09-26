@@ -17,6 +17,7 @@ interface PlaybackRouterDelegate {
     fun stopPlayback()
     fun getMediaItemAt(index: Int): MediaItem?
     fun getMediaItemCount(): Int
+    fun getNextPlayRequest(): PlayRequest? = null
 }
 
 @Singleton
@@ -160,16 +161,21 @@ class PlaybackRouter @Inject constructor(
 
             // 2. Pre-resolve next track after playback stabilizes (delay 2.5s)
             val nextIndex = currentIndex + 1
-            if (nextIndex in currentRequests.indices) {
+            val nextReq = if (nextIndex in currentRequests.indices) {
+                currentRequests[nextIndex]
+            } else {
+                delegate.getNextPlayRequest()
+            }
+
+            if (nextReq != null) {
                 kotlinx.coroutines.delay(2500)
-                val nextReq = currentRequests[nextIndex]
-                val nextItem = delegate.getMediaItemAt(nextIndex)
-                val nextUri = nextItem?.localConfiguration?.uri?.toString()
+                val nextItem = if (nextIndex in currentRequests.indices) delegate.getMediaItemAt(nextIndex) else null
+                val nextUri = nextItem?.localConfiguration?.uri?.toString() ?: nextReq.localUri
                 if (nextUri != null && nextUri.startsWith("online://")) {
                     val nextResolved = withContext(Dispatchers.IO) {
                         sourceResolver.resolve(nextReq) { /* ignore background errors */ }
                     }
-                    if (nextResolved != null && nextResolved != nextUri) {
+                    if (nextResolved != null && nextResolved != nextUri && nextItem != null) {
                         if (delegate.getMediaItemCount() == currentRequests.size && nextIndex < delegate.getMediaItemCount()) {
                             val resolvedNextItem = mediaItemFactory.createMediaItem(
                                 songId = nextReq.songId,

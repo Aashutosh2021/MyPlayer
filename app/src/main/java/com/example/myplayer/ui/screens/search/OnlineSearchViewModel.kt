@@ -111,16 +111,29 @@ class OnlineSearchViewModel @Inject constructor(
     }
 
     /**
-     * Resolves the stream URL and plays the song immediately.
+     * Resolves the stream URL and plays the song immediately,
+     * queueing remaining search results so playback advances continuously.
      */
-    fun streamSong(song: OnlineSong) {
+    fun playSongFromSearch(song: OnlineSong, contextSongs: List<OnlineSong> = emptyList()) {
         viewModelScope.launch {
             _isLoadingStream.value = song.videoId
             try {
                 val url = innertubeApi.getStreamUrl(song.videoId)
                 if (url != null) {
                     val playableSong = song.copy(streamUrl = url)
-                    musicController.playOnlineSong(playableSong)
+                    if (contextSongs.isNotEmpty()) {
+                        val index = contextSongs.indexOfFirst { it.videoId == song.videoId }
+                        if (index != -1) {
+                            val playlist = contextSongs.map { s ->
+                                if (s.videoId == song.videoId) playableSong else s
+                            }
+                            musicController.playOnlineSongs(playlist, index)
+                        } else {
+                            musicController.playOnlineSongs(listOf(playableSong) + contextSongs, 0)
+                        }
+                    } else {
+                        musicController.playOnlineSong(playableSong)
+                    }
                 } else {
                     _errorMessage.value = "Could not resolve stream URL for '${song.title}'"
                 }
@@ -133,6 +146,10 @@ class OnlineSearchViewModel @Inject constructor(
                 _isLoadingStream.value = null
             }
         }
+    }
+
+    fun streamSong(song: OnlineSong) {
+        playSongFromSearch(song, emptyList())
     }
 
     /**

@@ -36,6 +36,7 @@ class RecommendationQueueManager @Inject constructor(
     private val QUEUE_TTL_MS = 15L * 60L * 1000L
 
     fun updateSession(seed: RecommendationSeed) {
+        val isNewSeed = session != null && session?.seedSong?.songId != seed.songId
         if (session == null) {
             logger.logEvent("SessionStarted", mapOf("seedSongId" to seed.songId))
             session = RecommendationSession(seedSong = seed)
@@ -46,9 +47,13 @@ class RecommendationQueueManager @Inject constructor(
             logger.logEvent("SessionUpdated", mapOf("newSeedSongId" to seed.songId))
             session?.seedSong = seed
             
-            // Validate TTL
-            if (queue.isExpired(QUEUE_TTL_MS)) {
-                logger.logEvent("QueueExpired", mapOf("ttlMs" to QUEUE_TTL_MS))
+            // Validate TTL or seed change
+            if (isNewSeed || queue.isExpired(QUEUE_TTL_MS)) {
+                if (isNewSeed) {
+                    logger.log("New seed song detected (${seed.songId}), refreshing recommendation queue")
+                } else {
+                    logger.logEvent("QueueExpired", mapOf("ttlMs" to QUEUE_TTL_MS))
+                }
                 val sizeBeforeClear = queue.size()
                 queue.clear()
                 health.recordExpiredEntries(sizeBeforeClear)

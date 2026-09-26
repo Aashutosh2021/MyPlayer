@@ -125,17 +125,28 @@ class PlaybackSourceResolver @Inject constructor(
         }
     }
 
-    private suspend fun resolveOnlineStream(videoId: String, setCustomError: (String) -> Unit): String? {
+    suspend fun resolveFreshStreamUrl(
+        videoId: String,
+        setCustomError: ((String) -> Unit)? = null
+    ): String? {
+        return resolveOnlineStream(videoId, setCustomError = setCustomError, forceRefresh = true)
+    }
+
+    suspend fun resolveOnlineStream(
+        videoId: String,
+        setCustomError: ((String) -> Unit)? = null,
+        forceRefresh: Boolean = false
+    ): String? {
         if (!isNetworkAvailable()) {
             Log.e("PlaybackSourceResolver", "Offline, cannot play online song: $videoId")
-            setCustomError("No internet connection. Cannot stream song.")
+            setCustomError?.invoke("No internet connection. Cannot stream song.")
             return null
         }
 
-        Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId")
+        Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId (forceRefresh=$forceRefresh)")
         val streamUrl = withContext(Dispatchers.IO) {
             try {
-                innertubeApi.getStreamUrl(videoId)
+                innertubeApi.getStreamUrl(videoId, forceRefresh = forceRefresh)
             } catch (e: Exception) {
                 Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId", e)
                 null
@@ -148,12 +159,12 @@ class PlaybackSourceResolver @Inject constructor(
             return streamUrl
         } else {
             Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId")
-            setCustomError("Failed to load audio stream. Please check connection.")
+            setCustomError?.invoke("Failed to load audio stream. Please check connection.")
             return null
         }
     }
 
-    private fun isNetworkAvailable(): Boolean {
+    fun isNetworkAvailable(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
         val network = cm.activeNetwork ?: return false

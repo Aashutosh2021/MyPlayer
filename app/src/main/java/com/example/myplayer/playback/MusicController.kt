@@ -50,7 +50,9 @@ class MusicController @Inject constructor(
     private val playbackStateManager: PlaybackStateManager,
     private val playbackRouter: PlaybackRouter,
     private val playbackEventBus: PlaybackEventBus,
-    private val downloadedSongDao: DownloadedSongDao
+    private val downloadedSongDao: DownloadedSongDao,
+    private val playbackSourceResolver: PlaybackSourceResolver,
+    private val mediaItemFactory: MediaItemFactory
 ) : PlaybackRouterDelegate {
     // IMPORTANT: MediaController.verifyApplicationThread() enforces that ALL MediaController
     // API calls (currentPosition, duration, seekTo, play, pause, setMediaItem, etc.) must
@@ -72,6 +74,12 @@ class MusicController @Inject constructor(
     private val playbackHistory = java.util.Stack<Int>()
     private var isNavigatingHistory = false
     private var lastIndex = C.INDEX_UNSET
+
+    // Online playback recovery & bounded retry state
+    private val onlineRetryCount = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private var activeRecoveryJob: Job? = null
+    private var currentRecoveryToken: Long = 0L
+    private var isCurrentTrackAutoplayRecommendation: Boolean = false
 
     val currentSong: StateFlow<SongEntity?> = playbackStateManager.currentSong
     val currentOnlineSong: StateFlow<OnlineSong?> = playbackStateManager.currentOnlineSong
@@ -116,30 +124,18 @@ class MusicController @Inject constructor(
         scope.launch {
             playbackEventBus.events.collect { event ->
                 if (event is PlaybackEvent.PlayRequestReady) {
+                    cancelActiveRecovery("Received PlayRequestReady")
                     Log.d("MusicController", "Received PlayRequestReady event: playing ${event.requests.size} items")
-                    val newSongs = event.requests.map { req ->
-                        val artUrl = req.albumArt ?: req.songId.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
-                        SongEntity(
-                            id = req.songId,
-                            title = req.title,
-                            artist = req.artist,
-                            album = "Recommended",
-                            duration = 0L,
-                            path = req.localUri ?: "online://${req.songId}",
-                            albumArt = artUrl,
-                            dateAdded = System.currentTimeMillis(),
-                            videoId = req.songId
-                        )
-                    }
                     val targetReq = event.requests.getOrNull(event.startIndex)
                     if (targetReq != null) {
+                        isCurrentTrackAutoplayRecommendation = (targetReq.playbackSource == PlaybackSourceType.RECOMMENDATION)
                         val artUrl = targetReq.albumArt?.ifBlank { "https://img.youtube.com/vi/${targetReq.songId}/hqdefault.jpg" }
                             ?: "https://img.youtube.com/vi/${targetReq.songId}/hqdefault.jpg"
                         val newEntity = SongEntity(
                             id = targetReq.songId,
                             title = targetReq.title,
                             artist = targetReq.artist,
-                            album = "Online",
+                            album = if (targetReq.playbackSource == PlaybackSourceType.RECOMMENDATION) "Recommended" else "Online",
                             duration = 0L,
                             path = targetReq.streamUrl ?: targetReq.localUri ?: "online://${targetReq.songId}",
                             albumArt = artUrl,
@@ -148,6 +144,7 @@ class MusicController @Inject constructor(
                         )
                         val existingIndex = _songQueue.indexOfFirst { it.id == newEntity.id || it.videoId == newEntity.videoId }
                         val playIndex = if (existingIndex != -1) {
+                            _songQueue[existingIndex] = newEntity
                             existingIndex
                         } else {
                             _songQueue.add(newEntity)
@@ -245,8 +242,11 @@ class MusicController @Inject constructor(
                 playbackCompletionGuard.reset()
 
                 mediaItem?.let { item ->
-                    val isOnline = item.localConfiguration?.uri?.toString()?.startsWith("http") == true ||
-                                   item.localConfiguration?.uri?.toString()?.startsWith("online://") == true
+                    val vId = extractVideoId(item.mediaId, item.localConfiguration?.uri?.toString())
+                    if (vId != null) {
+                        onlineRetryCount.remove(vId)
+                    }
+                    val isOnline = isOnlineTrack(item.mediaId, item.localConfiguration?.uri?.toString())
                     playbackEventBus.emit(
                         PlaybackEvent.SongStarted(
                             songId = item.mediaId,
@@ -261,7 +261,18 @@ class MusicController @Inject constructor(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 super.onIsPlayingChanged(isPlaying)
                 playbackStateManager.updatePlayingState(isPlaying)
-                if (isPlaying) startPositionUpdater() else stopPositionUpdater()
+                if (isPlaying) {
+                    startPositionUpdater()
+                    val mediaId = mediaController?.currentMediaItem?.mediaId
+                    if (mediaId != null) {
+                        onlineRetryCount.remove(mediaId)
+                        extractVideoId(mediaId, mediaController?.currentMediaItem?.localConfiguration?.uri?.toString())?.let {
+                            onlineRetryCount.remove(it)
+                        }
+                    }
+                } else {
+                    stopPositionUpdater()
+                }
                 val pos = mediaController?.currentPosition ?: 0L
                 syncPlaybackInterceptor?.onPlayerIsPlayingChanged(isPlaying, pos)
             }
@@ -270,6 +281,10 @@ class MusicController @Inject constructor(
                 if (playbackState == Player.STATE_READY) {
                     playbackStateManager.updateDuration(mediaController?.duration ?: 0L)
                 } else if (playbackState == Player.STATE_ENDED) {
+                    if (activeRecoveryJob?.isActive == true) {
+                        Log.d("MusicController", "Ignoring STATE_ENDED while online recovery is active")
+                        return
+                    }
                     val mediaId = mediaController?.currentMediaItem?.mediaId
                     if (!playbackCompletionGuard.isAlreadyHandled(mediaId)) {
                         handlePlaybackEnded()
@@ -280,18 +295,157 @@ class MusicController @Inject constructor(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                Log.w("MusicController", "Player error for ${mediaController?.currentMediaItem?.mediaId}: ${error.errorCodeName}")
                 val controller = mediaController ?: return
-                val hasNext = controller.hasNextMediaItem()
-                val mediaId = controller.currentMediaItem?.mediaId ?: ""
-                playbackEventBus.emit(PlaybackEvent.SongError(mediaId, error.message ?: "Unknown error"))
-                playbackErrorHandler.handleError(error, hasNext)
-                if (hasNext) {
-                    controller.seekToNext()
-                    controller.prepare()
-                    controller.play()
+                val currentItem = controller.currentMediaItem
+                val mediaId = currentItem?.mediaId ?: ""
+                val uriStr = currentItem?.localConfiguration?.uri?.toString()
+                val isOnline = isOnlineTrack(mediaId, uriStr)
+                val videoId = if (isOnline) extractVideoId(mediaId, uriStr) else null
+                val isRetryable = isOnline && !videoId.isNullOrBlank() && isRetryableOnlineError(error)
+
+                if (isOnline && videoId != null) {
+                    Log.w("MusicController", "[ONLINE_PLAYBACK_ERROR] videoId=$videoId errorCode=${error.errorCode} errorCodeName=${error.errorCodeName}")
                 } else {
-                    playbackStateManager.updatePlayingState(false)
+                    Log.w("MusicController", "Player error for $mediaId: ${error.errorCodeName} (isOnline=$isOnline)")
+                }
+
+                if (!isRetryable || videoId.isNullOrBlank()) {
+                    val hasNext = controller.hasNextMediaItem()
+                    playbackEventBus.emit(PlaybackEvent.SongError(mediaId, error.message ?: "Unknown error"))
+                    playbackErrorHandler.handleError(error, hasNext, isOnline = isOnline)
+                    if (hasNext) {
+                        controller.seekToNext()
+                        controller.prepare()
+                        controller.play()
+                    } else {
+                        playbackStateManager.updatePlayingState(false)
+                    }
+                    return
+                }
+
+                val currentAttempt = onlineRetryCount.getOrDefault(videoId, 0)
+                if (currentAttempt < MAX_ONLINE_RETRIES) {
+                    val nextAttempt = currentAttempt + 1
+                    onlineRetryCount[videoId] = nextAttempt
+                    val delayMs = RETRY_DELAYS_MS.getOrElse(currentAttempt) { 1500L }
+
+                    Log.i("MusicController", "[ONLINE_RECOVERY_START] videoId=$videoId attempt=$nextAttempt")
+
+                    val token = ++currentRecoveryToken
+                    activeRecoveryJob?.cancel()
+                    activeRecoveryJob = scope.launch {
+                        if (delayMs > 0L) {
+                            delay(delayMs)
+                        }
+                        if (token != currentRecoveryToken || !isActive) {
+                            Log.d("MusicController", "Recovery cancelled before resolution for $videoId")
+                            return@launch
+                        }
+
+                        Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId")
+                        val freshUrl = withContext(Dispatchers.IO) {
+                            try {
+                                playbackSourceResolver.resolveFreshStreamUrl(videoId)
+                            } catch (e: Exception) {
+                                Log.e("MusicController", "Exception while resolving fresh stream URL for $videoId", e)
+                                null
+                            }
+                        }
+
+                        if (token != currentRecoveryToken || !isActive) {
+                            Log.d("MusicController", "Recovery cancelled after resolution for $videoId")
+                            return@launch
+                        }
+
+                        if (!freshUrl.isNullOrBlank()) {
+                            Log.i("MusicController", "[ONLINE_RECOVERY_SUCCESS] videoId=$videoId attempt=$nextAttempt")
+                            withContext(Dispatchers.Main) {
+                                if (token != currentRecoveryToken || !isActive) return@withContext
+                                val ctrl = mediaController ?: return@withContext
+                                val activeMediaId = ctrl.currentMediaItem?.mediaId
+                                if (activeMediaId != null && activeMediaId != mediaId && activeMediaId != videoId) {
+                                    Log.w("MusicController", "Active track changed during recovery from $mediaId to $activeMediaId")
+                                    return@withContext
+                                }
+
+                                val qIndex = _songQueue.indexOfFirst { it.id == mediaId || it.videoId == videoId }
+                                val queueEntity = if (qIndex != -1) _songQueue[qIndex] else null
+                                if (qIndex != -1 && queueEntity != null) {
+                                    _songQueue[qIndex] = queueEntity.copy(path = freshUrl)
+                                    _playbackQueue.value = _songQueue.toList()
+                                }
+                                val onlineSong = playbackStateManager.currentOnlineSong.value
+                                if (onlineSong != null && (onlineSong.videoId == videoId || onlineSong.videoId == mediaId)) {
+                                    playbackStateManager.updateCurrentOnlineSong(onlineSong.copy(streamUrl = freshUrl))
+                                }
+
+                                val currentItemMeta = ctrl.currentMediaItem?.mediaMetadata
+                                val title = currentItemMeta?.title?.toString() ?: queueEntity?.title ?: "Online Song"
+                                val artist = currentItemMeta?.artist?.toString() ?: queueEntity?.artist ?: ""
+                                val artworkUri = currentItemMeta?.artworkUri?.toString()
+                                    ?: queueEntity?.albumArt
+                                    ?: "https://img.youtube.com/vi/$videoId/hqdefault.jpg"
+
+                                val freshMediaItem = mediaItemFactory.createMediaItem(
+                                    songId = mediaId.ifBlank { videoId },
+                                    path = freshUrl,
+                                    title = title,
+                                    artist = artist,
+                                    albumArt = artworkUri
+                                )
+
+                                val resumePos = ctrl.currentPosition.coerceAtLeast(0L)
+
+                                if (ctrl.mediaItemCount <= 1) {
+                                    ctrl.setMediaItem(freshMediaItem, resumePos)
+                                } else {
+                                    val idx = ctrl.currentMediaItemIndex
+                                    if (idx in 0 until ctrl.mediaItemCount) {
+                                        ctrl.replaceMediaItem(idx, freshMediaItem)
+                                        ctrl.seekTo(idx, resumePos)
+                                    } else {
+                                        ctrl.setMediaItem(freshMediaItem, resumePos)
+                                    }
+                                }
+                                ctrl.prepare()
+                                ctrl.play()
+                                playbackStateManager.updatePlayingState(true)
+                                playbackErrorHandler.clearPlaybackError()
+                            }
+                        } else {
+                            Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId attempt=$nextAttempt reason=Fresh URL resolution returned null")
+                            withContext(Dispatchers.Main) {
+                                if (token == currentRecoveryToken && isActive) {
+                                    onPlayerError(error)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId attempt=$currentAttempt reason=Exhausted $MAX_ONLINE_RETRIES retries")
+                    onlineRetryCount.remove(videoId)
+
+                    val isAutoplayTrack = isCurrentTrackAutoplayRecommendation ||
+                        _songQueue.firstOrNull { it.id == mediaId || it.videoId == videoId }?.album == "Recommended"
+
+                    if (isAutoplayTrack) {
+                        Log.w("MusicController", "[AUTOPLAY_SKIP_FAILED_TRACK] videoId=$videoId")
+                        Log.i("MusicController", "[AUTOPLAY_NEXT_AFTER_FAILURE] videoId=$videoId")
+
+                        playbackEventBus.emit(PlaybackEvent.SongError(mediaId.ifBlank { videoId }, "Exhausted $MAX_ONLINE_RETRIES retries"))
+                        playbackEventBus.emit(PlaybackEvent.AutoplayRequested)
+                    } else {
+                        val hasNext = controller.hasNextMediaItem()
+                        playbackEventBus.emit(PlaybackEvent.SongError(mediaId, error.message ?: "Unknown error"))
+                        playbackErrorHandler.handleError(error, hasNext, isOnline = true)
+                        if (hasNext) {
+                            controller.seekToNext()
+                            controller.prepare()
+                            controller.play()
+                        } else {
+                            playbackStateManager.updatePlayingState(false)
+                        }
+                    }
                 }
             }
 
@@ -426,10 +580,86 @@ class MusicController @Inject constructor(
         }
     }
 
+    // ── Online Playback Recovery Helpers ──────────────────────────────────────
+
+    private fun isOnlineTrack(mediaId: String?, uriStr: String?): Boolean {
+        if (mediaId.isNullOrBlank() && uriStr.isNullOrBlank()) return false
+        if (uriStr?.startsWith("http://") == true ||
+            uriStr?.startsWith("https://") == true ||
+            uriStr?.startsWith("online://") == true) {
+            return true
+        }
+        val queueItem = _songQueue.firstOrNull { it.id == mediaId || it.videoId == mediaId }
+        if (queueItem != null) {
+            val path = queueItem.path
+            if (path.startsWith("http") || path.startsWith("online://")) return true
+            if (path.startsWith("/") || path.startsWith("content://") || path.startsWith("file://")) {
+                if (java.io.File(path).exists()) return false
+            }
+            if (!queueItem.videoId.isNullOrBlank()) return true
+        }
+        val onlineSong = playbackStateManager.currentOnlineSong.value
+        if (onlineSong != null && (onlineSong.videoId == mediaId || onlineSong.streamUrl == uriStr)) {
+            return true
+        }
+        if (mediaId != null && mediaId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+            return true
+        }
+        return false
+    }
+
+    private fun extractVideoId(mediaId: String?, uriStr: String?): String? {
+        val queueItem = _songQueue.firstOrNull { it.id == mediaId || it.videoId == mediaId }
+        queueItem?.videoId?.let { if (it.isNotBlank()) return it }
+        val onlineSong = playbackStateManager.currentOnlineSong.value
+        if (onlineSong != null && onlineSong.videoId.isNotBlank()) {
+            if (onlineSong.videoId == mediaId || onlineSong.streamUrl == uriStr) {
+                return onlineSong.videoId
+            }
+        }
+        if (mediaId != null) {
+            if (mediaId.startsWith("online://")) return mediaId.removePrefix("online://")
+            if (mediaId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) return mediaId
+        }
+        if (uriStr != null && uriStr.startsWith("online://")) {
+            return uriStr.removePrefix("online://")
+        }
+        return queueItem?.id?.takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
+    }
+
+    private fun isRetryableOnlineError(error: PlaybackException): Boolean {
+        return when (error.errorCode) {
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+            PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> true
+            else -> {
+                val cause = error.cause
+                cause is java.io.IOException ||
+                cause is java.net.SocketTimeoutException ||
+                cause is java.net.UnknownHostException ||
+                cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException
+            }
+        }
+    }
+
+    private fun cancelActiveRecovery(reason: String) {
+        if (activeRecoveryJob != null) {
+            Log.d("MusicController", "Cancelling active recovery: $reason")
+            activeRecoveryJob?.cancel()
+            activeRecoveryJob = null
+        }
+        currentRecoveryToken++
+        onlineRetryCount.clear()
+    }
+
     // ── Local Playback ────────────────────────────────────────────────────────
 
     fun playSongs(songs: List<SongEntity>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
+        cancelActiveRecovery("playSongs")
+        isCurrentTrackAutoplayRecommendation = false
         val clampedIndex = startIndex.coerceIn(0, songs.size - 1)
         val selectedSong = songs[clampedIndex]
 
@@ -524,6 +754,8 @@ class MusicController @Inject constructor(
             }
         }
         if (entities.isEmpty()) return
+        cancelActiveRecovery("playDownloadedSongs")
+        isCurrentTrackAutoplayRecommendation = false
         val clampedIndex = startIndex.coerceIn(0, entities.size - 1)
         playSongs(entities, clampedIndex)
     }
@@ -532,6 +764,8 @@ class MusicController @Inject constructor(
 
     fun playOnlineSongs(songs: List<OnlineSong>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
+        cancelActiveRecovery("playOnlineSongs")
+        isCurrentTrackAutoplayRecommendation = false
         val clampedIndex = startIndex.coerceIn(0, songs.size - 1)
         val selectedSong = songs[clampedIndex]
 
@@ -570,6 +804,7 @@ class MusicController @Inject constructor(
 
     fun playOnlineQueueIndex(index: Int) {
         if (index !in _songQueue.indices) return
+        cancelActiveRecovery("playOnlineQueueIndex")
         val targetEntity = _songQueue[index]
         val vId = targetEntity.videoId ?: targetEntity.id
         val artUrl = targetEntity.albumArt ?: "https://img.youtube.com/vi/$vId/hqdefault.jpg"
@@ -678,6 +913,7 @@ class MusicController @Inject constructor(
     }
 
     fun skipToNext() {
+        cancelActiveRecovery("skipToNext")
         if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = true) == true) {
             return
         }
@@ -711,6 +947,7 @@ class MusicController @Inject constructor(
     }
 
     fun skipToPrevious() {
+        cancelActiveRecovery("skipToPrevious")
         if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = false) == true) {
             return
         }
@@ -1006,6 +1243,24 @@ class MusicController @Inject constructor(
         return controller.mediaItemCount
     }
 
+    override fun getNextPlayRequest(): PlayRequest? {
+        val currentMediaId = mediaController?.currentMediaItem?.mediaId
+        val currentIndex = _songQueue.indexOfFirst { it.id == currentMediaId || it.videoId == currentMediaId }
+        if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
+            val nextEntity = _songQueue[currentIndex + 1]
+            val vId = nextEntity.videoId ?: nextEntity.id
+            return PlayRequest(
+                songId = vId,
+                title = nextEntity.title,
+                artist = nextEntity.artist,
+                playbackSource = if (nextEntity.path.startsWith("http") || nextEntity.path.startsWith("online://")) PlaybackSourceType.ONLINE else PlaybackSourceType.LOCAL,
+                localUri = nextEntity.path,
+                albumArt = nextEntity.albumArt
+            )
+        }
+        return null
+    }
+
     // ── ARIA SDK Helpers ──────────────────────────────────────────────────────
 
     fun getMediaController(): MediaController? = mediaController
@@ -1075,6 +1330,8 @@ class MusicController @Inject constructor(
         const val PREFS_NAME = "playback_preferences"
         const val KEY_REPEAT_MODE = "playback_repeat_mode"
         const val KEY_SHUFFLE_MODE = "playback_shuffle_mode"
+        const val MAX_ONLINE_RETRIES = 3
+        val RETRY_DELAYS_MS = longArrayOf(0L, 750L, 1750L)
     }
 }
 

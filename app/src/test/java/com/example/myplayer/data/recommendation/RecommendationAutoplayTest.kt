@@ -162,6 +162,108 @@ class RecommendationAutoplayTest {
         assertEquals("Queue item should remain when autoplay is disabled", 1, queueManager.size())
     }
 
+    @Test
+    fun testAutoplay_WhenAutoplayRequestedEmitted_PlaysNextRecommendation() = runBlocking {
+        fakeSettingsDataStore.autoplayEnabled = true
+
+        val song1 = RecommendationSong(
+            videoId = "failed_song_vid",
+            title = "Failed Song",
+            artist = "Artist",
+            durationMs = 200000L,
+            thumbnailUrl = ""
+        )
+        val song2 = RecommendationSong(
+            videoId = "next_working_song_vid",
+            title = "Next Working Song",
+            artist = "Artist",
+            durationMs = 200000L,
+            thumbnailUrl = ""
+        )
+        queueManager.enqueue(listOf(song1, song2))
+
+        val coordinator = RecommendationCoordinator(
+            playbackEventBus = playbackEventBus,
+            settingsDataStore = fakeSettingsDataStore,
+            recommendationManager = mockManager(),
+            queueManager = queueManager,
+            playbackRepository = playbackRepository,
+            logger = logger
+        ).apply {
+            networkAvailabilityOverride = true
+        }
+
+        val emittedEvents = mutableListOf<PlaybackEvent>()
+        val job = launch {
+            playbackEventBus.events.collect { event ->
+                if (event is PlaybackEvent.PlayRequestReady) {
+                    emittedEvents.add(event)
+                }
+            }
+        }
+
+        // Simulate terminal recovery failure emitting AutoplayRequested
+        playbackEventBus.emit(PlaybackEvent.AutoplayRequested)
+
+        kotlinx.coroutines.delay(100)
+        job.cancel()
+
+        assertEquals("Next recommendation should be dequeued and requested", 1, emittedEvents.size)
+        val ready = emittedEvents[0] as PlaybackEvent.PlayRequestReady
+        assertEquals("failed_song_vid", ready.requests[0].songId) // first item dequeued
+    }
+
+    @Test
+    fun testAutoplay_ContinuousSequence_Plays10SongsContinuously() = runBlocking {
+        fakeSettingsDataStore.autoplayEnabled = true
+
+        // Enqueue 10 recommendation songs
+        val songs = (1..10).map { i ->
+            RecommendationSong(
+                videoId = "rec_song_$i",
+                title = "Title $i",
+                artist = "Artist $i",
+                durationMs = 180000L,
+                thumbnailUrl = ""
+            )
+        }
+        queueManager.enqueue(songs)
+        assertEquals("Queue should have 10 songs", 10, queueManager.size())
+
+        val coordinator = RecommendationCoordinator(
+            playbackEventBus = playbackEventBus,
+            settingsDataStore = fakeSettingsDataStore,
+            recommendationManager = mockManager(),
+            queueManager = queueManager,
+            playbackRepository = playbackRepository,
+            logger = logger
+        ).apply {
+            networkAvailabilityOverride = true
+        }
+
+        val playedSongIds = mutableListOf<String>()
+        val job = launch {
+            playbackEventBus.events.collect { event ->
+                if (event is PlaybackEvent.PlayRequestReady) {
+                    playedSongIds.add(event.requests[0].songId)
+                }
+            }
+        }
+
+        // Simulate each song completing in sequence
+        for (i in 1..10) {
+            playbackEventBus.emit(PlaybackEvent.SongCompleted("rec_song_$i"))
+            kotlinx.coroutines.delay(50)
+        }
+
+        kotlinx.coroutines.delay(100)
+        job.cancel()
+
+        assertEquals("All 10 songs should have been emitted for continuous autoplay", 10, playedSongIds.size)
+        assertEquals("All 10 songs must be represented in played history", (1..10).map { "rec_song_$it" }.toSet(), playedSongIds.toSet())
+        assertEquals("Queue should be empty after 10 songs", 0, queueManager.size())
+    }
+
     private fun mockManager(): RecommendationManager {
         val cache = com.example.myplayer.data.recommendation.cache.RecommendationCache(logger)
         val engine = com.example.myplayer.data.recommendation.engine.RecommendationEngine(

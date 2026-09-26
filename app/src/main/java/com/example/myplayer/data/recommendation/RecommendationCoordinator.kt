@@ -31,6 +31,7 @@ open class RecommendationCoordinator internal constructor(
     private val queueManager: RecommendationQueueManager,
     private val playbackRepository: RecommendationPlaybackRepository,
     private val logger: RecommendationLogger,
+    private val innertubeApi: com.example.myplayer.data.online.InnertubeApi? = null,
     @Suppress("UNUSED_PARAMETER") isTest: Boolean
 ) {
     private val context: Context? = context
@@ -43,7 +44,8 @@ open class RecommendationCoordinator internal constructor(
         recommendationManager: RecommendationManager,
         queueManager: RecommendationQueueManager,
         playbackRepository: RecommendationPlaybackRepository,
-        logger: RecommendationLogger
+        logger: RecommendationLogger,
+        innertubeApi: com.example.myplayer.data.online.InnertubeApi
     ) : this(
         context,
         playbackEventBus,
@@ -52,6 +54,7 @@ open class RecommendationCoordinator internal constructor(
         queueManager,
         playbackRepository,
         logger,
+        innertubeApi,
         false
     )
 
@@ -70,6 +73,7 @@ open class RecommendationCoordinator internal constructor(
         queueManager,
         playbackRepository,
         logger,
+        null,
         true
     )
 
@@ -102,6 +106,7 @@ open class RecommendationCoordinator internal constructor(
                     source = if (event.isOnline) "youtube" else "local"
                 )
                 startRecommendationSession(seed)
+                prefetchUpcomingRecommendationStream()
             }
             is PlaybackEvent.SongCompleted -> {
                 Log.d(TAG, "SongCompleted event for: ${event.songId}. Evaluating autoplay...")
@@ -198,9 +203,31 @@ open class RecommendationCoordinator internal constructor(
                     startIndex = 0
                 )
             )
+            prefetchUpcomingRecommendationStream()
         } else {
             Log.w(TAG, "AUTOPLAY_SKIPPED: No recommendation candidates available")
             logger.logEvent("AUTOPLAY_SKIPPED", mapOf("reason" to "NoCandidatesAvailable"))
+        }
+    }
+
+    private var prefetchStreamJob: kotlinx.coroutines.Job? = null
+
+    private fun prefetchUpcomingRecommendationStream() {
+        val api = innertubeApi ?: return
+        prefetchStreamJob?.cancel()
+        prefetchStreamJob = scope.launch {
+            kotlinx.coroutines.delay(2500)
+            if (!isNetworkAvailable()) return@launch
+            val nextSong = queueManager.peekNext() ?: return@launch
+            val vId = nextSong.videoId
+            if (vId.isNotBlank() && api.getCachedStreamUrl(vId) == null) {
+                try {
+                    Log.d(TAG, "Prefetching stream URL for next recommendation: $vId (${nextSong.title})")
+                    api.getStreamUrl(vId)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Prefetch failed for $vId (will resolve on demand): ${e.message}")
+                }
+            }
         }
     }
 

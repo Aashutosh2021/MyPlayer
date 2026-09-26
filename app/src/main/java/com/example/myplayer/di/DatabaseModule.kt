@@ -23,7 +23,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "myplayer_db"
         )
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
         .build()
     }
 
@@ -35,4 +35,5 @@ object DatabaseModule {
     @Provides fun provideDownloadedSongDao(db: AppDatabase): DownloadedSongDao = db.downloadedSongDao()
     @Provides fun provideRecentSearchDao(db: AppDatabase): RecentSearchDao = db.recentSearchDao()
     @Provides @Singleton fun provideCachedLyricsDao(db: AppDatabase): com.example.myplayer.data.local.dao.CachedLyricsDao = db.cachedLyricsDao()
+    @Provides @Singleton fun provideCachedRecommendationDao(db: AppDatabase): com.example.myplayer.data.local.dao.CachedRecommendationDao = db.cachedRecommendationDao()
 }

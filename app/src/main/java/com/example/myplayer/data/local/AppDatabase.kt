@@ -17,9 +17,10 @@ import com.example.myplayer.data.local.entity.*
         RecentHistoryEntity::class,
         DownloadedSongEntity::class,
         RecentSearchEntity::class,
-        CachedLyricsEntity::class
+        CachedLyricsEntity::class,
+        CachedRecommendationEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun downloadedSongDao(): DownloadedSongDao
     abstract fun recentSearchDao(): RecentSearchDao
     abstract fun cachedLyricsDao(): CachedLyricsDao
+    abstract fun cachedRecommendationDao(): CachedRecommendationDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -83,6 +85,23 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE songs ADD COLUMN videoId TEXT")
                 // Add album to downloaded_songs table (empty string default for existing rows)
                 db.execSQL("ALTER TABLE downloaded_songs ADD COLUMN album TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS cached_recommendations (
+                        videoId TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        artist TEXT NOT NULL,
+                        thumbnailUrl TEXT NOT NULL,
+                        durationMs INTEGER NOT NULL,
+                        source TEXT NOT NULL,
+                        seedId TEXT NOT NULL,
+                        cachedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
             }
         }
     }

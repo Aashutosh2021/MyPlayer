@@ -200,8 +200,8 @@ fun OnlineSearchScreen(
                 downloadedIds = downloadedIds,
                 isLoadingStream = isLoadingStream,
                 downloadProgress = downloadProgress,
-                onPlayClick = { song ->
-                    viewModel.streamSong(song)
+                onPlayClick = { song, contextSongs ->
+                    viewModel.playSongFromSearch(song, contextSongs)
                     onNavigateToNowPlaying()
                 },
                 onDownloadClick = { song -> viewModel.downloadSong(song) },
@@ -294,7 +294,7 @@ fun OnlineResultsList(
     downloadedIds: Set<String>,
     isLoadingStream: String?,
     downloadProgress: Map<String, Int>,
-    onPlayClick: (OnlineSong) -> Unit,
+    onPlayClick: (OnlineSong, List<OnlineSong>) -> Unit,
     onDownloadClick: (OnlineSong) -> Unit,
     onAddToPlaylistClick: (OnlineSong) -> Unit,
     onRemoveDownloadClick: (OnlineSong) -> Unit,
@@ -380,7 +380,13 @@ fun OnlineResultsList(
                 isDownloaded = isDownloaded,
                 isStreaming = isStreaming,
                 isDownloading = isDownloading,
-                onPlayClick = { onPlayClick(song) },
+                onPlayClick = {
+                    val contextSongs = mutableListOf<OnlineSong>()
+                    for (i in 0 until results.itemCount) {
+                        results.peek(i)?.let { contextSongs.add(it) }
+                    }
+                    onPlayClick(song, contextSongs)
+                },
                 onDownloadClick = { onDownloadClick(song) },
                 onAddToPlaylistClick = { onAddToPlaylistClick(song) },
                 onRemoveDownloadClick = { onRemoveDownloadClick(song) }

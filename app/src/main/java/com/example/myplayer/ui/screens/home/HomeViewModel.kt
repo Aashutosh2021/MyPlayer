@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 import com.example.myplayer.data.online.InnertubeApi
+import com.example.myplayer.data.recommendation.cache.RecommendationCache
 import com.example.myplayer.data.recommendation.model.RecommendationSeed
 import com.example.myplayer.data.repository.RecentHistoryRepository
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +42,8 @@ class HomeViewModel @Inject constructor(
     private val recommendationCoordinator: RecommendationCoordinator,
     private val userStateDetector: RecommendationUserStateDetector,
     private val recentHistoryRepository: RecentHistoryRepository,
-    private val innertubeApi: InnertubeApi
+    private val innertubeApi: InnertubeApi,
+    private val recommendationCache: RecommendationCache
 ) : ViewModel() {
 
     private val _userState = MutableStateFlow<RecommendationUserState?>(null)
@@ -51,13 +53,18 @@ class HomeViewModel @Inject constructor(
 
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
+    // Persisted recommendations loaded from DB (shown while network fetch is in progress or offline)
+    private val _persistedRecommendations = MutableStateFlow<List<RecommendationSong>>(emptyList())
+
     val recommendations: StateFlow<List<RecommendationSong>> = combine(
         selectedCategory,
         recommendationCoordinator.queueState,
-        _categoryRecommendations
-    ) { category, queue, catMap ->
+        _categoryRecommendations,
+        _persistedRecommendations
+    ) { category, queue, catMap, persisted ->
         if (category == "All") {
-            queue
+            // Prefer live queue; fall back to persisted DB data when queue is empty
+            queue.ifEmpty { persisted }
         } else {
             catMap[category] ?: emptyList()
         }
@@ -67,6 +74,17 @@ class HomeViewModel @Inject constructor(
     val isLoadingRecommendations: StateFlow<Boolean> = _isLoadingRecommendations.asStateFlow()
 
     init {
+        // Load persisted recommendations from DB first (instant, works offline)
+        viewModelScope.launch {
+            val persisted = withContext(Dispatchers.IO) {
+                recommendationCache.getPersistedFallback(limit = 30)
+            }
+            if (persisted.isNotEmpty()) {
+                _persistedRecommendations.value = persisted
+                _isLoadingRecommendations.value = false
+            }
+        }
+
         viewModelScope.launch {
             loadInitialRecommendations()
         }

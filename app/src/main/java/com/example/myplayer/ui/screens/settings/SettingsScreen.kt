@@ -1,6 +1,12 @@
 package com.example.myplayer.ui.screens.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -381,6 +387,19 @@ fun SettingsScreen(
             )
         }
 
+        // Section: Playback
+        item { SettingsSectionHeader(title = "Playback") }
+
+        item {
+            SettingsToggleRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = "Autoplay Recommendations",
+                subtitle = "Automatically play similar songs when the queue ends",
+                checked = isAutoplayEnabled,
+                onCheckedChange = { viewModel.setAutoplayEnabled(it) }
+            )
+        }
+
         // Section: Backup & Restore
         item { SettingsSectionHeader(title = "Backup & Restore") }
 
@@ -421,6 +440,35 @@ fun SettingsScreen(
                 title = "Dual Bud Mode",
                 subtitle = "Play two independent songs simultaneously in left & right earbuds",
                 onClick = onNavigateToDualBud
+            )
+        }
+
+        // Section: Contact Developer
+        item { SettingsSectionHeader(title = "Contact Developer") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Feedback,
+                title = "Complaint & Bug Report",
+                subtitle = "Send complaints, bugs, or feedback to $DEVELOPER_EMAIL",
+                onClick = {
+                    sendEmail(
+                        context = context,
+                        recipient = DEVELOPER_EMAIL,
+                        subject = "[MyPlayer Complaint / Bug Report] v${com.example.myplayer.BuildConfig.VERSION_NAME}",
+                        body = """
+                            Hi Developer,
+
+                            --- Complaint / Bug Details ---
+                            [Please describe your complaint, bug, or feedback here]
+
+                            --- Device & System Diagnostics ---
+                            App Version: ${com.example.myplayer.BuildConfig.VERSION_NAME} (${com.example.myplayer.BuildConfig.VERSION_CODE})
+                            Device: ${Build.MANUFACTURER} ${Build.MODEL}
+                            Android Version: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
+                        """.trimIndent()
+                    )
+                }
             )
         }
 
@@ -576,3 +624,43 @@ private fun SettingsInfoRow(
         }
     }
 }
+
+private const val DEVELOPER_EMAIL = "flexflycompany.in@gmail.com"
+
+private fun sendEmail(
+    context: Context,
+    recipient: String,
+    subject: String,
+    body: String = ""
+) {
+    try {
+        val mailtoUri = Uri.parse("mailto:$recipient?subject=${Uri.encode(subject)}&body=${Uri.encode(body)}")
+        val emailIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val chooserIntent = Intent.createChooser(emailIntent, "Send Email via...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooserIntent)
+    } catch (e: Exception) {
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            clipboard?.setPrimaryClip(ClipData.newPlainText("Developer Email", recipient))
+            Toast.makeText(
+                context,
+                "No email app found. Email copied to clipboard: $recipient",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (_: Exception) {
+            Toast.makeText(
+                context,
+                "Please contact: $recipient",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+}
+

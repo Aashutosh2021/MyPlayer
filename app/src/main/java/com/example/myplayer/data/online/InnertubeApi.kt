@@ -467,13 +467,27 @@ class InnertubeApi @Inject constructor(
     }
 
     /**
+     * Invalidates any cached stream URL for the given video ID.
+     */
+    fun invalidateCachedStreamUrl(videoId: String) {
+        if (videoId.isNotBlank()) {
+            streamUrlCache.remove(videoId)
+            Log.d(TAG, "invalidateCachedStreamUrl: Invalidated cache for $videoId")
+        }
+    }
+
+    /**
      * Resolves the actual audio stream URL for a given YouTube Music video ID.
      * Uses NewPipeExtractor to bypass bot detection and poToken issues.
      */
-    suspend fun getStreamUrl(videoId: String): String? = withContext(Dispatchers.IO) {
-        getCachedStreamUrl(videoId)?.let { cachedUrl ->
-            Log.i(TAG, "getStreamUrl: Returning cached stream URL for $videoId (<1ms)")
-            return@withContext cachedUrl
+    suspend fun getStreamUrl(videoId: String, forceRefresh: Boolean = false): String? = withContext(Dispatchers.IO) {
+        if (forceRefresh) {
+            invalidateCachedStreamUrl(videoId)
+        } else {
+            getCachedStreamUrl(videoId)?.let { cachedUrl ->
+                Log.i(TAG, "getStreamUrl: Returning cached stream URL for $videoId (<1ms)")
+                return@withContext cachedUrl
+            }
         }
 
         try {
