@@ -109,9 +109,10 @@ class RecommendationAutoplayTest {
             }
         }
 
+        kotlinx.coroutines.delay(50)
         playbackEventBus.emit(PlaybackEvent.SongCompleted("current_song_id"))
 
-        kotlinx.coroutines.delay(100)
+        kotlinx.coroutines.delay(200)
         job.cancel()
 
         assertEquals(1, emittedEvents.size)

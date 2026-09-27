@@ -46,6 +46,9 @@ fun ClayWavySeekBar(
     val strokeWidthPx = with(density) { strokeWidth.toPx() }
     val thumbRadiusPx = with(density) { 7.dp.toPx() }
 
+    val stepPx = with(density) { 3.dp.toPx() }
+    val activePath = remember { Path() }
+
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
@@ -125,20 +128,22 @@ fun ClayWavySeekBar(
 
             // 2. Draw Active Track (Sinusoidal wave or straight line based on amplitude)
             if (activeEndPx > 0f) {
-                val activePath = Path()
+                activePath.rewind()
                 activePath.moveTo(0f, centerY)
 
-                if (amplitudeTransition > 0.5f) {
+                val isWaveActive = amplitudeTransition > 0.5f
+                val currentPhase = if (isWaveActive) phase else 0f
+
+                if (isWaveActive) {
                     var x = 0f
-                    val stepPx = 3f
                     while (x <= activeEndPx) {
-                        val angle = (x / waveLengthPx) * 2f * PI.toFloat() - phase
+                        val angle = (x / waveLengthPx) * 2f * PI.toFloat() - currentPhase
                         val y = centerY + sin(angle) * amplitudeTransition
                         activePath.lineTo(x, y)
                         x += stepPx
                     }
                     // Ensure line reaches exact active end point
-                    val finalAngle = (activeEndPx / waveLengthPx) * 2f * PI.toFloat() - phase
+                    val finalAngle = (activeEndPx / waveLengthPx) * 2f * PI.toFloat() - currentPhase
                     val finalY = centerY + sin(finalAngle) * amplitudeTransition
                     activePath.lineTo(activeEndPx, finalY)
                 } else {
@@ -152,8 +157,8 @@ fun ClayWavySeekBar(
                 )
 
                 // 3. Draw Thumb Head
-                val thumbY = if (amplitudeTransition > 0.5f) {
-                    val finalAngle = (activeEndPx / waveLengthPx) * 2f * PI.toFloat() - phase
+                val thumbY = if (isWaveActive) {
+                    val finalAngle = (activeEndPx / waveLengthPx) * 2f * PI.toFloat() - currentPhase
                     centerY + sin(finalAngle) * amplitudeTransition
                 } else centerY
 

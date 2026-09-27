@@ -29,16 +29,20 @@ class RecommendationQueue @Inject constructor() {
 
     @Synchronized
     fun enqueue(songs: List<RecommendationSong>) {
-        queue.addAll(songs)
+        val existingIds = queue.map { it.videoId }.toSet()
+        val distinctNew = songs.distinctBy { it.videoId }.filter { it.videoId !in existingIds }
+        queue.addAll(distinctNew)
         lastUpdated = System.currentTimeMillis()
         _queueState.value = getSnapshot()
     }
 
     @Synchronized
     fun enqueue(song: RecommendationSong) {
-        queue.add(song)
-        lastUpdated = System.currentTimeMillis()
-        _queueState.value = getSnapshot()
+        if (!contains(song.videoId)) {
+            queue.add(song)
+            lastUpdated = System.currentTimeMillis()
+            _queueState.value = getSnapshot()
+        }
     }
 
     @Synchronized

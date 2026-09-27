@@ -12,6 +12,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+enum class PlaybackErrorType {
+    NETWORK_UNAVAILABLE,
+    NETWORK_TIMEOUT,
+    STREAM_RESOLUTION_FAILED,
+    STREAM_EXPIRED,
+    HTTP_REJECTED,
+    MEDIA_UNSUPPORTED,
+    DECODER_ERROR,
+    UNKNOWN
+}
+
 @Singleton
 class PlaybackErrorHandler internal constructor(
     private val context: Context?,
@@ -32,8 +43,24 @@ class PlaybackErrorHandler internal constructor(
             ?: return false
         val network = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-               caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    fun getErrorType(error: PlaybackException, isOnline: Boolean = false): PlaybackErrorType {
+        if (!isNetworkAvailable()) return PlaybackErrorType.NETWORK_UNAVAILABLE
+        return when (error.errorCode) {
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> PlaybackErrorType.NETWORK_TIMEOUT
+            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+                if (isOnline) PlaybackErrorType.STREAM_EXPIRED else PlaybackErrorType.HTTP_REJECTED
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
+            PlaybackException.ERROR_CODE_DECODING_FAILED -> PlaybackErrorType.DECODER_ERROR
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED -> PlaybackErrorType.MEDIA_UNSUPPORTED
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ->
+                if (isOnline) PlaybackErrorType.STREAM_RESOLUTION_FAILED else PlaybackErrorType.NETWORK_UNAVAILABLE
+            else -> PlaybackErrorType.UNKNOWN
+        }
     }
 
     fun classifyError(error: PlaybackException, isOnline: Boolean = false): String {
