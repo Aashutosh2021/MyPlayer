@@ -15,15 +15,13 @@ class MetadataProvider @Inject constructor(
         val startTime = System.currentTimeMillis()
         val currentLocal = musicController.currentSong.value
         val currentOnline = musicController.currentOnlineSong.value
-        val controller = musicController.getMediaController()
-
         if (currentLocal == null && currentOnline == null) {
             return TrackResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId, null)
         }
 
-        val position = controller?.currentPosition ?: 0L
-        val duration = controller?.duration ?: 0L
-        val isPlaying = controller?.isPlaying ?: false
+        val position = musicController.currentPosition.value
+        val duration = musicController.currentDuration.value
+        val isPlaying = musicController.isPlaying.value
 
         val songInfo = if (currentLocal != null) {
             val isOnline = currentLocal.path.startsWith("http") || currentLocal.path.startsWith("online://")

@@ -333,8 +333,6 @@ class CommandDispatcher @Inject constructor(
                 // Task 8: Health Evaluation API
                 val runtime = Runtime.getRuntime()
                 val memoryUsed = runtime.totalMemory() - runtime.freeMemory()
-                val controller = musicController.getMediaController()
-                
                 val versionInfo = try {
                     val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                     "v${pInfo.versionName} (${pInfo.versionCode})"
@@ -350,7 +348,7 @@ class CommandDispatcher @Inject constructor(
                     transactionId = transactionId,
                     version = versionInfo,
                     state = "ACTIVE",
-                    playbackState = if (controller?.isPlaying == true) "PLAYING" else "PAUSED",
+                    playbackState = if (musicController.isPlaying.value) "PLAYING" else "PAUSED",
                     queueSize = musicController.getSongQueue().size,
                     memoryUsageBytes = memoryUsed,
                     capabilities = caps

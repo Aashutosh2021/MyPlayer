@@ -93,10 +93,12 @@ class PlaybackController @Inject constructor(
 
     fun pause(commandOrdinal: Int, transactionId: String?): AriaGeneralResponse {
         val startTime = System.currentTimeMillis()
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         
-        if (controller.isPlaying) {
-            controller.pause()
+        if (musicController.isPlaying.value) {
+            musicController.pause()
             performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
             return AriaGeneralResponse(AriaStatus.SUCCESS, commandOrdinal, transactionId)
         }
@@ -105,10 +107,12 @@ class PlaybackController @Inject constructor(
 
     fun resume(commandOrdinal: Int, transactionId: String?): AriaGeneralResponse {
         val startTime = System.currentTimeMillis()
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         
-        if (!controller.isPlaying) {
-            controller.play()
+        if (!musicController.isPlaying.value) {
+            musicController.play()
             performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
             return AriaGeneralResponse(AriaStatus.SUCCESS, commandOrdinal, transactionId)
         }
@@ -124,7 +128,9 @@ class PlaybackController @Inject constructor(
 
     fun next(commandOrdinal: Int, transactionId: String?): AriaGeneralResponse {
         val startTime = System.currentTimeMillis()
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         
         musicController.skipToNext()
         performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
@@ -133,7 +139,9 @@ class PlaybackController @Inject constructor(
 
     fun previous(commandOrdinal: Int, transactionId: String?): AriaGeneralResponse {
         val startTime = System.currentTimeMillis()
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         
         musicController.skipToPrevious()
         performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
@@ -145,10 +153,12 @@ class PlaybackController @Inject constructor(
         if (positionMs < 0) {
             return AriaGeneralResponse(AriaStatus.BAD_REQUEST, commandOrdinal, transactionId, "Position cannot be negative.")
         }
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         
-        // Task 6: Request Validation
-        val duration = controller.duration
+        // Request Validation
+        val duration = musicController.currentDuration.value
         if (duration > 0 && positionMs > duration) {
             return AriaGeneralResponse(AriaStatus.BAD_REQUEST, commandOrdinal, transactionId, "Seek position $positionMs exceeds track duration $duration.")
         }
@@ -183,7 +193,9 @@ class PlaybackController @Inject constructor(
         if (speed < 0.25f || speed > 2.0f) {
             return AriaGeneralResponse(AriaStatus.BAD_REQUEST, commandOrdinal, transactionId, "Playback speed must be between 0.25 and 2.0.")
         }
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         musicController.setPlaybackSpeed(speed)
         performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
         return AriaGeneralResponse(AriaStatus.SUCCESS, commandOrdinal, transactionId)
@@ -194,7 +206,9 @@ class PlaybackController @Inject constructor(
         if (volume < 0.0f || volume > 1.0f) {
             return AriaGeneralResponse(AriaStatus.BAD_REQUEST, commandOrdinal, transactionId, "Volume level must be between 0.0 and 1.0.")
         }
-        val controller = musicController.getMediaController() ?: return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        if (musicController.currentSong.value == null && musicController.currentOnlineSong.value == null) {
+            return AriaGeneralResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId)
+        }
         musicController.setPlayerVolume(volume)
         performanceMonitor.recordLatency("commands", System.currentTimeMillis() - startTime)
         return AriaGeneralResponse(AriaStatus.SUCCESS, commandOrdinal, transactionId)

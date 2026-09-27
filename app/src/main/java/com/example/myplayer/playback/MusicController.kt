@@ -3,7 +3,10 @@ package com.example.myplayer.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -159,17 +162,25 @@ class MusicController @Inject constructor(
     }
 
     private fun initializeMediaController() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Handler(Looper.getMainLooper()).post {
+                initializeMediaController()
+            }
+            return
+        }
+
         try {
             context.startService(android.content.Intent(context, MusicService::class.java))
         } catch (_: Exception) {}
 
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         val future = MediaController.Builder(context, sessionToken)
+            .setApplicationLooper(Looper.getMainLooper())
             .setListener(object : MediaController.Listener {
                 override fun onDisconnected(controller: MediaController) {
                     Log.w("MusicController", "MediaController disconnected from MusicService session. Rebuilding connection...")
                     mediaController = null
-                    scope.launch {
+                    scope.launch(Dispatchers.Main.immediate) {
                         delay(500)
                         initializeMediaController()
                     }
@@ -182,31 +193,33 @@ class MusicController @Inject constructor(
             try {
                 mediaController = future.get()
                 setupController()
-                Log.d("MusicController", "MediaController successfully connected to MusicService")
+                Log.d("MusicController", "MediaController successfully connected to MusicService on thread ${Thread.currentThread().name}")
             } catch (e: Exception) {
                 Log.e("MusicController", "Failed to connect MediaController", e)
             }
-        }, MoreExecutors.directExecutor())
+        }, ContextCompat.getMainExecutor(context))
     }
 
     private fun setupController() {
-        val controller = mediaController
-        if (controller != null) {
-            val savedRepeat = getPersistedRepeatMode()
-            val savedShuffle = getPersistedShuffleMode()
-            val effectiveSavedRepeat = if (controller.mediaItemCount <= 1 && savedRepeat == Player.REPEAT_MODE_ALL) {
-                Player.REPEAT_MODE_OFF
-            } else {
-                savedRepeat
-            }
-            controller.repeatMode = effectiveSavedRepeat
-            controller.shuffleModeEnabled = savedShuffle
-            playbackStateManager.updateRepeatMode(savedRepeat)
-            playbackStateManager.updateShuffle(savedShuffle)
-            updateCurrentSong()
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Handler(Looper.getMainLooper()).post { setupController() }
+            return
         }
+        val controller = mediaController ?: return
+        val savedRepeat = getPersistedRepeatMode()
+        val savedShuffle = getPersistedShuffleMode()
+        val effectiveSavedRepeat = if (controller.mediaItemCount <= 1 && savedRepeat == Player.REPEAT_MODE_ALL) {
+            Player.REPEAT_MODE_OFF
+        } else {
+            savedRepeat
+        }
+        controller.repeatMode = effectiveSavedRepeat
+        controller.shuffleModeEnabled = savedShuffle
+        playbackStateManager.updateRepeatMode(savedRepeat)
+        playbackStateManager.updateShuffle(savedShuffle)
+        updateCurrentSong()
 
-        mediaController?.addListener(object : Player.Listener {
+        controller.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
                 val controller = mediaController
@@ -497,14 +510,50 @@ class MusicController @Inject constructor(
         playbackEventBus.emit(PlaybackEvent.SongCompleted(mediaId))
     }
 
+    private fun runOnApplicationThread(action: (MediaController) -> Unit) {
+        val controller = mediaController ?: return
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            if (controller.isConnected) {
+                action(controller)
+            }
+        } else {
+            Handler(Looper.getMainLooper()).post {
+                val c = mediaController
+                if (c != null && c.isConnected) {
+                    action(c)
+                }
+            }
+        }
+    }
+
     private fun startPositionUpdater() {
         positionJob?.cancel()
-        positionJob = scope.launch {
+        positionJob = scope.launch(Dispatchers.Main.immediate) {
+            val controller = mediaController
+            Log.d("MusicController", "PositionUpdater: started on thread=${Thread.currentThread().name} connected=${controller?.isConnected} state=${controller?.playbackState}")
             while (isActive) {
-                playbackStateManager.updatePosition(mediaController?.currentPosition ?: 0L)
-                val dur = mediaController?.duration ?: 0L
-                if (dur > 0L) {
-                    playbackStateManager.updateDuration(dur)
+                val ctrl = mediaController
+                if (ctrl != null && ctrl.isConnected) {
+                    if (Looper.myLooper() == Looper.getMainLooper()) {
+                        val pos = ctrl.currentPosition
+                        playbackStateManager.updatePosition(pos)
+                        val dur = ctrl.duration
+                        if (dur > 0L) {
+                            playbackStateManager.updateDuration(dur)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            val c = mediaController
+                            if (c != null && c.isConnected) {
+                                val pos = c.currentPosition
+                                playbackStateManager.updatePosition(pos)
+                                val dur = c.duration
+                                if (dur > 0L) {
+                                    playbackStateManager.updateDuration(dur)
+                                }
+                            }
+                        }
+                    }
                 }
                 delay(500L)
             }
@@ -514,10 +563,26 @@ class MusicController @Inject constructor(
     private fun stopPositionUpdater() {
         positionJob?.cancel()
         positionJob = null
-        playbackStateManager.updatePosition(mediaController?.currentPosition ?: currentPosition.value)
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            val controller = mediaController
+            if (controller != null && controller.isConnected) {
+                playbackStateManager.updatePosition(controller.currentPosition)
+            }
+        } else {
+            scope.launch(Dispatchers.Main.immediate) {
+                val controller = mediaController
+                if (controller != null && controller.isConnected) {
+                    playbackStateManager.updatePosition(controller.currentPosition)
+                }
+            }
+        }
     }
 
     private fun updateCurrentSong() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Handler(Looper.getMainLooper()).post { updateCurrentSong() }
+            return
+        }
         val controller = mediaController ?: return
         val currentItem = controller.currentMediaItem
         val mediaId = currentItem?.mediaId
@@ -887,8 +952,7 @@ class MusicController @Inject constructor(
     // ── Controls ──────────────────────────────────────────────────────────────
 
     fun playPause() {
-        val controller = mediaController ?: return
-        if (controller.isPlaying) {
+        if (playbackStateManager.isPlaying.value) {
             pause()
         } else {
             play()
@@ -902,14 +966,14 @@ class MusicController @Inject constructor(
         try {
             context.startService(android.content.Intent(context, MusicService::class.java))
         } catch (_: Exception) {}
-        mediaController?.play()
+        runOnApplicationThread { it.play() }
     }
 
     fun pause() {
         if (syncPlaybackInterceptor?.onPauseRequested() == true) {
             return
         }
-        mediaController?.pause()
+        runOnApplicationThread { it.pause() }
     }
 
     fun skipToNext() {
@@ -917,31 +981,32 @@ class MusicController @Inject constructor(
         if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = true) == true) {
             return
         }
-        val controller = mediaController ?: return
-        val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
-        if (currentMediaId.isNotEmpty()) {
-            playbackEventBus.emit(PlaybackEvent.SongSkipped(currentMediaId))
-        }
-        Log.d("MusicController", "[SKIP_NEXT] hasNext=${controller.hasNextMediaItem()} currentIndex=${controller.currentMediaItemIndex}")
-        if (controller.hasNextMediaItem()) {
-            controller.seekToNext()
-        } else {
-            val currentIndex = _songQueue.indexOfFirst {
-                (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
+        runOnApplicationThread { controller ->
+            val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
+            if (currentMediaId.isNotEmpty()) {
+                playbackEventBus.emit(PlaybackEvent.SongSkipped(currentMediaId))
             }
-            if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
-                val nextIndex = _songQueue.indices.filter { it != currentIndex }.randomOrNull() ?: 0
-                Log.d("MusicController", "[SKIP_NEXT] Shuffle playing queue item at $nextIndex")
-                playOnlineQueueIndex(nextIndex)
-            } else if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
-                Log.d("MusicController", "[SKIP_NEXT] Advancing to online queue song at ${currentIndex + 1}")
-                playOnlineQueueIndex(currentIndex + 1)
-            } else if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.isNotEmpty()) {
-                Log.d("MusicController", "[SKIP_NEXT] Looping online queue under REPEAT_MODE_ALL")
-                playOnlineQueueIndex(0)
+            Log.d("MusicController", "[SKIP_NEXT] hasNext=${controller.hasNextMediaItem()} currentIndex=${controller.currentMediaItemIndex}")
+            if (controller.hasNextMediaItem()) {
+                controller.seekToNext()
             } else {
-                Log.d("MusicController", "[SKIP_NEXT] End of queue reached, requesting autoplay")
-                playbackEventBus.emit(PlaybackEvent.SongCompleted(currentMediaId))
+                val currentIndex = _songQueue.indexOfFirst {
+                    (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
+                }
+                if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
+                    val nextIndex = _songQueue.indices.filter { it != currentIndex }.randomOrNull() ?: 0
+                    Log.d("MusicController", "[SKIP_NEXT] Shuffle playing queue item at $nextIndex")
+                    playOnlineQueueIndex(nextIndex)
+                } else if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
+                    Log.d("MusicController", "[SKIP_NEXT] Advancing to online queue song at ${currentIndex + 1}")
+                    playOnlineQueueIndex(currentIndex + 1)
+                } else if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.isNotEmpty()) {
+                    Log.d("MusicController", "[SKIP_NEXT] Looping online queue under REPEAT_MODE_ALL")
+                    playOnlineQueueIndex(0)
+                } else {
+                    Log.d("MusicController", "[SKIP_NEXT] End of queue reached, requesting autoplay")
+                    playbackEventBus.emit(PlaybackEvent.SongCompleted(currentMediaId))
+                }
             }
         }
     }
@@ -951,45 +1016,52 @@ class MusicController @Inject constructor(
         if (syncPlaybackInterceptor?.onTrackSkipRequested(isNext = false) == true) {
             return
         }
-        val controller = mediaController ?: return
-        Log.d("MusicController", "[SKIP_PREV] pos=${controller.currentPosition} hasPrev=${controller.hasPreviousMediaItem()} historySize=${playbackHistory.size}")
-        if (controller.currentPosition > 3000L) {
-            controller.seekTo(0L)
-            return
-        }
-        if (!playbackHistory.isEmpty()) {
-            val prevIndex = playbackHistory.pop()
-            if (prevIndex in 0 until controller.mediaItemCount) {
-                isNavigatingHistory = true
-                controller.seekTo(prevIndex, C.TIME_UNSET)
-                controller.play()
-                return
+        runOnApplicationThread { controller ->
+            Log.d("MusicController", "[SKIP_PREV] pos=${controller.currentPosition} hasPrev=${controller.hasPreviousMediaItem()} historySize=${playbackHistory.size}")
+            if (controller.currentPosition > 3000L) {
+                controller.seekTo(0L)
+                return@runOnApplicationThread
             }
+            if (!playbackHistory.isEmpty()) {
+                val prevIndex = playbackHistory.pop()
+                if (prevIndex in 0 until controller.mediaItemCount) {
+                    isNavigatingHistory = true
+                    controller.seekTo(prevIndex, C.TIME_UNSET)
+                    controller.play()
+                    return@runOnApplicationThread
+                }
+            }
+            if (controller.hasPreviousMediaItem()) {
+                controller.seekToPrevious()
+                return@runOnApplicationThread
+            }
+            val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
+            val currentIndex = _songQueue.indexOfFirst {
+                (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
+            }
+            if (currentIndex > 0) {
+                playOnlineQueueIndex(currentIndex - 1)
+                return@runOnApplicationThread
+            }
+            controller.seekTo(0L)
         }
-        if (controller.hasPreviousMediaItem()) {
-            controller.seekToPrevious()
-            return
-        }
-        val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
-        val currentIndex = _songQueue.indexOfFirst {
-            (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
-        }
-        if (currentIndex > 0) {
-            playOnlineQueueIndex(currentIndex - 1)
-            return
-        }
-        controller.seekTo(0L)
     }
 
     fun seekTo(positionMs: Long) {
         if (syncPlaybackInterceptor?.onSeekRequested(positionMs) == true) {
             return
         }
-        mediaController?.seekTo(positionMs)
+        runOnApplicationThread { it.seekTo(positionMs) }
         playbackStateManager.updatePosition(positionMs)
     }
 
-    fun getCurrentPosition(): Long = mediaController?.currentPosition ?: 0L
+    fun getCurrentPosition(): Long {
+        return if (Looper.myLooper() == Looper.getMainLooper()) {
+            mediaController?.currentPosition ?: playbackStateManager.currentPosition.value
+        } else {
+            playbackStateManager.currentPosition.value
+        }
+    }
 
     /** Clears the one-shot playback error after the UI has shown it. */
     fun clearPlaybackError() { playbackErrorHandler.clearPlaybackError() }
@@ -998,7 +1070,7 @@ class MusicController @Inject constructor(
 
     fun startSleepTimer(minutes: Int) {
         sleepTimerManager.startSleepTimer(scope, minutes) {
-            mediaController?.pause()
+            pause()
         }
     }
 
@@ -1009,24 +1081,26 @@ class MusicController @Inject constructor(
     // ── Shuffle & Repeat ──────────────────────────────────────────────────────
 
     fun setShuffleEnabled(enabled: Boolean) {
-        mediaController?.shuffleModeEnabled = enabled
+        runOnApplicationThread { it.shuffleModeEnabled = enabled }
         playbackStateManager.updateShuffle(enabled)
         saveShuffleMode(enabled)
     }
 
     fun setRepeatMode(mode: Int) {
-        val effectiveExoRepeat = if ((mediaController?.mediaItemCount ?: 0) <= 1 && mode == Player.REPEAT_MODE_ALL) {
-            Player.REPEAT_MODE_OFF
-        } else {
-            mode
+        runOnApplicationThread { controller ->
+            val effectiveExoRepeat = if (controller.mediaItemCount <= 1 && mode == Player.REPEAT_MODE_ALL) {
+                Player.REPEAT_MODE_OFF
+            } else {
+                mode
+            }
+            controller.repeatMode = effectiveExoRepeat
         }
-        mediaController?.repeatMode = effectiveExoRepeat
         playbackStateManager.updateRepeatMode(mode)
         saveRepeatMode(mode)
     }
 
     fun cycleRepeatMode() {
-        val current = mediaController?.repeatMode ?: playbackStateManager.repeatMode.value
+        val current = playbackStateManager.repeatMode.value
         val next = when (current) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
@@ -1038,60 +1112,61 @@ class MusicController @Inject constructor(
     // ── PlaybackRouterDelegate Implementation ──────────────────────────────────
 
     override fun playMediaItems(mediaItems: List<MediaItem>, startIndex: Int) {
-        val controller = mediaController ?: return
-        if (startIndex >= 0 && startIndex < mediaItems.size) {
-            val userRepeat = playbackStateManager.repeatMode.value
-            val effectiveExoRepeat = if (mediaItems.size <= 1 && userRepeat == Player.REPEAT_MODE_ALL) {
-                Player.REPEAT_MODE_OFF
-            } else {
-                userRepeat
-            }
-            controller.repeatMode = effectiveExoRepeat
-            controller.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-            controller.prepare()
-            controller.play()
+        runOnApplicationThread { controller ->
+            if (startIndex >= 0 && startIndex < mediaItems.size) {
+                val userRepeat = playbackStateManager.repeatMode.value
+                val effectiveExoRepeat = if (mediaItems.size <= 1 && userRepeat == Player.REPEAT_MODE_ALL) {
+                    Player.REPEAT_MODE_OFF
+                } else {
+                    userRepeat
+                }
+                controller.repeatMode = effectiveExoRepeat
+                controller.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                controller.prepare()
+                controller.play()
 
-            val targetItem = mediaItems.getOrNull(startIndex)
-            val mId = targetItem?.mediaId
-            val uriStr = targetItem?.localConfiguration?.uri?.toString()
-            val song = if (targetItem != null) {
-                _songQueue.firstOrNull {
-                    (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
-                    (!uriStr.isNullOrBlank() && it.path == uriStr)
-                } ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
-                    val candidate = _songQueue[startIndex]
-                    if (mId.isNullOrBlank() || candidate.id == mId || candidate.videoId == mId) {
-                        candidate
+                val targetItem = mediaItems.getOrNull(startIndex)
+                val mId = targetItem?.mediaId
+                val uriStr = targetItem?.localConfiguration?.uri?.toString()
+                val song = if (targetItem != null) {
+                    _songQueue.firstOrNull {
+                        (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
+                        (!uriStr.isNullOrBlank() && it.path == uriStr)
+                    } ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
+                        val candidate = _songQueue[startIndex]
+                        if (mId.isNullOrBlank() || candidate.id == mId || candidate.videoId == mId) {
+                            candidate
+                        } else null
                     } else null
                 } else null
-            } else null
 
-            val effectiveSong = song ?: if (targetItem != null) {
-                val meta = targetItem.mediaMetadata
-                val art = meta.artworkUri?.toString() ?: mId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
-                SongEntity(
-                    id = mId ?: java.util.UUID.randomUUID().toString(),
-                    title = meta.title?.toString() ?: "Unknown Track",
-                    artist = meta.artist?.toString() ?: "Unknown Artist",
-                    album = meta.albumTitle?.toString() ?: "Online",
-                    duration = controller.duration.coerceAtLeast(0L),
-                    path = uriStr ?: "",
-                    albumArt = art,
-                    dateAdded = System.currentTimeMillis(),
-                    videoId = mId
-                )
-            } else null
+                val effectiveSong = song ?: if (targetItem != null) {
+                    val meta = targetItem.mediaMetadata
+                    val art = meta.artworkUri?.toString() ?: mId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                    SongEntity(
+                        id = mId ?: java.util.UUID.randomUUID().toString(),
+                        title = meta.title?.toString() ?: "Unknown Track",
+                        artist = meta.artist?.toString() ?: "Unknown Artist",
+                        album = meta.albumTitle?.toString() ?: "Online",
+                        duration = controller.duration.coerceAtLeast(0L),
+                        path = uriStr ?: "",
+                        albumArt = art,
+                        dateAdded = System.currentTimeMillis(),
+                        videoId = mId
+                    )
+                } else null
 
-            if (effectiveSong != null) {
-                val resolvedArt = effectiveSong.albumArt ?: effectiveSong.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
-                val songWithArt = if (effectiveSong.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
-                    effectiveSong.copy(albumArt = resolvedArt)
-                } else {
-                    effectiveSong
+                if (effectiveSong != null) {
+                    val resolvedArt = effectiveSong.albumArt ?: effectiveSong.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                    val songWithArt = if (effectiveSong.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                        effectiveSong.copy(albumArt = resolvedArt)
+                    } else {
+                        effectiveSong
+                    }
+                    playbackStateManager.updateCurrentSong(songWithArt)
+                    playbackStateManager.updatePosition(0L)
+                    playbackStateManager.updatePlayingState(true)
                 }
-                playbackStateManager.updateCurrentSong(songWithArt)
-                playbackStateManager.updatePosition(0L)
-                playbackStateManager.updatePlayingState(true)
             }
         }
     }
@@ -1102,52 +1177,53 @@ class MusicController @Inject constructor(
         startPositionMs: Long,
         onPrepared: () -> Unit
     ) {
-        val controller = mediaController ?: return
-        if (startIndex >= 0 && startIndex < mediaItems.size) {
-            controller.setMediaItems(mediaItems, startIndex, startPositionMs)
-            controller.playWhenReady = false
-            controller.prepare()
+        runOnApplicationThread { controller ->
+            if (startIndex >= 0 && startIndex < mediaItems.size) {
+                controller.setMediaItems(mediaItems, startIndex, startPositionMs)
+                controller.playWhenReady = false
+                controller.prepare()
 
-            val targetItem = mediaItems.getOrNull(startIndex)
-            val mId = targetItem?.mediaId
-            val uriStr = targetItem?.localConfiguration?.uri?.toString()
-            val song = if (targetItem != null) {
-                _songQueue.firstOrNull {
-                    (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
-                    (!uriStr.isNullOrBlank() && it.path == uriStr)
+                val targetItem = mediaItems.getOrNull(startIndex)
+                val mId = targetItem?.mediaId
+                val uriStr = targetItem?.localConfiguration?.uri?.toString()
+                val song = if (targetItem != null) {
+                    _songQueue.firstOrNull {
+                        (!mId.isNullOrBlank() && (it.id == mId || it.videoId == mId)) ||
+                        (!uriStr.isNullOrBlank() && it.path == uriStr)
+                    }
+                } else null ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
+                    _songQueue[startIndex]
+                } else null
+
+                if (song != null) {
+                    val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+                    val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
+                        song.copy(albumArt = resolvedArt)
+                    } else {
+                        song
+                    }
+                    playbackStateManager.updateCurrentSong(songWithArt)
+                    playbackStateManager.updatePosition(startPositionMs)
+                    playbackStateManager.updatePlayingState(false)
                 }
-            } else null ?: if (mediaItems.size == _songQueue.size && startIndex in _songQueue.indices) {
-                _songQueue[startIndex]
-            } else null
 
-            if (song != null) {
-                val resolvedArt = song.albumArt ?: song.videoId?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
-                val songWithArt = if (song.albumArt.isNullOrBlank() && !resolvedArt.isNullOrBlank()) {
-                    song.copy(albumArt = resolvedArt)
+                if (controller.playbackState == Player.STATE_READY) {
+                    onPrepared()
                 } else {
-                    song
-                }
-                playbackStateManager.updateCurrentSong(songWithArt)
-                playbackStateManager.updatePosition(startPositionMs)
-                playbackStateManager.updatePlayingState(false)
-            }
-
-            if (controller.playbackState == Player.STATE_READY) {
-                onPrepared()
-            } else {
-                val listener = object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                    val listener = object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                                controller.removeListener(this)
+                                onPrepared()
+                            }
+                        }
+                        override fun onPlayerError(error: PlaybackException) {
                             controller.removeListener(this)
-                            onPrepared()
+                            Log.e("MusicController", "prepareMediaItems player error", error)
                         }
                     }
-                    override fun onPlayerError(error: PlaybackException) {
-                        controller.removeListener(this)
-                        Log.e("MusicController", "prepareMediaItems player error", error)
-                    }
+                    controller.addListener(listener)
                 }
-                controller.addListener(listener)
             }
         }
     }
@@ -1180,49 +1256,36 @@ class MusicController @Inject constructor(
     }
 
     fun startPreparedSyncPlayback(positionMs: Long = 0L) {
-        val controller = mediaController ?: return
-        if (positionMs > 0L && Math.abs(controller.currentPosition - positionMs) > 1000L) {
-            controller.seekTo(positionMs)
+        runOnApplicationThread { controller ->
+            if (positionMs > 0L && Math.abs(controller.currentPosition - positionMs) > 1000L) {
+                controller.seekTo(positionMs)
+            }
+            controller.playWhenReady = true
+            controller.play()
+            playbackStateManager.updatePlayingState(true)
         }
-        controller.playWhenReady = true
-        controller.play()
-        playbackStateManager.updatePlayingState(true)
     }
 
     override fun replaceMediaItem(index: Int, mediaItem: MediaItem) {
-        val controller = mediaController ?: return
-        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+        runOnApplicationThread { controller ->
             if (controller.mediaItemCount == _songQueue.size && index in 0 until controller.mediaItemCount) {
                 controller.replaceMediaItem(index, mediaItem)
-            }
-        } else {
-            scope.launch(Dispatchers.Main) {
-                if (controller.mediaItemCount == _songQueue.size && index in 0 until controller.mediaItemCount) {
-                    controller.replaceMediaItem(index, mediaItem)
-                }
             }
         }
     }
 
     override fun stopPlayback() {
-        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            mediaController?.stop()
+        runOnApplicationThread { controller ->
+            controller.stop()
             playbackStateManager.updatePlayingState(false)
             playbackStateManager.updateCurrentSong(null)
             playbackStateManager.updateCurrentOnlineSong(null)
-        } else {
-            scope.launch(Dispatchers.Main) {
-                mediaController?.stop()
-                playbackStateManager.updatePlayingState(false)
-                playbackStateManager.updateCurrentSong(null)
-                playbackStateManager.updateCurrentOnlineSong(null)
-            }
         }
     }
 
     override fun getMediaItemAt(index: Int): MediaItem? {
         val controller = mediaController ?: return null
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
             return null
         }
         if (index >= 0 && index < controller.mediaItemCount) {
@@ -1236,15 +1299,19 @@ class MusicController @Inject constructor(
     }
 
     override fun getMediaItemCount(): Int {
-        val controller = mediaController ?: return 0
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+        val controller = mediaController ?: return _songQueue.size
+        if (Looper.myLooper() != Looper.getMainLooper()) {
             return _songQueue.size
         }
         return controller.mediaItemCount
     }
 
     override fun getNextPlayRequest(): PlayRequest? {
-        val currentMediaId = mediaController?.currentMediaItem?.mediaId
+        val currentMediaId = if (Looper.myLooper() == Looper.getMainLooper()) {
+            mediaController?.currentMediaItem?.mediaId
+        } else {
+            playbackStateManager.currentSong.value?.id ?: playbackStateManager.currentOnlineSong.value?.videoId
+        }
         val currentIndex = _songQueue.indexOfFirst { it.id == currentMediaId || it.videoId == currentMediaId }
         if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
             val nextEntity = _songQueue[currentIndex + 1]
@@ -1268,61 +1335,72 @@ class MusicController @Inject constructor(
     fun getSongQueue(): List<SongEntity> = _songQueue
 
     fun setPlaybackSpeed(speed: Float) {
-        mediaController?.setPlaybackSpeed(speed)
+        runOnApplicationThread { it.setPlaybackSpeed(speed) }
     }
 
     fun getPlaybackSpeed(): Float {
-        return mediaController?.playbackParameters?.speed ?: 1.0f
+        return if (Looper.myLooper() == Looper.getMainLooper()) {
+            mediaController?.playbackParameters?.speed ?: 1.0f
+        } else {
+            1.0f
+        }
     }
 
     fun setPlayerVolume(volume: Float) {
-        mediaController?.volume = volume
+        runOnApplicationThread { it.volume = volume }
     }
 
     fun getPlayerVolume(): Float {
-        return mediaController?.volume ?: 1.0f
+        return if (Looper.myLooper() == Looper.getMainLooper()) {
+            mediaController?.volume ?: 1.0f
+        } else {
+            1.0f
+        }
     }
 
     fun addSongToQueue(song: SongEntity) {
-        val controller = mediaController ?: return
         _songQueue.add(song)
         _playbackQueue.value = _songQueue.toList()
         val isOnline = song.path.startsWith("online://") || song.path.startsWith("http") || (song.videoId != null && song.videoId.length == 11)
         if (!isOnline && song.path.isNotBlank()) {
-            val mediaItem = MediaItem.Builder()
-                .setMediaId(song.id)
-                .setUri(Uri.parse(song.path))
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artist)
-                        .apply {
-                            if (!song.albumArt.isNullOrBlank()) {
-                                setArtworkUri(Uri.parse(song.albumArt))
+            runOnApplicationThread { controller ->
+                val mediaItem = MediaItem.Builder()
+                    .setMediaId(song.id)
+                    .setUri(Uri.parse(song.path))
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(song.title)
+                            .setArtist(song.artist)
+                            .apply {
+                                if (!song.albumArt.isNullOrBlank()) {
+                                    setArtworkUri(Uri.parse(song.albumArt))
+                                }
                             }
-                        }
-                        .build()
-                )
-                .build()
-            controller.addMediaItem(mediaItem)
+                            .build()
+                    )
+                    .build()
+                controller.addMediaItem(mediaItem)
+            }
         }
     }
 
     fun playQueueIndex(index: Int) {
-        val controller = mediaController ?: return
         if (index in _songQueue.indices) {
             val target = _songQueue[index]
             val isOnline = target.path.startsWith("http") ||
                            target.path.startsWith("online://") ||
                            (target.videoId != null && target.videoId.length == 11)
-            if (isOnline || controller.mediaItemCount <= 1) {
+            val controller = mediaController
+            if (isOnline || controller == null || controller.mediaItemCount <= 1) {
                 playOnlineQueueIndex(index)
                 return
             }
         }
-        if (index in 0 until controller.mediaItemCount) {
-            controller.seekTo(index, C.TIME_UNSET)
-            controller.play()
+        runOnApplicationThread { controller ->
+            if (index in 0 until controller.mediaItemCount) {
+                controller.seekTo(index, C.TIME_UNSET)
+                controller.play()
+            }
         }
     }
 

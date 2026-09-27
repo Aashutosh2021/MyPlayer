@@ -612,7 +612,7 @@ class SyncPlayManager @Inject constructor(
             }
 
             is SyncMessage.Pause -> {
-                musicController.getMediaController()?.pause()
+                musicController.pause()
                 updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
             }
 
@@ -926,7 +926,7 @@ class SyncPlayManager @Inject constructor(
     // ---------------------------------------------------------------
 
     fun pause() {
-        musicController.getMediaController()?.pause()
+        musicController.pause()
         if (_uiState.value.role == SyncRole.MASTER) {
             sendMessage(
                 SyncMessage.Pause(
@@ -947,7 +947,7 @@ class SyncPlayManager @Inject constructor(
             isPlaybackScheduled = false
             scheduleSynchronizedStart()
         } else {
-            musicController.getMediaController()?.play()
+            musicController.play()
             updateState { it.copy(playbackState = SyncPlaybackState.PLAYING) }
         }
     }

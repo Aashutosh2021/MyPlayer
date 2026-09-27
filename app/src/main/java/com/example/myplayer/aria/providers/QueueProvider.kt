@@ -75,10 +75,17 @@ class QueueProvider @Inject constructor(
 
     fun getQueue(commandOrdinal: Int, transactionId: String?): QueueResponse {
         val startTime = System.currentTimeMillis()
-        val controller = musicController.getMediaController() ?: return QueueResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId, null)
-        
         val currentQueue = musicController.getSongQueue()
-        val currentIndex = controller.currentMediaItemIndex
+        if (currentQueue.isEmpty()) {
+            return QueueResponse(AriaStatus.NOTHING_PLAYING, commandOrdinal, transactionId, null)
+        }
+        
+        val currentSong = musicController.currentSong.value
+        val currentOnline = musicController.currentOnlineSong.value
+        val currentIndex = currentQueue.indexOfFirst {
+            (currentSong != null && (it.id == currentSong.id || it.videoId == currentSong.videoId)) ||
+            (currentOnline != null && (it.id == currentOnline.videoId || it.videoId == currentOnline.videoId))
+        }.coerceAtLeast(0)
 
         val songInfoList = currentQueue.map { song ->
             val isOnline = song.path.startsWith("http") || song.path.startsWith("online://")
@@ -97,7 +104,7 @@ class QueueProvider @Inject constructor(
 
         val queueInfo = QueueInfo(
             songs = songInfoList,
-            currentIndex = currentIndex.coerceAtLeast(0)
+            currentIndex = currentIndex
         )
 
         performanceMonitor.recordLatency("queue_ops", System.currentTimeMillis() - startTime)

@@ -98,15 +98,11 @@ class AriaStateRecoveryManager @Inject constructor(
                 
                 // Build the queue in MusicController and immediately pause/seek to avoid blasting audio
                 musicController.playSongs(songsToRestore, startIndex)
-                
-                val controller = musicController.getMediaController()
-                if (controller != null) {
-                    controller.pause()
-                    controller.seekTo(startIndex, positionMs)
-                    controller.repeatMode = repeatMode
-                    controller.shuffleModeEnabled = shuffleMode
-                    Log.i(TAG, "Successfully restored queue state from memory cache.")
-                }
+                musicController.pause()
+                musicController.seekTo(positionMs)
+                musicController.setRepeatMode(repeatMode)
+                musicController.setShuffleEnabled(shuffleMode)
+                Log.i(TAG, "Successfully restored queue state from memory cache.")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to restore state", e)
