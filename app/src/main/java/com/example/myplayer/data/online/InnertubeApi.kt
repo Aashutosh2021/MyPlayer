@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.security.StringEncryptionManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -443,6 +444,8 @@ class InnertubeApi @Inject constructor(
     )
 
     private val streamUrlCache = java.util.concurrent.ConcurrentHashMap<String, CachedStream>()
+    private val inFlightResolutions = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Deferred<String?>>()
+    private val extractionScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
     private val CACHE_TTL_MS = 2 * 60 * 60 * 1000L // 2 hours
 
     /**
@@ -479,8 +482,12 @@ class InnertubeApi @Inject constructor(
     /**
      * Resolves the actual audio stream URL for a given YouTube Music video ID.
      * Uses NewPipeExtractor to bypass bot detection and poToken issues.
+     * Employs single-flight deduplication: multiple concurrent requests for the same
+     * videoId share a single extraction task.
      */
     suspend fun getStreamUrl(videoId: String, forceRefresh: Boolean = false): String? = withContext(Dispatchers.IO) {
+        if (videoId.isBlank()) return@withContext null
+
         if (forceRefresh) {
             invalidateCachedStreamUrl(videoId)
         } else {
@@ -490,37 +497,70 @@ class InnertubeApi @Inject constructor(
             }
         }
 
+        // Single-flight deduplication: Join existing in-flight extraction if one is running
+        val existingDeferred = inFlightResolutions[videoId]
+        if (existingDeferred != null) {
+            Log.d(TAG, "getStreamUrl: Joining in-flight resolution for $videoId")
+            return@withContext try {
+                existingDeferred.await()
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        val deferred = extractionScope.async {
+            try {
+                resolveStreamUrlInternal(videoId)
+            } finally {
+                inFlightResolutions.remove(videoId)
+            }
+        }
+
+        val winner = inFlightResolutions.putIfAbsent(videoId, deferred)
+        val targetDeferred = winner ?: deferred
+
         try {
-            Log.i(TAG, "getStreamUrl: Starting resolution for $videoId")
-            val url = "https://www.youtube.com/watch?v=$videoId"
-            Log.i(TAG, "getStreamUrl: Creating YouTube stream extractor for $url")
-            val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getStreamExtractor(url)
-            Log.i(TAG, "getStreamUrl: Calling extractor.fetchPage() (this might block/hang)...")
-            extractor.fetchPage()
-            Log.i(TAG, "getStreamUrl: extractor.fetchPage() completed successfully")
-
-            val audioStreams = extractor.audioStreams
-            Log.i(TAG, "getStreamUrl: Found ${audioStreams.size} audio streams")
-            if (audioStreams.isEmpty()) {
-                throw YouTubeStreamBlockedException("YouTube stream extraction failed: No audio streams found.")
-            }
-
-            // Prefer highest bitrate
-            val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
-            val contentUrl = bestStream?.getContent()
-            Log.i(TAG, "getStreamUrl: Selected stream URL: ${contentUrl?.take(80)}...")
-            if (!contentUrl.isNullOrBlank()) {
-                cacheStreamUrl(videoId, contentUrl)
-            }
-            contentUrl
-        } catch (e: org.schabi.newpipe.extractor.exceptions.ExtractionException) {
-            Log.e(TAG, "NewPipe Extraction failed", e)
-            throw YouTubeStreamBlockedException("YouTube blocked this stream: ${e.message}")
-        } catch (e: YouTubeStreamBlockedException) {
-            throw e
+            targetDeferred.await()
         } catch (e: Exception) {
             Log.e(TAG, "getStreamUrl failed for $videoId", e)
             null
+        }
+    }
+
+    private suspend fun resolveStreamUrlInternal(videoId: String): String? {
+        return kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+            try {
+                Log.i(TAG, "getStreamUrl: Starting resolution for $videoId")
+                val url = "https://www.youtube.com/watch?v=$videoId"
+                Log.i(TAG, "getStreamUrl: Creating YouTube stream extractor for $url")
+                val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getStreamExtractor(url)
+                Log.i(TAG, "getStreamUrl: Calling extractor.fetchPage()...")
+                extractor.fetchPage()
+                Log.i(TAG, "getStreamUrl: extractor.fetchPage() completed successfully")
+
+                val audioStreams = extractor.audioStreams
+                Log.i(TAG, "getStreamUrl: Found ${audioStreams.size} audio streams")
+                if (audioStreams.isEmpty()) {
+                    throw YouTubeStreamBlockedException("YouTube stream extraction failed: No audio streams found.")
+                }
+
+                // Prefer highest bitrate
+                val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
+                val contentUrl = bestStream?.getContent()
+                Log.i(TAG, "getStreamUrl: Selected stream URL: ${contentUrl?.take(80)}...")
+                if (!contentUrl.isNullOrBlank()) {
+                    cacheStreamUrl(videoId, contentUrl)
+                }
+                contentUrl
+            } catch (e: org.schabi.newpipe.extractor.exceptions.ExtractionException) {
+                Log.e(TAG, "NewPipe Extraction failed", e)
+                throw YouTubeStreamBlockedException("YouTube blocked this stream: ${e.message}")
+            } catch (e: YouTubeStreamBlockedException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "getStreamUrl failed for $videoId", e)
+                null
+            }
         }
     }
 

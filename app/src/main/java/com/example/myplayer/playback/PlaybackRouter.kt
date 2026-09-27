@@ -15,6 +15,10 @@ interface PlaybackRouterDelegate {
     fun replaceMediaItem(index: Int, mediaItem: MediaItem)
     fun setCustomError(message: String)
     fun stopPlayback()
+    fun onStreamResolutionFailed(request: PlayRequest, error: String) {
+        setCustomError(error)
+        stopPlayback()
+    }
     fun getMediaItemAt(index: Int): MediaItem?
     fun getMediaItemCount(): Int
     fun getNextPlayRequest(): PlayRequest? = null
@@ -74,13 +78,17 @@ class PlaybackRouter @Inject constructor(
         val currentRequest = requests[clampedIndex]
 
         activePlayJob = scope.launch {
+            var resolutionError: String? = null
             // 1. Resolve current request path immediately
             val currentPath = sourceResolver.resolve(currentRequest) { err ->
-                delegate.setCustomError(err)
+                resolutionError = err
             }
             if (currentPath == null) {
                 withContext(Dispatchers.Main) {
-                    delegate.stopPlayback()
+                    delegate.onStreamResolutionFailed(
+                        currentRequest,
+                        resolutionError ?: "Failed to resolve stream URL"
+                    )
                 }
                 return@launch
             }

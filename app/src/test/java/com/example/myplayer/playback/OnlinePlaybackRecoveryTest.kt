@@ -1,6 +1,12 @@
 package com.example.myplayer.playback
 
 import androidx.media3.common.PlaybackException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -386,5 +392,59 @@ class OnlinePlaybackRecoveryTest {
         val errorMessage = errorHandler.handleError(exception, hasNextItem = false, isOnline = isOnline)
         assertEquals("This song isn't available offline. The downloaded file may have been removed.", errorMessage)
         assertEquals("This song isn't available offline. The downloaded file may have been removed.", errorHandler.playbackError.value)
+    }
+
+    @Test
+    fun test9_singleFlightDeduplicationCollapsesConcurrentRequests() = runBlocking {
+        val concurrentMap = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Deferred<String?>>()
+        val extractionCounter = java.util.concurrent.atomic.AtomicInteger(0)
+
+        suspend fun resolveWithSingleFlight(videoId: String): String? {
+            val deferred = concurrentMap.compute(videoId) { _, existing ->
+                if (existing != null && existing.isActive) {
+                    existing
+                } else {
+                    CoroutineScope(Dispatchers.Default).async {
+                        extractionCounter.incrementAndGet()
+                        delay(50)
+                        "https://googlevideo.com/stream_$videoId"
+                    }
+                }
+            }!!
+
+            return try {
+                deferred.await()
+            } finally {
+                concurrentMap.remove(videoId, deferred)
+            }
+        }
+
+        val jobs = (1..10).map {
+            async(Dispatchers.Default) {
+                resolveWithSingleFlight("dQw4w9WgXcQ")
+            }
+        }
+        val results = jobs.awaitAll()
+
+        assertEquals("All 10 callers should receive identical resolved URL", 10, results.size)
+        results.forEach { assertEquals("https://googlevideo.com/stream_dQw4w9WgXcQ", it) }
+        assertEquals("Actual stream extraction must execute exactly once due to single-flight deduplication", 1, extractionCounter.get())
+    }
+
+    @Test
+    fun test10_structuredErrorTypeClassification() {
+        val netFailEx = PlaybackException("Socket error", null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+        errorHandler.networkOverride = false
+        assertEquals(PlaybackErrorType.NETWORK_UNAVAILABLE, errorHandler.getErrorType(netFailEx, isOnline = true))
+
+        errorHandler.networkOverride = true
+        val timeoutEx = PlaybackException("Timeout", null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT)
+        assertEquals(PlaybackErrorType.NETWORK_TIMEOUT, errorHandler.getErrorType(timeoutEx, isOnline = true))
+
+        val http403Ex = PlaybackException("Forbidden", null, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)
+        assertEquals(PlaybackErrorType.STREAM_EXPIRED, errorHandler.getErrorType(http403Ex, isOnline = true))
+
+        val decoderEx = PlaybackException("Decoder error", null, PlaybackException.ERROR_CODE_DECODER_INIT_FAILED)
+        assertEquals(PlaybackErrorType.DECODER_ERROR, errorHandler.getErrorType(decoderEx, isOnline = true))
     }
 }

@@ -9,6 +9,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+enum class PlaybackMachineState {
+    IDLE,
+    RESOLVING,
+    PREPARING,
+    READY,
+    PLAYING,
+    BUFFERING,
+    RECOVERING,
+    FAILED,
+    STOPPED
+}
+
 @Singleton
 class PlaybackStateManager @Inject constructor() {
     private val _currentSong = MutableStateFlow<SongEntity?>(null)
@@ -19,6 +31,9 @@ class PlaybackStateManager @Inject constructor() {
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
+    private val _playbackMachineState = MutableStateFlow(PlaybackMachineState.IDLE)
+    val playbackMachineState: StateFlow<PlaybackMachineState> = _playbackMachineState.asStateFlow()
 
     private val _currentPosition = MutableStateFlow(0L)
     val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
@@ -31,6 +46,10 @@ class PlaybackStateManager @Inject constructor() {
 
     private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
     val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
+
+    fun updateMachineState(state: PlaybackMachineState) {
+        _playbackMachineState.value = state
+    }
 
     fun updateCurrentSong(song: SongEntity?) {
         _currentSong.value = song
@@ -48,6 +67,11 @@ class PlaybackStateManager @Inject constructor() {
 
     fun updatePlayingState(playing: Boolean) {
         _isPlaying.value = playing
+        if (playing) {
+            _playbackMachineState.value = PlaybackMachineState.PLAYING
+        } else if (_playbackMachineState.value == PlaybackMachineState.PLAYING) {
+            _playbackMachineState.value = PlaybackMachineState.READY
+        }
     }
 
     fun updatePosition(pos: Long) {

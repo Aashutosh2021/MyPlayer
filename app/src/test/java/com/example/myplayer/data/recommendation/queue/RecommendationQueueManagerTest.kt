@@ -95,4 +95,50 @@ class RecommendationQueueManagerTest {
 
         assertEquals(enqueueCount - dequeueCount, queueManager.size())
     }
+
+    @Test
+    fun testAutoplaySessionContinuationPreservesQueue() = runBlocking(Dispatchers.Default) {
+        val seed1 = RecommendationSeed("seed_initial", "Artist Initial")
+        queueManager.updateSession(seed1)
+
+        val songs = (1..5).map { i ->
+            RecommendationSong(
+                videoId = "rec_song_$i",
+                title = "Title $i",
+                artist = "Artist $i",
+                source = "Test",
+                recommendationScore = 100 - i,
+                popularityScore = 50,
+                durationMs = 180000L,
+                thumbnailUrl = ""
+            )
+        }
+        queueManager.enqueue(songs)
+        assertEquals(5, queueManager.size())
+
+        // 1. Next song is dequeued for autoplay
+        val dequeued = queueManager.dequeue()
+        assertEquals("rec_song_1", dequeued?.videoId)
+        assertEquals(4, queueManager.size())
+
+        // 2. Playback starts for the dequeued song: updateSession is called with dequeued song as seed
+        val nextSeed = RecommendationSeed("rec_song_1", "Artist 1")
+        queueManager.updateSession(nextSeed)
+
+        // Queue must NOT be wiped! It must preserve the remaining 4 songs
+        assertEquals("Autoplay session continuation must preserve queued recommendations", 4, queueManager.size())
+        val nextInQueue = queueManager.peekNext()
+        assertEquals("rec_song_2", nextInQueue?.videoId)
+    }
+
+    @Test
+    fun testQueueDeduplication() = runBlocking(Dispatchers.Default) {
+        val song1 = RecommendationSong(videoId = "duplicate_id", title = "Title 1", artist = "Artist", durationMs = 0L, thumbnailUrl = "")
+        val song2 = RecommendationSong(videoId = "duplicate_id", title = "Title 1 Dupe", artist = "Artist", durationMs = 0L, thumbnailUrl = "")
+        val song3 = RecommendationSong(videoId = "unique_id", title = "Title 2", artist = "Artist", durationMs = 0L, thumbnailUrl = "")
+
+        queueManager.enqueue(listOf(song1, song2, song3))
+
+        assertEquals("Duplicate videoId entries must be filtered out", 2, queueManager.size())
+    }
 }

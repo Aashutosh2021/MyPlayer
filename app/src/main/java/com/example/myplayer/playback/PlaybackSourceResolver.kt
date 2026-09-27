@@ -137,6 +137,16 @@ class PlaybackSourceResolver @Inject constructor(
         setCustomError: ((String) -> Unit)? = null,
         forceRefresh: Boolean = false
     ): String? {
+        // If not force refreshing, check if a valid cached URL is already available
+        if (!forceRefresh) {
+            val cached = innertubeApi.getCachedStreamUrl(videoId)
+            if (!cached.isNullOrBlank()) {
+                Log.d("PlaybackSourceResolver", "Returning cached stream URL for $videoId")
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(cached, isLocalFile = false)
+                return cached
+            }
+        }
+
         if (!isNetworkAvailable()) {
             Log.e("PlaybackSourceResolver", "Offline, cannot play online song: $videoId")
             setCustomError?.invoke("No internet connection. Cannot stream song.")
@@ -169,7 +179,10 @@ class PlaybackSourceResolver @Inject constructor(
             ?: return false
         val network = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-               caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        // Checking NET_CAPABILITY_INTERNET ensures we have network interface access.
+        // We do NOT strictly demand NET_CAPABILITY_VALIDATED because on mobile data,
+        // Wi-Fi handover, or aggressive OEM battery saver modes (e.g. ColorOS/RealmeUI),
+        // VALIDATED may be false or delayed even when socket connections succeed.
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 }

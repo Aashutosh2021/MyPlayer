@@ -37,6 +37,13 @@ class RecommendationQueueManager @Inject constructor(
 
     fun updateSession(seed: RecommendationSeed) {
         val isNewSeed = session != null && session?.seedSong?.songId != seed.songId
+        // Check if this song was served as a recommendation or was queued in this session
+        val isContinuationOfSession = seed.songId.isNotBlank() && (
+            history.hasBeenServed(seed.songId) ||
+            queue.contains(seed.songId) ||
+            recentPlaybackWindow.contains(seed.songId)
+        )
+
         if (session == null) {
             logger.logEvent("SessionStarted", mapOf("seedSongId" to seed.songId))
             session = RecommendationSession(seedSong = seed)
@@ -44,22 +51,31 @@ class RecommendationQueueManager @Inject constructor(
             history.clear()
             recentPlaybackWindow.clear()
         } else {
-            logger.logEvent("SessionUpdated", mapOf("newSeedSongId" to seed.songId))
             session?.seedSong = seed
-            
-            // Validate TTL or seed change
-            if (isNewSeed || queue.isExpired(QUEUE_TTL_MS)) {
-                if (isNewSeed) {
-                    logger.log("New seed song detected (${seed.songId}), refreshing recommendation queue")
-                } else {
-                    logger.logEvent("QueueExpired", mapOf("ttlMs" to QUEUE_TTL_MS))
-                }
+
+            // If the queue has expired (15m TTL), clear expired entries
+            if (queue.isExpired(QUEUE_TTL_MS)) {
+                logger.logEvent("QueueExpired", mapOf("ttlMs" to QUEUE_TTL_MS))
                 val sizeBeforeClear = queue.size()
                 queue.clear()
                 health.recordExpiredEntries(sizeBeforeClear)
+            } else if (isNewSeed && !isContinuationOfSession) {
+                // User explicitly selected an unrelated song from outside the recommendation stream.
+                // Reset the queue for the new seed.
+                logger.log("Manual new seed song detected (${seed.songId}), refreshing recommendation queue")
+                val sizeBeforeClear = queue.size()
+                queue.clear()
+                health.recordExpiredEntries(sizeBeforeClear)
+            } else {
+                // Continuation of recommendation autoplay — preserve existing recommendations in queue!
+                // Simply remove the newly started song so it isn't recommended again.
+                if (seed.songId.isNotBlank()) {
+                    queue.remove(seed.songId)
+                }
+                logger.log("Continuing recommendation session with ${queue.size()} tracks remaining in queue")
             }
         }
-        
+
         if (seed.songId.isNotBlank()) {
             recentPlaybackWindow.add(seed.songId)
             history.recordState(seed.songId, RecommendationHistoryState.PLAYED)
