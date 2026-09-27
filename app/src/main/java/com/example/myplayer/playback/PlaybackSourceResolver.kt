@@ -185,4 +185,22 @@ class PlaybackSourceResolver @Inject constructor(
         // VALIDATED may be false or delayed even when socket connections succeed.
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
+
+    fun prefetchVisibleStreams(videoIds: List<String>) {
+        innertubeApi.prefetchVisibleStreams(videoIds)
+    }
+
+    fun prefetchSongs(requests: List<PlayRequest>) {
+        val onlineVideoIds = requests.mapNotNull { req ->
+            val uri = req.localUri ?: req.songId
+            if (req.playbackSource == PlaybackSourceType.ONLINE || uri.startsWith("online://")) {
+                uri.removePrefix("online://")
+            } else if (req.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) && req.playbackSource != PlaybackSourceType.LOCAL) {
+                req.songId
+            } else null
+        }
+        if (onlineVideoIds.isNotEmpty()) {
+            innertubeApi.prefetchVisibleStreams(onlineVideoIds)
+        }
+    }
 }

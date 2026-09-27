@@ -5,6 +5,9 @@ import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.security.StringEncryptionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -87,15 +90,23 @@ class InnertubeApi @Inject constructor(
     /**
      * Search YouTube Music for songs matching [query].
      * @param continuationToken Pass the previous page's token to load more results.
+     * @param filtered When true (default), filters strictly for YouTube Music curated "Songs" catalog.
+     *                 When false, searches YouTube Music top results without params filter (broadened fallback).
      */
-    suspend fun search(query: String, continuationToken: String? = null): SearchPage = withContext(Dispatchers.IO) {
+    suspend fun search(
+        query: String,
+        continuationToken: String? = null,
+        filtered: Boolean = true
+    ): SearchPage = withContext(Dispatchers.IO) {
         try {
             val bodyJson = JSONObject(CLIENT_CONTEXT).apply {
                 if (continuationToken != null) {
                     put("continuation", continuationToken)
                 } else {
                     put("query", query)
-                    put("params", "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D") // filter: songs only
+                    if (filtered) {
+                        put("params", "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D") // filter: songs only
+                    }
                 }
             }
 
@@ -113,7 +124,7 @@ class InnertubeApi @Inject constructor(
 
             parseSearchResponse(body)
         } catch (e: Exception) {
-            Log.e(TAG, "Search failed for '$query'", e)
+            Log.e(TAG, "Search failed for '$query' (filtered=$filtered)", e)
             SearchPage(emptyList(), null)
         }
     }
@@ -446,7 +457,55 @@ class InnertubeApi @Inject constructor(
     private val streamUrlCache = java.util.concurrent.ConcurrentHashMap<String, CachedStream>()
     private val inFlightResolutions = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Deferred<String?>>()
     private val extractionScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+    private val prefetchJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+    private val prefetchSemaphore = Semaphore(3)
     private val CACHE_TTL_MS = 2 * 60 * 60 * 1000L // 2 hours
+
+    /**
+     * Prefetches audio stream URLs for visible song list items (capped at 3 concurrent extractions).
+     * Automatically cancels in-flight prefetches for items that have scrolled off-screen.
+     * Reuses existing cache, TTL, and single-flight resolution in getStreamUrl().
+     */
+    fun prefetchVisibleStreams(videoIds: List<String>) {
+        val cleanIds = videoIds
+            .map { it.removePrefix("online://").trim() }
+            .filter { it.isNotBlank() && !it.startsWith("http") }
+            .distinct()
+            .take(5)
+
+        // Cancel prefetches for songs that scrolled off-screen
+        val toCancel = prefetchJobs.keys - cleanIds.toSet()
+        for (offScreenId in toCancel) {
+            prefetchJobs.remove(offScreenId)?.cancel()
+        }
+
+        // Trigger prefetch for visible items not yet cached or running
+        for (videoId in cleanIds) {
+            if (getCachedStreamUrl(videoId) != null) continue
+            if (prefetchJobs[videoId]?.isActive == true) continue
+
+            val job = extractionScope.launch {
+                try {
+                    prefetchSemaphore.withPermit {
+                        if (getCachedStreamUrl(videoId) == null) {
+                            Log.d(TAG, "Prefetching stream for visible item: $videoId")
+                            getStreamUrl(videoId, forceRefresh = false)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore cancellations or transient prefetch failures
+                } finally {
+                    prefetchJobs.remove(videoId)
+                }
+            }
+            prefetchJobs[videoId] = job
+        }
+    }
+
+    fun cancelAllPrefetches() {
+        prefetchJobs.values.forEach { it.cancel() }
+        prefetchJobs.clear()
+    }
 
     /**
      * Returns the cached stream URL if available and not expired.
