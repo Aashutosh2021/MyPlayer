@@ -47,10 +47,10 @@ fun RadialAudioController(
     positionMs: Long,
     durationMs: Long,
     isPlaying: Boolean,
-    isFavorite: Boolean,
     onPlayPauseClick: () -> Unit,
     onSeek: (Long) -> Unit,
-    onToggleFavorite: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     dialSize: Dp = 250.dp
 ) {
@@ -254,27 +254,29 @@ fun RadialAudioController(
             )
         }
 
-        // ── Apex Favorite Heart (Top center of the circular dial) ─────────────
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-4).dp)
-                .size(36.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onToggleFavorite
+        // ── Apex Favorite Heart (Top center of the circular dial, if provided) ─────────────
+        if (onToggleFavorite != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-4).dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onToggleFavorite
+                    )
+                    .scale(heartScale),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
                 )
-                .scale(heartScale),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                contentDescription = "Favorite",
-                tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
+            }
         }
 
         // ── Central Play/Pause Button (Hero neon lime circle) ─────────────────

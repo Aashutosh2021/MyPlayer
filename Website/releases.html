@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#12160E" />
+  <meta name="description" content="MyPlayer Release Archive - Complete version history, release notes, and APK download links for all MyPlayer releases." />
+  <title>MyPlayer - Releases & Changelog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="page-releases">
+  <!-- Header Navigation -->
+  <header class="site-header">
+    <a class="brand" href="index.html#top" aria-label="MyPlayer home">
+      <img src="logo.png" alt="MyPlayer Logo" class="brand-logo" />
+      <span>MyPlayer</span>
+      <span class="badge-version">v3.4</span>
+    </a>
+
+    <nav class="nav">
+      <a href="index.html#spotlight">Innovations</a>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#screenshots">Screenshots</a>
+      <a href="index.html#architecture">Tech Stack</a>
+      <a href="releases.html" class="nav-highlight active">
+        <span class="nav-release-dot"></span>Releases
+      </a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer" target="_blank" rel="noopener" class="nav-github">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+      <a class="nav-download" href="releases.html#v3.4">DOWNLOAD APK</a>
+    </nav>
+
+    <button class="menu-btn" aria-label="Open menu" aria-expanded="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+  </header>
+
+  <main>
+    <!-- Releases Header -->
+    <section class="releases-hero">
+      <div class="releases-hero-content">
+        <a href="index.html" class="back-link">&larr; Back to Overview</a>
+        <div class="pill-tag"><span class="pulse-dot"></span> OFFICIAL GITHUB RELEASES</div>
+        <h1>Version History &<br><span class="glow-text">Changelogs</span></h1>
+        <p class="releases-hero-desc">
+          Browse the complete release timeline of MyPlayer. Download official signed APKs directly from GitHub Releases,
+          inspect tag commits, and review release highlights for every version.
+        </p>
+
+        <!-- Search & Filter Controls -->
+        <div class="releases-toolbar">
+          <div class="release-search-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="releaseSearchInput" placeholder="Filter by version or keyword (e.g. Sync Play, Stitch UI, v3.3)..." aria-label="Filter releases" />
+          </div>
+
+          <div class="release-stats">
+            <span class="stat-pill" id="releaseCountBadge">5 Releases Published</span>
+            <a href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener" class="github-releases-btn">
+              <span>View on GitHub</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Release Cards Timeline (Chronological Order: Newest to Oldest) -->
+    <section class="releases-container" id="releasesList">
+
+      <!-- Release 1: v3.4 (Latest) -->
+      <article class="release-card latest" id="v3.4" data-version="v3.4 vesrion3.4 3.4" data-tags="prefetching deep discovery search cache responsive instant playback">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.4</span>
+            <span class="status-badge latest-badge">LATEST STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              September 27, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/vesrion3.4" target="_blank" rel="noopener">
+            <span>tag: vesrion3.4</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.4 &bull; Instant Online Playback & Deep Catalog Discovery</h2>
+
+        <p class="release-summary">
+          This milestone update eliminates online playback latency through proactive stream prefetching, unlocks complete artist catalogs, and enhances network resilience with smart caching.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Instant Online Playback:</strong> Eliminated noticeable 3-4 second startup delays via proactive visible-item audio stream URL resolution and background cache preheating.</li>
+            <li><strong>Deep Catalog Discovery:</strong> Comprehensive YouTube Music scraping unlocking rare, regional, and alternate track variants.</li>
+            <li><strong>Strict Concurrency Throttling:</strong> Coroutine semaphores cap concurrent extractions to 3 items to preserve bandwidth and battery life.</li>
+            <li><strong>Search Cache & Offline Tolerance:</strong> Cached search queries with TTL to avoid redundant network hits and protect against transient dropouts.</li>
+            <li><strong>Queue Index Synchronization:</strong> Fixed playlist skip mismatches and title desynchronization during rapid track hopping.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer-v3.4.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 80.8 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/download/vesrion3.4/MyPlayer-v3.4.apk">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/vesrion3.4" target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Release 2: v3.3.5 -->
+      <article class="release-card" id="v3.3.5" data-version="v3.3.5 version3.3.5 3.3.5" data-tags="sync play socket transport reconnect recovery diagnostics resilience">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.3.5</span>
+            <span class="status-badge">STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              September 25, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.3.5" target="_blank" rel="noopener">
+            <span>tag: version3.3.5</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.3.5 &bull; Resilient Multi-Device Sync Play & Transport Recovery</h2>
+
+        <p class="release-summary">
+          Targeted release hardening the Sync Play networking layer with automatic socket reconnection, non-blocking accept loops, and real-time visual connection diagnostics.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Continuous Host Accept Loop:</strong> Host socket remains permanently open so disconnected clients can seamlessly rejoin rooms without host recreation.</li>
+            <li><strong>Automatic Stream Recovery:</strong> If local Wi-Fi drops, clients automatically reconnect and synchronize playback clocks within milliseconds.</li>
+            <li><strong>Live Connection Diagnostics:</strong> Visual indicators show current room status, connected peers, and transport health in real time.</li>
+            <li><strong>Sub-Millisecond Clock Sync:</strong> Refined NTP-inspired barrier timestamps for tight synchronized playback between devices.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer-v3.3.5.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 80.4 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/download/version3.3.5/MyPlayer-v3.3.5.apk">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.3.5" target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Release 3: v3.3 -->
+      <article class="release-card" id="v3.3" data-version="v3.3 version3.3 3.3" data-tags="sync play launch multi-device lyrics editor nsd auto discovery">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.3</span>
+            <span class="status-badge">STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              September 25, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.3" target="_blank" rel="noopener">
+            <span>tag: version3.3</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.3 &bull; Sync Play Launch & Custom Lyrics Editor</h2>
+
+        <p class="release-summary">
+          Major feature milestone bringing synchronized multi-device playback across local Wi-Fi, manual lyrics authoring, and queue stability refinements.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Sync Play Introduced:</strong> Play music in perfect sync across multiple phones and tablets over local Wi-Fi.</li>
+            <li><strong>Network Service Discovery (NSD):</strong> Auto-discovery of active host rooms without entering manual IP addresses.</li>
+            <li><strong>Direct IP & Port Join:</strong> Option to join rooms by typing host IP address directly.</li>
+            <li><strong>Custom Lyrics Editor:</strong> Manual creation, editing, and deletion of custom time-stamped LRC files with local caching.</li>
+            <li><strong>Artwork Match Safeguard:</strong> Fixed occasional title and album artwork desynchronization during playlist skips.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer-v3.3.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 80.4 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/download/version3.3/MyPlayer-v3.3.apk">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.3" target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Release 4: v3.2 -->
+      <article class="release-card" id="v3.2" data-version="v3.2 version3.2 3.2" data-tags="stitch ui radial seek dark olive lime auto updater profile">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.2</span>
+            <span class="status-badge">STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              September 24, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.2" target="_blank" rel="noopener">
+            <span>tag: version3.2</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.2 &bull; Auto-Updater & Next-Gen Stitch Experience</h2>
+
+        <p class="release-summary">
+          Total redesign inspired by the Stitch design specification, introducing the signature 270° radial audio controller, in-app GitHub releases updater, and personalized user profile.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Brand-New Stitch UI:</strong> Complete visual overhaul featuring Dark Olive backgrounds (<code style="color:var(--accent)">#12160E</code>) and Electric Neon Lime accents (<code style="color:var(--accent)">#D2F83A</code>).</li>
+            <li><strong>Signature 270° Radial Audio Controller:</strong> Replaced linear sliders with an organic circular touch seek arc and concentric soundwave aura rings.</li>
+            <li><strong>Automated In-App Updates:</strong> AndroidX WorkManager checks GitHub releases every 6 hours with 1-tap in-app APK installation.</li>
+            <li><strong>Personalized User Profile:</strong> Display name customization backed persistently by Jetpack DataStore.</li>
+            <li><strong>High-Fidelity Audio Badges:</strong> Real-time Lossless and Hi-Res pills displaying bit depth, sample rate, and codec format.</li>
+            <li><strong>Docked Navigation:</strong> Floating capsule navigation bar and mini-player anchored inside Scaffold's bottomBar.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer-v3.2.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 80.0 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/download/version3.2/MyPlayer-v3.2.apk">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.2" target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Release 5: v3.0 -->
+      <article class="release-card" id="v3.0" data-version="v3.0 Second 3.0" data-tags="v3.0 initial milestone lrclib dual bud artwork hd deezer itunes">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.0</span>
+            <span class="status-badge">STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              June 23, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/Second" target="_blank" rel="noopener">
+            <span>tag: Second</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.0 &bull; Studio HD Artwork, Synced Lyrics & Dual Bud Mode</h2>
+
+        <p class="release-summary">
+          Foundational major milestone establishing MyPlayer's modern architecture, 1000×1000 studio HD cover resolver, real-time synchronized lyrics, and dual-channel earbud playback.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Studio 1000×1000 HD Artwork:</strong> Multi-tier resolver querying iTunes Search API and Deezer API for uncompressed album art.</li>
+            <li><strong>LRCLIB Synced Lyrics:</strong> Millisecond-synchronized lyrics clock with line scrubbing and smooth auto-scroll.</li>
+            <li><strong>Dual Bud Mode:</strong> Low-level stereo channel splitting playing two independent tracks into Left and Right earbuds.</li>
+            <li><strong>Hybrid ExoPlayer Engine:</strong> Seamless switching between local device media and online streams.</li>
+            <li><strong>Room Database & Backup:</strong> Offline library caching with full JSON export and restore capabilities.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 79.5 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/download/Second/MyPlayer.apk">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/Second" target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- Empty State for Search Filter -->
+    <div id="noReleasesFound" class="no-releases" style="display: none;">
+      <p class="no-releases-icon">🔍</p>
+      <h3>No releases match your search.</h3>
+      <p>Try searching for a different version number (e.g. <code>v3.4</code>) or feature keyword (e.g. <code>Sync Play</code>).</p>
+      <button class="secondary-btn" id="resetSearchBtn">Clear Search Filter</button>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <img src="logo.png" alt="MyPlayer Logo" class="brand-logo" />
+        <span>MyPlayer</span>
+      </div>
+      <p class="footer-tagline">Your music, your way. High-fidelity Android audio engineered with Kotlin & Jetpack Compose.</p>
+      <div class="footer-badges">
+        <span class="footer-badge">MIT Licensed</span>
+        <span class="footer-badge">Android 8.0+</span>
+        <span class="footer-badge">100% Kotlin</span>
+      </div>
+    </div>
+
+    <div class="footer-column">
+      <h4>Navigation</h4>
+      <a href="index.html#top">Home Overview</a>
+      <a href="index.html#spotlight">Innovations</a>
+      <a href="index.html#features">All Features</a>
+      <a href="index.html#screenshots">Screenshots</a>
+      <a href="index.html#architecture">Tech Stack</a>
+    </div>
+
+    <div class="footer-column">
+      <h4>Releases & Project</h4>
+      <a href="releases.html">All Version Releases</a>
+      <a href="releases.html#v3.4">Latest Release (v3.4)</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener">GitHub Releases</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer" target="_blank" rel="noopener">Source Code</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer/issues" target="_blank" rel="noopener">Report Issue</a>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="script.js"></script>
+</body>
+</html>

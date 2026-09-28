@@ -6,9 +6,15 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.media3.common.PlaybackException
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,15 +32,27 @@ enum class PlaybackErrorType {
 @Singleton
 class PlaybackErrorHandler internal constructor(
     private val context: Context?,
-    var networkOverride: Boolean? = null
+    var networkOverride: Boolean? = null,
+    private val playbackRouter: dagger.Lazy<PlaybackRouter>? = null
 ) {
     @Inject
-    constructor(@ApplicationContext context: Context) : this(context as Context?, null)
+    constructor(
+        @ApplicationContext context: Context,
+        playbackRouter: dagger.Lazy<PlaybackRouter>
+    ) : this(context as Context?, null, playbackRouter)
 
-    constructor() : this(null, true)
+    constructor(context: Context?) : this(context, null, null)
+
+    constructor(context: Context?, networkOverride: Boolean?) : this(context, networkOverride, null)
+
+    constructor() : this(null, true, null)
 
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
+    private var consecutiveFailures = 0
+    private var retryJob: Job? = null
+    private val retryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun isNetworkAvailable(): Boolean {
         networkOverride?.let { return it }
@@ -96,13 +114,80 @@ class PlaybackErrorHandler internal constructor(
         }
     }
 
-    fun handleError(error: PlaybackException, hasNextItem: Boolean, isOnline: Boolean = false): String {
+    fun handleError(
+        error: PlaybackException,
+        hasNextItem: Boolean,
+        isOnline: Boolean = false,
+        videoId: String? = null
+    ): String {
         Log.w("PlaybackErrorHandler", "Player error: ${error.errorCodeName} (code=${error.errorCode}) isOnline=$isOnline")
         val userMessage = classifyError(error, isOnline)
-        
-        if (!hasNextItem) {
-            _playbackError.value = userMessage
+        val errorType = getErrorType(error, isOnline)
+
+        val isNetworkOrStreamError = isOnline && (
+            errorType == PlaybackErrorType.STREAM_EXPIRED ||
+            errorType == PlaybackErrorType.NETWORK_UNAVAILABLE ||
+            errorType == PlaybackErrorType.STREAM_RESOLUTION_FAILED ||
+            errorType == PlaybackErrorType.NETWORK_TIMEOUT
+        )
+
+        if (isNetworkOrStreamError) {
+            consecutiveFailures++
+            Log.w("PlaybackErrorHandler", "Consecutive network/stream failures: $consecutiveFailures")
+        } else {
+            consecutiveFailures = 0
         }
+
+        // Do NOT set _playbackError.value on the first network/stream error
+        val isFirstNetworkFailure = isNetworkOrStreamError && consecutiveFailures <= 1
+
+        if (!hasNextItem) {
+            if (!isFirstNetworkFailure) {
+                _playbackError.value = userMessage
+            } else {
+                Log.i("PlaybackErrorHandler", "Suppressing UI error on first network/stream failure to prevent killing UI")
+            }
+
+            // Auto-retry mechanism: if STREAM_EXPIRED or NETWORK_UNAVAILABLE and no next item,
+            // wait 2 seconds and attempt to call PlaybackRouter to resolve a fresh stream URL before giving up.
+            if (errorType == PlaybackErrorType.STREAM_EXPIRED || errorType == PlaybackErrorType.NETWORK_UNAVAILABLE) {
+                retryJob?.cancel()
+                retryJob = retryScope.launch {
+                    try {
+                        delay(2000L)
+                        val router = playbackRouter?.get()
+                        if (router != null) {
+                            Log.i("PlaybackErrorHandler", "Auto-retry: Attempting PlaybackRouter resolution after 2s delay (videoId=$videoId)")
+                            val success = if (!videoId.isNullOrBlank()) {
+                                val freshUrl = router.resolveFreshStreamUrl(videoId)
+                                !freshUrl.isNullOrBlank() || router.retryCurrentTrack()
+                            } else {
+                                router.retryCurrentTrack()
+                            }
+
+                            if (success) {
+                                Log.i("PlaybackErrorHandler", "Auto-retry via PlaybackRouter succeeded")
+                                consecutiveFailures = 0
+                                _playbackError.value = null
+                            } else {
+                                Log.w("PlaybackErrorHandler", "Auto-retry via PlaybackRouter failed. Setting playback error.")
+                                _playbackError.value = userMessage
+                            }
+                        } else {
+                            if (isFirstNetworkFailure) {
+                                _playbackError.value = userMessage
+                            }
+                        }
+                    } catch (e: Exception) {
+                        if (e !is kotlinx.coroutines.CancellationException) {
+                            Log.e("PlaybackErrorHandler", "Auto-retry failed with exception", e)
+                            _playbackError.value = userMessage
+                        }
+                    }
+                }
+            }
+        }
+
         return userMessage
     }
 
@@ -112,5 +197,8 @@ class PlaybackErrorHandler internal constructor(
 
     fun clearPlaybackError() {
         _playbackError.value = null
+        consecutiveFailures = 0
+        retryJob?.cancel()
+        retryJob = null
     }
 }

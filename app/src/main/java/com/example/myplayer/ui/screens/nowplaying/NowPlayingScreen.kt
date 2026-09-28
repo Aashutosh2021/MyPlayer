@@ -418,6 +418,46 @@ fun NowPlayingScreen(
                         }
                     }
                 }
+
+                // Favorite Heart Button (moved to action row to prevent overlapping radial controller)
+                if (hasSong) {
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (isFavorite) 1.15f else 1.0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "heartScale"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .graphicsLayer {
+                                scaleX = heartScale
+                                scaleY = heartScale
+                            }
+                            .clip(CircleShape)
+                            .background(if (isFavorite) NeonLimePrimary.copy(alpha = 0.15f) else SurfaceLight)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (isFavorite) NeonLimePrimary.copy(alpha = 0.6f) else CardBorderOlive
+                                ),
+                                CircleShape
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onToggleFavorite
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                            tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -430,9 +470,7 @@ fun NowPlayingScreen(
                 durationMs = duration,
                 isPlaying = isPlaying,
                 onSeek = onSeek,
-                onPlayPauseClick = onPlayPauseClick,
-                isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite
+                onPlayPauseClick = onPlayPauseClick
             )
 
             Spacer(Modifier.height(16.dp))
@@ -536,9 +574,7 @@ private fun IsolatedPlaybackControls(
     durationMs: Long,
     isPlaying: Boolean,
     onSeek: (Long) -> Unit,
-    onPlayPauseClick: () -> Unit,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit
+    onPlayPauseClick: () -> Unit
 ) {
     RadialAudioController(
         positionMs = positionState.value,
@@ -546,8 +582,6 @@ private fun IsolatedPlaybackControls(
         isPlaying = isPlaying,
         onSeek = onSeek,
         onPlayPauseClick = onPlayPauseClick,
-        isFavorite = isFavorite,
-        onToggleFavorite = onToggleFavorite,
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }
