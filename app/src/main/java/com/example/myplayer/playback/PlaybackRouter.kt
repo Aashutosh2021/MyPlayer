@@ -41,6 +41,9 @@ class PlaybackRouter @Inject constructor(
     private var activePlayJob: Job? = null
     private var prefetchJob: Job? = null
     private var currentRequests: List<PlayRequest> = emptyList()
+    private var lastScope: CoroutineScope? = null
+    private var lastDelegate: PlaybackRouterDelegate? = null
+    private var lastIndex: Int = 0
 
     private fun isOnlineRequest(request: PlayRequest): Boolean {
         return request.playbackSource == PlaybackSourceType.ONLINE ||
@@ -58,6 +61,11 @@ class PlaybackRouter @Inject constructor(
     ) {
         activePlayJob?.cancel()
         prefetchJob?.cancel()
+        lastScope = scope
+        lastDelegate = delegate
+        currentRequests = listOf(request)
+        lastIndex = 0
+
         val isOnline = isOnlineRequest(request)
         if (isOnline) {
             _isResolving.value = true
@@ -65,32 +73,36 @@ class PlaybackRouter @Inject constructor(
             delegate.onStreamResolving(request)
         }
         activePlayJob = scope.launch {
-            val resolvedPath = sourceResolver.resolve(request) { err ->
-                delegate.setCustomError(err)
-            }
-            if (resolvedPath == null) {
+            try {
+                val resolvedPath = sourceResolver.resolve(request) { err ->
+                    delegate.setCustomError(err)
+                }
+                if (resolvedPath == null) {
+                    if (isOnline) {
+                        playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
+                    }
+                    return@launch
+                }
+
+                if (isOnline) {
+                    playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
+                }
+
+                val mediaItem = mediaItemFactory.createMediaItem(
+                    songId = request.songId,
+                    path = resolvedPath,
+                    title = request.title,
+                    artist = request.artist,
+                    albumArt = request.albumArt
+                )
+
+                withContext(Dispatchers.Main) {
+                    delegate.prepareMediaItems(listOf(mediaItem), 0, startPositionMs, onPrepared)
+                }
+            } finally {
                 if (isOnline) {
                     _isResolving.value = false
-                    playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
                 }
-                return@launch
-            }
-
-            if (isOnline) {
-                _isResolving.value = false
-                playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
-            }
-
-            val mediaItem = mediaItemFactory.createMediaItem(
-                songId = request.songId,
-                path = resolvedPath,
-                title = request.title,
-                artist = request.artist,
-                albumArt = request.albumArt
-            )
-
-            withContext(Dispatchers.Main) {
-                delegate.prepareMediaItems(listOf(mediaItem), 0, startPositionMs, onPrepared)
             }
         }
     }
@@ -105,8 +117,11 @@ class PlaybackRouter @Inject constructor(
         if (requests.isEmpty()) return
         activePlayJob?.cancel()
         prefetchJob?.cancel()
+        lastScope = scope
+        lastDelegate = delegate
         currentRequests = requests
         val clampedIndex = startIndex.coerceIn(0, requests.size - 1)
+        lastIndex = clampedIndex
         val currentRequest = requests[clampedIndex]
         val isOnline = isOnlineRequest(currentRequest)
 
@@ -123,70 +138,110 @@ class PlaybackRouter @Inject constructor(
         }
 
         activePlayJob = scope.launch {
-            var resolutionError: String? = null
-            // 1. Resolve current request path immediately
-            val currentPath = sourceResolver.resolve(currentRequest) { err ->
-                resolutionError = err
-            }
-            if (currentPath == null) {
-                if (isOnline) {
-                    _isResolving.value = false
-                    playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
+            try {
+                var resolutionError: String? = null
+                // 1. Resolve current request path immediately
+                val currentPath = sourceResolver.resolve(currentRequest) { err ->
+                    resolutionError = err
                 }
-                withContext(Dispatchers.Main) {
-                    delegate.onStreamResolutionFailed(
-                        currentRequest,
-                        resolutionError ?: "Failed to resolve stream URL"
-                    )
-                }
-                return@launch
-            }
-
-            if (isOnline) {
-                _isResolving.value = false
-                playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
-            }
-
-            // 2. Build MediaItem for the current song
-            val currentMediaItem = mediaItemFactory.createMediaItem(
-                songId = currentRequest.songId,
-                path = currentPath,
-                title = currentRequest.title,
-                artist = currentRequest.artist,
-                albumArt = currentRequest.albumArt
-            )
-
-            // CRITICAL: NEVER pass unresolvable "online://" items to ExoPlayer!
-            val hasOnlineItems = requests.any {
-                it.playbackSource == PlaybackSourceType.ONLINE ||
-                it.localUri?.startsWith("online://") == true ||
-                it.localUri?.startsWith("http") == true
-            } || currentPath.startsWith("http")
-
-            val mediaItems = if (hasOnlineItems || requests.size <= 1) {
-                listOf(currentMediaItem)
-            } else {
-                requests.mapIndexed { i, r ->
-                    if (i == clampedIndex) {
-                        currentMediaItem
-                    } else {
-                        mediaItemFactory.createMediaItem(
-                            songId = r.songId,
-                            path = r.localUri ?: "",
-                            title = r.title,
-                            artist = r.artist,
-                            albumArt = r.albumArt
+                if (currentPath == null) {
+                    if (isOnline) {
+                        playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
+                    }
+                    withContext(Dispatchers.Main) {
+                        delegate.onStreamResolutionFailed(
+                            currentRequest,
+                            resolutionError ?: "Failed to resolve stream URL"
                         )
                     }
+                    return@launch
+                }
+
+                if (isOnline) {
+                    playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
+                }
+
+                // 2. Build MediaItem for the current song
+                val currentMediaItem = mediaItemFactory.createMediaItem(
+                    songId = currentRequest.songId,
+                    path = currentPath,
+                    title = currentRequest.title,
+                    artist = currentRequest.artist,
+                    albumArt = currentRequest.albumArt
+                )
+
+                // CRITICAL: NEVER pass unresolvable "online://" items to ExoPlayer!
+                val hasOnlineItems = requests.any {
+                    it.playbackSource == PlaybackSourceType.ONLINE ||
+                    it.localUri?.startsWith("online://") == true ||
+                    it.localUri?.startsWith("http") == true
+                } || currentPath.startsWith("http")
+
+                val mediaItems = if (hasOnlineItems || requests.size <= 1) {
+                    listOf(currentMediaItem)
+                } else {
+                    requests.mapIndexed { i, r ->
+                        if (i == clampedIndex) {
+                            currentMediaItem
+                        } else {
+                            mediaItemFactory.createMediaItem(
+                                songId = r.songId,
+                                path = r.localUri ?: "",
+                                title = r.title,
+                                artist = r.artist,
+                                albumArt = r.albumArt
+                            )
+                        }
+                    }
+                }
+
+                val targetIndex = if (hasOnlineItems || requests.size <= 1) 0 else clampedIndex
+
+                withContext(Dispatchers.Main) {
+                    delegate.playMediaItems(mediaItems, targetIndex)
+                }
+            } finally {
+                if (isOnline) {
+                    _isResolving.value = false
                 }
             }
-
-            val targetIndex = if (hasOnlineItems || requests.size <= 1) 0 else clampedIndex
-
-            withContext(Dispatchers.Main) {
-                delegate.playMediaItems(mediaItems, targetIndex)
-            }
         }
+    }
+
+    suspend fun resolveFreshStreamUrl(videoId: String): String? {
+        return sourceResolver.resolveFreshStreamUrl(videoId)
+    }
+
+    suspend fun retryCurrentTrack(): Boolean {
+        val delegate = lastDelegate ?: return false
+        val scope = lastScope ?: return false
+        val requests = currentRequests
+        val index = lastIndex
+        if (requests.isEmpty() || index !in requests.indices) return false
+
+        val currentReq = requests[index]
+        val rawUri = currentReq.localUri ?: currentReq.songId
+        val videoId = if (rawUri.startsWith("online://")) {
+            rawUri.removePrefix("online://")
+        } else if (currentReq.songId.startsWith("online://")) {
+            currentReq.songId.removePrefix("online://")
+        } else if (currentReq.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+            currentReq.songId
+        } else {
+            currentReq.metadata["videoId"]
+        } ?: return false
+
+        val freshUrl = sourceResolver.resolveFreshStreamUrl(videoId)
+        if (freshUrl.isNullOrBlank()) return false
+
+        val freshRequest = currentReq.copy(streamUrl = freshUrl, localUri = freshUrl)
+        val updatedRequests = requests.toMutableList().apply {
+            this[index] = freshRequest
+        }
+        withContext(Dispatchers.Main) {
+            play(scope, delegate, updatedRequests, index)
+        }
+        return true
     }
 
     fun onTrackTransition(
@@ -196,6 +251,9 @@ class PlaybackRouter @Inject constructor(
     ) {
         if (currentIndex !in currentRequests.indices) return
         val currentReq = currentRequests[currentIndex]
+        lastScope = scope
+        lastDelegate = delegate
+        lastIndex = currentIndex
 
         prefetchJob?.cancel()
         prefetchJob = scope.launch(Dispatchers.Main) {
@@ -207,22 +265,25 @@ class PlaybackRouter @Inject constructor(
                 _isResolving.value = true
                 playbackStateManager.updateMachineState(PlaybackMachineState.RESOLVING)
                 delegate.onStreamResolving(currentReq)
-                val resolvedPath = withContext(Dispatchers.IO) {
-                    sourceResolver.resolve(currentReq) { err ->
-                        delegate.setCustomError(err)
+                try {
+                    val resolvedPath = withContext(Dispatchers.IO) {
+                        sourceResolver.resolve(currentReq) { err ->
+                            delegate.setCustomError(err)
+                        }
                     }
-                }
-                _isResolving.value = false
-                if (resolvedPath != null && resolvedPath != currentUri) {
-                    playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
-                    val resolvedItem = mediaItemFactory.createMediaItem(
-                        songId = currentReq.songId,
-                        path = resolvedPath,
-                        title = currentReq.title,
-                        artist = currentReq.artist,
-                        albumArt = currentReq.albumArt
-                    )
-                    delegate.replaceMediaItem(currentIndex, resolvedItem)
+                    if (resolvedPath != null && resolvedPath != currentUri) {
+                        playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
+                        val resolvedItem = mediaItemFactory.createMediaItem(
+                            songId = currentReq.songId,
+                            path = resolvedPath,
+                            title = currentReq.title,
+                            artist = currentReq.artist,
+                            albumArt = currentReq.albumArt
+                        )
+                        delegate.replaceMediaItem(currentIndex, resolvedItem)
+                    }
+                } finally {
+                    _isResolving.value = false
                 }
             }
 

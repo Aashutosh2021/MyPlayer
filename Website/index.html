@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#12160E" />
+  <meta name="description" content="MyPlayer - Next-gen Android music player with multi-device Sync Play, Dual Bud mode, 270° radial audio controls, lossless streaming, and real-time synced lyrics." />
+  <title>MyPlayer - Your Music, Your Way</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header Navigation -->
+  <header class="site-header">
+    <a class="brand" href="index.html#top" aria-label="MyPlayer home">
+      <img src="logo.png" alt="MyPlayer Logo" class="brand-logo" />
+      <span>MyPlayer</span>
+      <span class="badge-version">v3.4</span>
+    </a>
+
+    <nav class="nav">
+      <a href="index.html#spotlight">Innovations</a>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#screenshots">Screenshots</a>
+      <a href="index.html#architecture">Tech Stack</a>
+      <a href="releases.html" class="nav-highlight">
+        <span class="nav-release-dot"></span>Releases
+      </a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer" target="_blank" rel="noopener" class="nav-github">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+      <a class="nav-download" href="#download">DOWNLOAD APK</a>
+    </nav>
+
+    <button class="menu-btn" aria-label="Open menu" aria-expanded="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+  </header>
+
+  <main id="top">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="pill-tag"><span class="pulse-dot"></span> NOW WITH SYNC PLAY & DUAL BUD</div>
+        <h1>Your Music.<br><span class="glow-text">Your Way.</span></h1>
+        <p class="hero-description">
+          A high-performance Android music player built with Kotlin and Jetpack Compose.
+          Experience multi-device synchronized <strong>Sync Play</strong>, dual-channel <strong>Dual Bud</strong> audio splitting,
+          an iconic <strong>270° radial controller</strong>, studio 1000×1000 HD artwork, and synced lyrics — wrapped in a striking Dark Olive & Neon Lime aesthetic.
+        </p>
+
+        <div class="hero-buttons">
+          <a id="heroDownload" class="primary-btn" href="#download">
+            <span>DOWNLOAD LATEST APK</span>
+            <svg class="btn-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </a>
+          <a class="secondary-btn" href="releases.html">
+            <span>ALL RELEASES</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </a>
+        </div>
+
+        <div class="release-status">
+          <span class="status-dot"></span>
+          <span id="releaseText">Checking latest release on GitHub...</span>
+          <a href="releases.html" class="release-link-inline">View Changelog &rarr;</a>
+        </div>
+
+        <div class="hero-trust-badges">
+          <div class="trust-item"><span class="check-icon">&#10003;</span> 100% Free & Open Source</div>
+          <div class="trust-item"><span class="check-icon">&#10003;</span> Zero Advertisements</div>
+          <div class="trust-item"><span class="check-icon">&#10003;</span> No Account Required</div>
+          <div class="trust-item"><span class="check-icon">&#10003;</span> Local + Online Hybrid</div>
+        </div>
+      </div>
+
+      <!-- Hero Visual: Signature Radial Audio Controller Mockup -->
+      <div class="hero-visual" aria-label="MyPlayer Radial Controller Preview">
+        <div class="player-window">
+          <div class="player-top">
+            <div class="mini-brand">
+              <img src="logo.png" alt="Logo" class="mini-logo" />
+              <span>MyPlayer Studio</span>
+              <span class="badge-lossless">LOSSLESS 24-bit/96kHz</span>
+            </div>
+            <div class="window-actions">
+              <span class="action-pill">Wi-Fi Sync</span>
+              <span class="status-pill active">&#9679; HOST #4092</span>
+            </div>
+          </div>
+
+          <div class="player-content-radial">
+            <!-- Concentric Pulse Rings & Radial Arc -->
+            <div class="radial-container">
+              <div class="pulse-ring ring-1"></div>
+              <div class="pulse-ring ring-2"></div>
+              <div class="pulse-ring ring-3"></div>
+
+              <!-- SVG 270deg Radial Seek Track -->
+              <svg class="radial-svg" viewBox="0 0 240 240">
+                <circle cx="120" cy="120" r="94" class="radial-bg-arc"></circle>
+                <circle cx="120" cy="120" r="94" class="radial-progress-arc"></circle>
+              </svg>
+
+              <!-- Center Disc Art with Vinyl Grooves -->
+              <div class="radial-disc">
+                <div class="vinyl-grooves"></div>
+                <div class="disc-core">
+                  <span class="core-symbol">&#9654;</span>
+                </div>
+              </div>
+
+              <!-- Apex Favorite Button -->
+              <button class="apex-heart-btn" aria-label="Favorite" title="Favorite track">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#D2F83A" stroke="#D2F83A" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+              </button>
+            </div>
+
+            <!-- Track Info and Radial Status -->
+            <div class="radial-track-details">
+              <div class="stream-source-badge">
+                <span class="source-dot"></span> YOUTUBE MUSIC HIGH-RES STREAM
+              </div>
+              <h3 class="track-title">Starboy</h3>
+              <p class="track-artist">The Weeknd ft. Daft Punk &bull; 1000&times;1000 Studio Cover</p>
+
+              <!-- Waveform Visualizer -->
+              <div class="waveform" aria-hidden="true">
+                <i style="height:38%"></i><i style="height:70%"></i><i style="height:45%"></i>
+                <i style="height:88%"></i><i style="height:60%"></i><i style="height:95%"></i>
+                <i style="height:52%"></i><i style="height:82%"></i><i style="height:65%"></i>
+                <i style="height:90%"></i><i style="height:48%"></i><i style="height:84%"></i>
+                <i style="height:58%"></i><i style="height:98%"></i><i style="height:72%"></i>
+                <i style="height:86%"></i><i style="height:54%"></i><i style="height:76%"></i>
+                <i style="height:42%"></i><i style="height:68%"></i><i style="height:92%"></i>
+                <i style="height:50%"></i><i style="height:74%"></i><i style="height:62%"></i>
+              </div>
+
+              <!-- Time Row -->
+              <div class="radial-time-row">
+                <span>02:18</span>
+                <span class="radial-percent">68% Scrubbed</span>
+                <span>03:50</span>
+              </div>
+
+              <!-- Playback Controls -->
+              <div class="controls">
+                <button class="ctrl-btn" aria-label="Shuffle" title="Shuffle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+                </button>
+                <button class="ctrl-btn" aria-label="Previous" title="Previous Track">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line></svg>
+                </button>
+                <button class="play" aria-label="Pause" title="Pause">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+                </button>
+                <button class="ctrl-btn" aria-label="Next" title="Next Track">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
+                </button>
+                <button class="ctrl-btn" aria-label="Repeat" title="Repeat">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Feature Badges -->
+          <div class="player-bottom">
+            <div class="feature-pill-badge">
+              <span class="badge-dot-green"></span>
+              <strong>Sync Play:</strong> Room #4092 Active (2 Devices Connected)
+            </div>
+            <div class="feature-pill-badge">
+              <span class="badge-dot-lime"></span>
+              <strong>Dual Bud:</strong> Left: Starboy &bull; Right: Blinding Lights
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Metrics / Pillars Banner -->
+    <section class="metrics-banner">
+      <div class="metric-card">
+        <span class="metric-num">0.0ms</span>
+        <span class="metric-title">Wi-Fi Sync Play</span>
+        <p class="metric-desc">Synchronize music across multiple Android devices over local Wi-Fi with sub-ms accuracy.</p>
+      </div>
+      <div class="metric-card">
+        <span class="metric-num">2 in 1</span>
+        <span class="metric-title">Dual Bud Engine</span>
+        <p class="metric-desc">Play two completely independent songs into Left & Right earbuds simultaneously.</p>
+      </div>
+      <div class="metric-card">
+        <span class="metric-num">1000px</span>
+        <span class="metric-title">Studio HD Art</span>
+        <p class="metric-desc">Multi-tier resolver fetches lossless uncompressed album art across iTunes & Deezer.</p>
+      </div>
+      <div class="metric-card">
+        <span class="metric-num">100%</span>
+        <span class="metric-title">Open & Ad-Free</span>
+        <p class="metric-desc">No ads, no tracking, no subscriptions. Pure Kotlin Clean Architecture.</p>
+      </div>
+    </section>
+
+    <!-- Flagship Innovations Deep Dive -->
+    <section id="spotlight" class="spotlight-section">
+      <div class="section-heading">
+        <p class="eyebrow">FLAGSHIP INNOVATIONS</p>
+        <h2>Game-changing features.<br><span class="glow-text">Found nowhere else.</span></h2>
+        <p class="heading-sub">MyPlayer breaks conventional music player boundaries with audio routing and multi-device capabilities designed for real-world listening.</p>
+      </div>
+
+      <div class="spotlight-grid">
+        <!-- Spotlight 1: Sync Play -->
+        <article class="spotlight-card featured">
+          <div class="spotlight-content">
+            <span class="spotlight-tag">V3.3 BREAKTHROUGH</span>
+            <h3>Sync Play (Multi-Device Synchronized Playback)</h3>
+            <p>
+              Turn your phones, tablets, or family devices into a synchronized surround-sound party setup.
+              Sync Play streams and synchronizes audio playback across multiple Android devices on the same local Wi-Fi network.
+            </p>
+            <ul class="spotlight-list">
+              <li><strong>Zero-Config NSD Auto-Discovery:</strong> Automatically broadcasts and discovers host rooms on the local network without complex setup.</li>
+              <li><strong>Direct IP & Port Join:</strong> Connect directly to any host IP with automatic port scanning and socket fallback.</li>
+              <li><strong>Universal Source Sync:</strong> Seamlessly matches and synchronizes both local MP3/FLAC files and online YouTube Music streams.</li>
+              <li><strong>Unified Playback Control:</strong> Host scrubbing, pausing, and track skipping are instantly mirrored to all client devices with sub-millisecond precision.</li>
+            </ul>
+          </div>
+          <div class="spotlight-visual sync-visual">
+            <div class="sync-node host-node">
+              <div class="node-icon">&#128241;</div>
+              <span class="node-title">Host Device</span>
+              <span class="node-status">Master Clock (192.168.1.45)</span>
+            </div>
+            <div class="sync-waves">
+              <span class="wifi-wave"></span>
+              <span class="wifi-label">Local Wi-Fi Sync</span>
+            </div>
+            <div class="sync-node client-node">
+              <div class="node-icon">&#128241;</div>
+              <span class="node-title">Client Device</span>
+              <span class="node-status">Synchronized Playback</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Spotlight 2: Dual Bud Mode -->
+        <article class="spotlight-card">
+          <div class="spotlight-content">
+            <span class="spotlight-tag">REVOLUTIONARY AUDIO ENGINE</span>
+            <h3>Dual Bud Mode: Two Songs, One Earphone</h3>
+            <p>
+              Sharing your earbuds with a friend or partner on a commute or workout no longer means compromising on music taste.
+              Dual Bud Mode utilizes low-level stereo channel routing to play two entirely separate songs into the Left and Right earbuds simultaneously.
+            </p>
+            <ul class="spotlight-list">
+              <li><strong>Independent Channel Routing:</strong> Left earbud plays Track A while Right earbud plays Track B.</li>
+              <li><strong>Individual Volume Controls:</strong> Each listener adjusts their earbud volume independently without affecting the other.</li>
+              <li><strong>Separate Play/Pause Controls:</strong> Pause, resume, or seek each track independently.</li>
+            </ul>
+          </div>
+          <div class="spotlight-visual dualbud-visual">
+            <div class="earbud left-bud">
+              <span class="bud-tag">LEFT EARBUD</span>
+              <span class="bud-icon">&#127911; L</span>
+              <strong>Track 1: Electronic</strong>
+              <div class="mini-vol-bar"><span style="width: 80%"></span></div>
+            </div>
+            <div class="earbud-divider">VS</div>
+            <div class="earbud right-bud">
+              <span class="bud-tag">RIGHT EARBUD</span>
+              <span class="bud-icon">&#127911; R</span>
+              <strong>Track 2: Acoustic</strong>
+              <div class="mini-vol-bar"><span style="width: 60%"></span></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Spotlight 3: Radial Controller -->
+        <article class="spotlight-card">
+          <div class="spotlight-content">
+            <span class="spotlight-tag">ICONIC STITCH UI</span>
+            <h3>Signature 270° Radial Audio Controller</h3>
+            <p>
+              Ditch the generic horizontal slider. MyPlayer's signature circular seek arc is mathematically mapped to a 270° interactive touch circle, delivering a physical tactile feel to scrubbing.
+            </p>
+            <ul class="spotlight-list">
+              <li><strong>Smooth Touch Scrubbing:</strong> Drag smoothly along the circular arc for precise, second-by-second scrubbing.</li>
+              <li><strong>Pulsing Concentric Wave Rings:</strong> Fluid animated wave rings radiate outward in rhythm with active audio.</li>
+              <li><strong>Apex Favorite Heart:</strong> Integrated favorite toggle positioned elegantly at the top of the radial track.</li>
+            </ul>
+          </div>
+          <div class="spotlight-visual radial-mini-visual">
+            <div class="radial-preview-circle">
+              <div class="arc-glow"></div>
+              <span class="arc-badge">270&deg; SEEK</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Comprehensive Major Features Grid -->
+    <section id="features" class="feature-section">
+      <div class="section-heading">
+        <p class="eyebrow">ALL MAJOR FEATURES</p>
+        <h2>Engineered for audiophiles.<br><span class="glow-text">Refined for everyone.</span></h2>
+        <p class="heading-sub">Discover every capability that makes MyPlayer one of the most versatile Android music players ever created.</p>
+      </div>
+
+      <div class="feature-grid">
+        <!-- Feature 1: Hybrid Playback Core -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">01</span>
+            <span class="feature-badge">AUDIO CORE</span>
+          </div>
+          <h3>Hybrid Playback Engine</h3>
+          <p>
+            Unified Media3 and ExoPlayer engine that seamlessly bridges your offline local library (MediaStore) and online YouTube Music streaming. No mode switching — just seamless, continuous playback.
+          </p>
+          <div class="card-tag-row">
+            <span>ExoPlayer</span><span>Media3</span><span>Local + Online</span>
+          </div>
+        </article>
+
+        <!-- Feature 2: Real-time Synced Lyrics -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">02</span>
+            <span class="feature-badge">LYRICS</span>
+          </div>
+          <h3>Real-Time Synced Lyrics</h3>
+          <p>
+            Powered by LRCLIB with millisecond-accurate playback clock synchronization. Enjoy buttery auto-scrolling lyrics and interactive line scrubbing — tap any lyric line to instantly jump playback to that moment.
+          </p>
+          <div class="card-tag-row">
+            <span>LRCLIB API</span><span>Time-stamped</span><span>Line Scrubbing</span>
+          </div>
+        </article>
+
+        <!-- Feature 3: Smart AI Recommendations & Autoplay -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">03</span>
+            <span class="feature-badge">DISCOVERY</span>
+          </div>
+          <h3>Smart Recommendations & Endless Autoplay</h3>
+          <p>
+            Dynamic recommendation engine analyzes current playback artists, genre tags, and track acoustics to automatically populate the upcoming queue. Your music never abruptly stops when a playlist ends.
+          </p>
+          <div class="card-tag-row">
+            <span>Contextual Queue</span><span>Endless Autoplay</span><span>Smart AI</span>
+          </div>
+        </article>
+
+        <!-- Feature 4: 1000x1000 HD Artwork Engine -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">04</span>
+            <span class="feature-badge">VISUALS</span>
+          </div>
+          <h3>1000×1000 Studio HD Artwork</h3>
+          <p>
+            Never suffer blurry, pixelated cover art again. Multi-tier resolution resolver queries iTunes Search API, Deezer API, and YouTube Music to automatically upgrade artwork to uncompressed 1000×1000 studio covers.
+          </p>
+          <div class="card-tag-row">
+            <span>iTunes API</span><span>Deezer API</span><span>Coil Disk Cache</span>
+          </div>
+        </article>
+
+        <!-- Feature 5: Lossless Stream Inspector -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">05</span>
+            <span class="feature-badge">FIDELITY</span>
+          </div>
+          <h3>Lossless Stream Inspector & Badges</h3>
+          <p>
+            Inspect your audio stream fidelity in real time. Dynamic badges detail bit depth (16/24-bit), sample rate (44.1kHz, 48kHz, 96kHz), bitrate (kbps), audio format (FLAC, Opus, AAC, MP3), and stream origin.
+          </p>
+          <div class="card-tag-row">
+            <span>Hi-Res Audio</span><span>FLAC / Opus</span><span>Live Bitrate</span>
+          </div>
+        </article>
+
+        <!-- Feature 6: Personalized Profile & Mood Filtering -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">06</span>
+            <span class="feature-badge">PERSONALIZATION</span>
+          </div>
+          <h3>Personalized Profile & Mood Filters</h3>
+          <p>
+            Customize your display name and avatar right from Home or Settings. Filter songs and albums instantly with dynamic 1-tap mood filter pills: <em>Chill, Party, Hip Hop, Workout, Sad, Blues, Pop,</em> and <em>All</em>.
+          </p>
+          <div class="card-tag-row">
+            <span>DataStore</span><span>8 Mood Filters</span><span>Custom Profile</span>
+          </div>
+        </article>
+
+        <!-- Feature 7: Offline Downloads & Backup -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">07</span>
+            <span class="feature-badge">STORAGE</span>
+          </div>
+          <h3>Offline Downloads & JSON Library Backup</h3>
+          <p>
+            Download online tracks directly to device storage with a single tap for zero-data offline listening. Export and restore your complete library state, playlists, favorites, and history through lightweight JSON backup files.
+          </p>
+          <div class="card-tag-row">
+            <span>1-Tap Download</span><span>JSON Export/Import</span><span>Zero Data</span>
+          </div>
+        </article>
+
+        <!-- Feature 8: Universal Fast Search -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">08</span>
+            <span class="feature-badge">SEARCH</span>
+          </div>
+          <h3>Universal Online & Offline Search</h3>
+          <p>
+            Search everything simultaneously. Instantly queries your on-device local storage and millions of online YouTube Music tracks with live auto-complete suggestions and instant track launching.
+          </p>
+          <div class="card-tag-row">
+            <span>Auto-complete</span><span>Live Suggestions</span><span>Unified Results</span>
+          </div>
+        </article>
+
+        <!-- Feature 9: Background Releases Auto-Updater -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">09</span>
+            <span class="feature-badge">MAINTENANCE</span>
+          </div>
+          <h3>Automated GitHub Releases Updater</h3>
+          <p>
+            Stay on the cutting edge effortlessly. Background Android WorkManager checks GitHub releases every 6 hours and notifies you when an update drops, enabling 1-tap in-app APK download and installation.
+          </p>
+          <div class="card-tag-row">
+            <span>WorkManager</span><span>6h Auto-Check</span><span>1-Tap Update</span>
+          </div>
+        </article>
+
+        <!-- Feature 10: Claymorphic Dark Olive UI -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">10</span>
+            <span class="feature-badge">DESIGN</span>
+          </div>
+          <h3>Claymorphic Dark Olive & Lime Theme</h3>
+          <p>
+            A bespoke aesthetic built with dark olive tones (<code style="color:var(--accent)">#12160E</code>, <code style="color:var(--accent)">#1A2216</code>) and energetic electric neon lime highlights (<code style="color:var(--accent)">#D2F83A</code>). Floating capsule navigation, tactile cards, and buttery 120fps Jetpack Compose transitions.
+          </p>
+          <div class="card-tag-row">
+            <span>Jetpack Compose</span><span>120 FPS</span><span>Docked Mini Player</span>
+          </div>
+        </article>
+
+        <!-- Feature 11: Privacy First & Zero Bloat -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">11</span>
+            <span class="feature-badge">PRIVACY</span>
+          </div>
+          <h3>Private, Ad-Free & Open Source</h3>
+          <p>
+            No trackers, no telemetry, no paid tiers, and zero annoying ads. Complies strictly with Android Scoped Storage guidelines to keep your local music files secure and private. 100% open source under the MIT License.
+          </p>
+          <div class="card-tag-row">
+            <span>MIT License</span><span>Zero Telemetry</span><span>Scoped Storage</span>
+          </div>
+        </article>
+
+        <!-- Feature 12: Popular Carousels & Dynamic Collections -->
+        <article class="feature-card">
+          <div class="card-top">
+            <span class="feature-number">12</span>
+            <span class="feature-badge">DISCOVERY</span>
+          </div>
+          <h3>Curated Carousels & Featured Collections</h3>
+          <p>
+            Explore popular trending hits, featured collections, newly added albums, and recently played tracks through smooth horizontal scrolling carousels equipped with animated live equalizer badges.
+          </p>
+          <div class="card-tag-row">
+            <span>Carousels</span><span>Equalizer Badges</span><span>Trending Hits</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- App Screenshots Showcase Section -->
+    <section id="screenshots" class="screenshots-section">
+      <div class="section-heading">
+        <p class="eyebrow">VISUAL SHOWCASE</p>
+        <h2>Designed to impress.<br><span class="glow-text">Crafted in Compose.</span></h2>
+        <p class="heading-sub">Explore actual screenshots of MyPlayer in action across different screens.</p>
+      </div>
+
+      <div class="screenshots-grid">
+        <figure class="screen-card">
+          <img src="screenshots/ui_design_overview.webp" alt="MyPlayer Home & Radial Controller Overview" loading="lazy" />
+          <figcaption>
+            <strong>Hero Home & Radial Controller</strong>
+            <span>Dark Olive theme, 270° radial seek arc & mood pills</span>
+          </figcaption>
+        </figure>
+
+        <figure class="screen-card">
+          <img src="screenshots/library_songs_screen.jpg" alt="Library All Songs Screen" loading="lazy" />
+          <figcaption>
+            <strong>Library & Song Management</strong>
+            <span>Clean list view, high-res thumbnails & instant playback</span>
+          </figcaption>
+        </figure>
+
+        <figure class="screen-card">
+          <img src="screenshots/library_playlists_screen.jpg" alt="Playlists Screen" loading="lazy" />
+          <figcaption>
+            <strong>Playlists & Collections</strong>
+            <span>Create, edit, and organize custom offline/online playlists</span>
+          </figcaption>
+        </figure>
+
+        <figure class="screen-card">
+          <img src="screenshots/search_screen.jpg" alt="Universal Online Search Screen" loading="lazy" />
+          <figcaption>
+            <strong>Universal Online Search</strong>
+            <span>Live auto-complete across the full YouTube Music catalog</span>
+          </figcaption>
+        </figure>
+
+        <figure class="screen-card">
+          <img src="screenshots/downloads_screen.jpg" alt="Offline Downloads Screen" loading="lazy" />
+          <figcaption>
+            <strong>Offline Downloads Manager</strong>
+            <span>Manage cached audio files for zero-data listening</span>
+          </figcaption>
+        </figure>
+
+        <figure class="screen-card">
+          <img src="screenshots/settings_screen.jpg" alt="Settings & Profile Customization Screen" loading="lazy" />
+          <figcaption>
+            <strong>Settings & User Profile</strong>
+            <span>DataStore profile customization, audio preferences & updates</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Technical Architecture Section -->
+    <section id="architecture" class="architecture-section">
+      <div class="section-heading">
+        <p class="eyebrow">ENGINEERING EXCELLENCE</p>
+        <h2>Modern Android architecture.<br><span class="glow-text">Zero compromises.</span></h2>
+        <p class="heading-sub">MyPlayer is engineered following Clean Architecture principles, MVVM design, and strict Unidirectional Data Flow (UDF).</p>
+      </div>
+
+      <div class="tech-table-wrapper">
+        <table class="tech-table">
+          <thead>
+            <tr>
+              <th>Layer / Component</th>
+              <th>Technologies & Frameworks</th>
+              <th>Role & Engineering Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Core Language</strong></td>
+              <td><span class="tech-pill">Kotlin 100%</span> <span class="tech-pill">Coroutines</span> <span class="tech-pill">StateFlow</span></td>
+              <td>Reactive, asynchronous concurrency with structured lifecycle cancellation and zero blocking calls.</td>
+            </tr>
+            <tr>
+              <td><strong>User Interface</strong></td>
+              <td><span class="tech-pill">Jetpack Compose</span> <span class="tech-pill">Material 3</span></td>
+              <td>Declarative modern UI with custom Dark Olive & Neon Lime design tokens, 120fps fluid scrolling, and claymorphic surfaces.</td>
+            </tr>
+            <tr>
+              <td><strong>Audio Pipeline</strong></td>
+              <td><span class="tech-pill">AndroidX Media3</span> <span class="tech-pill">ExoPlayer</span> <span class="tech-pill">MediaSession</span></td>
+              <td>Robust foreground audio playback service supporting gapless playback, lock screen controls, and stream caching.</td>
+            </tr>
+            <tr>
+              <td><strong>Multi-Device Sync</strong></td>
+              <td><span class="tech-pill">Wi-Fi NSD</span> <span class="tech-pill">Socket Transport</span></td>
+              <td>Sub-millisecond multi-device synchronized audio playback over local Wi-Fi with auto-discovery and direct IP join.</td>
+            </tr>
+            <tr>
+              <td><strong>Dual Bud Routing</strong></td>
+              <td><span class="tech-pill">Dual-Channel Split</span> <span class="tech-pill">AudioTrack Mixer</span></td>
+              <td>Low-level stereo channel separation playing two independent tracks simultaneously into Left & Right earbuds.</td>
+            </tr>
+            <tr>
+              <td><strong>Persistence & Cache</strong></td>
+              <td><span class="tech-pill">Room DB</span> <span class="tech-pill">DataStore Preferences</span></td>
+              <td>Offline-first song cache, playlist tables, listening history, and persistent user profile preferences.</td>
+            </tr>
+            <tr>
+              <td><strong>HD Artwork & Lyrics</strong></td>
+              <td><span class="tech-pill">iTunes Search API</span> <span class="tech-pill">Deezer API</span> <span class="tech-pill">LRCLIB</span> <span class="tech-pill">Coil</span></td>
+              <td>Multi-tier 1000×1000 studio artwork fetching and millisecond-accurate synchronized lyrics with line scrubbing.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Download & Latest Release Section -->
+    <section id="download" class="download-section">
+      <div class="download-left">
+        <p class="eyebrow">GET THE APP</p>
+        <h2 id="versionTitle">MyPlayer v3.4</h2>
+        <p id="releaseMeta">Fetching the latest GitHub release package...</p>
+
+        <div class="download-instructions">
+          <h4>How to Install on Android:</h4>
+          <ol>
+            <li>Tap <strong>Download APK</strong> to save the latest release package.</li>
+            <li>When prompted, allow your browser to <em>"Install unknown apps"</em> in Android Settings.</li>
+            <li>Tap the downloaded <code>.apk</code> notification or open it from your file manager to install.</li>
+            <li>Launch MyPlayer, grant audio read permission, and immerse yourself in music!</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="download-actions">
+        <a id="downloadBtn" class="primary-btn large" href="#" aria-disabled="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>DOWNLOAD APK</span>
+        </a>
+        <a class="secondary-btn" href="releases.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <span>ALL RELEASES ARCHIVE</span>
+        </a>
+        <a id="releaseBtn" class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          <span>VIEW ON GITHUB</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Frequently Asked Questions (FAQ) Section -->
+    <section id="faq" class="faq-section">
+      <div class="faq-title">
+        <p class="eyebrow">GOT QUESTIONS?</p>
+        <h2>Frequently<br><span class="glow-text">Asked Questions</span></h2>
+        <p class="heading-sub">Everything you need to know about MyPlayer features, privacy, and compatibility.</p>
+      </div>
+
+      <div class="faq-list">
+        <details>
+          <summary>What is MyPlayer and how is it different from other music apps?<span>+</span></summary>
+          <p>MyPlayer is a high-performance Android music player built in Kotlin and Jetpack Compose. Unlike ordinary players that only play local files or lock you into a subscription, MyPlayer combines offline local storage with YouTube Music streaming, multi-device synchronized Sync Play, Dual-Bud earbud splitting, synced lyrics from LRCLIB, and 1000×1000 studio HD artwork in a 100% ad-free experience.</p>
+        </details>
+
+        <details>
+          <summary>How does Sync Play (Multi-Device Synchronized Playback) work?<span>+</span></summary>
+          <p>Sync Play lets you connect two or more Android devices on the same local Wi-Fi network. One device acts as the Host (Master Clock) and broadcasts a room via Network Service Discovery (NSD) or direct IP. Client devices join the room and play the exact same music in perfect synchronization with shared playback controls.</p>
+        </details>
+
+        <details>
+          <summary>What is Dual Bud Mode and how do I use it?<span>+</span></summary>
+          <p>Dual Bud Mode splits your headphone stereo channels into two independent audio pipelines. You can choose Track A for your left earbud and Track B for your right earbud, each with independent volume sliders and track controls. It allows two people sharing a single pair of earphones to enjoy their own music simultaneously.</p>
+        </details>
+
+        <details>
+          <summary>Can I download online music for offline listening?<span>+</span></summary>
+          <p>Yes. With one tap on the download button on any online track, MyPlayer downloads the audio stream directly to your device storage. You can view, manage, and play all your downloads without using any mobile data.</p>
+        </details>
+
+        <details>
+          <summary>How do real-time synced lyrics work?<span>+</span></summary>
+          <p>MyPlayer automatically queries the LRCLIB open lyrics database. When time-stamped lyrics are found, they scroll automatically in sync with the song. You can also tap any lyric line to jump the song directly to that timestamp, or fall back to plain text lyrics.</p>
+        </details>
+
+        <details>
+          <summary>Will this website always download the latest version?<span>+</span></summary>
+          <p>Yes! This website communicates dynamically with the official GitHub Releases API at runtime to fetch the latest published APK asset. You will always get the latest official release directly from GitHub.</p>
+        </details>
+
+        <details>
+          <summary>Does MyPlayer contain ads or track my activity?<span>+</span></summary>
+          <p>No. MyPlayer contains zero ads, zero trackers, and no telemetry. It is completely free and open source under the MIT License, respecting Android Scoped Storage to ensure your music library stays entirely private.</p>
+        </details>
+
+        <details>
+          <summary>What are the minimum system requirements?<span>+</span></summary>
+          <p>MyPlayer supports Android 8.0 (API 26) and newer, with target SDK 34 (Android 14) and compilation on SDK 35 (Android 15), delivering smooth 120Hz performance on modern devices.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <img src="logo.png" alt="MyPlayer Logo" class="brand-logo" />
+        <span>MyPlayer</span>
+      </div>
+      <p class="footer-tagline">Your music, your way. High-fidelity Android audio engineered with Kotlin & Jetpack Compose.</p>
+      <div class="footer-badges">
+        <span class="footer-badge">MIT Licensed</span>
+        <span class="footer-badge">Android 8.0+</span>
+        <span class="footer-badge">100% Kotlin</span>
+      </div>
+    </div>
+
+    <div class="footer-column">
+      <h4>Features</h4>
+      <a href="index.html#spotlight">Sync Play (v3.3)</a>
+      <a href="index.html#spotlight">Dual Bud Mode</a>
+      <a href="index.html#features">Radial Audio Controller</a>
+      <a href="index.html#features">Synced Lyrics (LRCLIB)</a>
+      <a href="index.html#features">1000×1000 HD Artwork</a>
+      <a href="index.html#features">Offline Downloads</a>
+    </div>
+
+    <div class="footer-column">
+      <h4>Releases & Project</h4>
+      <a href="releases.html">All Version Releases</a>
+      <a href="releases.html#v3.4">Latest Release (v3.4)</a>
+      <a href="index.html#screenshots">App Screenshots</a>
+      <a href="index.html#architecture">Architecture & Tech</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener">GitHub Releases</a>
+      <a href="https://github.com/Aashutosh2021/MyPlayer" target="_blank" rel="noopener">Source Code</a>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="script.js"></script>
+</body>
+</html>

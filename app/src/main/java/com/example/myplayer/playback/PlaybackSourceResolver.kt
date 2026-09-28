@@ -29,18 +29,45 @@ class PlaybackSourceResolver @Inject constructor(
     private val _currentAudioQuality = MutableStateFlow(AudioQualityInfo())
     val currentAudioQuality: StateFlow<AudioQualityInfo> = _currentAudioQuality.asStateFlow()
 
+    private val _isResolving = MutableStateFlow(false)
+    val isResolving: StateFlow<Boolean> = _isResolving.asStateFlow()
+
+    // 5-hour TTL: YouTube InnerTube stream URLs expire after ~6 hours
+    private val streamUrlTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val STREAM_URL_TTL_MS = 5 * 60 * 60 * 1000L
+
     suspend fun resolve(request: PlayRequest, setCustomError: (String) -> Unit): String? {
+        val rawVideoId = if (request.songId.startsWith("online://")) {
+            request.songId.removePrefix("online://")
+        } else if (request.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+            request.songId
+        } else {
+            request.metadata["videoId"]
+        }
+
         val streamUrl = request.streamUrl
-        if (streamUrl != null && (streamUrl.startsWith("http://") || streamUrl.startsWith("https://"))) {
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl, isLocalFile = false)
+        val path = request.localUri
+        val isHttpStreamUrl = streamUrl != null && (streamUrl.startsWith("http://") || streamUrl.startsWith("https://"))
+        val isHttpPath = path != null && (path.startsWith("http://") || path.startsWith("https://"))
+
+        // Check if pre-resolved HTTP URL has exceeded the 5-hour TTL
+        if (rawVideoId != null && (isHttpStreamUrl || isHttpPath)) {
+            val cachedTimestamp = streamUrlTimestamps[rawVideoId]
+            val isExpired = cachedTimestamp != null && (System.currentTimeMillis() - cachedTimestamp) >= STREAM_URL_TTL_MS
+            if (isExpired) {
+                Log.w("PlaybackSourceResolver", "Stream URL for $rawVideoId is older than 5 hours. Refreshing fresh stream.")
+                return resolveOnlineStream(rawVideoId, setCustomError, forceRefresh = true)
+            }
+        }
+
+        if (isHttpStreamUrl) {
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl!!, isLocalFile = false)
             return streamUrl
         }
 
-        val path = request.localUri
-
         // If it starts with http:// or https://, it is already a resolved streaming URL
-        if (path != null && (path.startsWith("http://") || path.startsWith("https://"))) {
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path, isLocalFile = false)
+        if (isHttpPath) {
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path!!, isLocalFile = false)
             return path
         }
 
@@ -129,6 +156,7 @@ class PlaybackSourceResolver @Inject constructor(
         videoId: String,
         setCustomError: ((String) -> Unit)? = null
     ): String? {
+        streamUrlTimestamps.remove(videoId)
         return resolveOnlineStream(videoId, setCustomError = setCustomError, forceRefresh = true)
     }
 
@@ -137,40 +165,53 @@ class PlaybackSourceResolver @Inject constructor(
         setCustomError: ((String) -> Unit)? = null,
         forceRefresh: Boolean = false
     ): String? {
-        // If not force refreshing, check if a valid cached URL is already available
-        if (!forceRefresh) {
-            val cached = innertubeApi.getCachedStreamUrl(videoId)
-            if (!cached.isNullOrBlank()) {
-                Log.d("PlaybackSourceResolver", "Returning cached stream URL for $videoId")
-                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(cached, isLocalFile = false)
-                return cached
+        _isResolving.value = true
+        try {
+            // Check if a non-stale cached URL is already available
+            if (!forceRefresh) {
+                val cachedTimestamp = streamUrlTimestamps[videoId]
+                val isStale = cachedTimestamp == null || (System.currentTimeMillis() - cachedTimestamp) >= STREAM_URL_TTL_MS
+                if (!isStale) {
+                    val cached = innertubeApi.getCachedStreamUrl(videoId)
+                    if (!cached.isNullOrBlank()) {
+                        Log.d("PlaybackSourceResolver", "Returning cached stream URL for $videoId (age=${System.currentTimeMillis() - cachedTimestamp}ms)")
+                        _currentAudioQuality.value = losslessStreamResolver.inspectQuality(cached, isLocalFile = false)
+                        return cached
+                    }
+                } else {
+                    Log.d("PlaybackSourceResolver", "Cached stream for $videoId is older than 5 hours or untracked. Forcing fresh resolution.")
+                }
             }
-        }
 
-        if (!isNetworkAvailable()) {
-            Log.e("PlaybackSourceResolver", "Offline, cannot play online song: $videoId")
-            setCustomError?.invoke("No internet connection. Cannot stream song.")
-            return null
-        }
-
-        Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId (forceRefresh=$forceRefresh)")
-        val streamUrl = withContext(Dispatchers.IO) {
-            try {
-                innertubeApi.getStreamUrl(videoId, forceRefresh = forceRefresh)
-            } catch (e: Exception) {
-                Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId", e)
-                null
+            if (!isNetworkAvailable()) {
+                Log.e("PlaybackSourceResolver", "Offline, cannot play online song: $videoId")
+                setCustomError?.invoke("No internet connection. Cannot stream song.")
+                return null
             }
-        }
 
-        if (!streamUrl.isNullOrBlank()) {
-            Log.d("PlaybackSourceResolver", "Successfully resolved $videoId to stream URL: $streamUrl")
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl, isLocalFile = false)
-            return streamUrl
-        } else {
-            Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId")
-            setCustomError?.invoke("Failed to load audio stream. Please check connection.")
-            return null
+            val shouldForce = forceRefresh || (streamUrlTimestamps[videoId]?.let { System.currentTimeMillis() - it >= STREAM_URL_TTL_MS } ?: false)
+            Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId (forceRefresh=$shouldForce)")
+            val streamUrl = withContext(Dispatchers.IO) {
+                try {
+                    innertubeApi.getStreamUrl(videoId, forceRefresh = shouldForce)
+                } catch (e: Exception) {
+                    Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId", e)
+                    null
+                }
+            }
+
+            if (!streamUrl.isNullOrBlank()) {
+                Log.d("PlaybackSourceResolver", "Successfully resolved $videoId to stream URL: $streamUrl")
+                streamUrlTimestamps[videoId] = System.currentTimeMillis()
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl, isLocalFile = false)
+                return streamUrl
+            } else {
+                Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId")
+                setCustomError?.invoke("Failed to load audio stream. Please check connection.")
+                return null
+            }
+        } finally {
+            _isResolving.value = false
         }
     }
 
