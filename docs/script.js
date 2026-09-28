@@ -1,5 +1,6 @@
 const OWNER = "Aashutosh2021";
 const REPO = "MyPlayer";
+const LATEST_RELEASE_URL = "https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.5";
 const RELEASE_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`;
 const ALL_RELEASES_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases`;
 
@@ -27,20 +28,20 @@ function setDownloadLink(url, version) {
   const btn = $("#downloadBtn");
   const hero = $("#heroDownload");
 
+  const targetUrl = url || LATEST_RELEASE_URL;
+
   if (btn) {
-    btn.href = url;
+    btn.href = targetUrl;
     btn.setAttribute("aria-disabled", "false");
-    btn.onclick = () => {
-      if (!url) {
-        showToast("APK download is not available right now.");
-        return false;
-      }
-      return true;
-    };
+    btn.target = "_blank";
+    btn.rel = "noopener";
+    btn.onclick = () => true;
   }
 
   if (hero) {
-    hero.href = url;
+    hero.href = targetUrl;
+    hero.target = "_blank";
+    hero.rel = "noopener";
   }
 
   const versionTitle = $("#versionTitle");
@@ -72,17 +73,29 @@ async function loadLatestRelease() {
       asset.name.toLowerCase().endsWith(".apk")
     );
 
+    const version = release.tag_name || release.name || "v3.5";
+    const date = formatDate(release.published_at);
+
     if (!apkAssets.length) {
-      throw new Error("No APK attached to the latest release.");
+      const releaseUrl = release.html_url || LATEST_RELEASE_URL;
+      setDownloadLink(releaseUrl, version);
+      if (releaseText) {
+        releaseText.textContent = `${version} • Available on GitHub`;
+      }
+      if (releaseMeta) {
+        releaseMeta.textContent = `${date ? `Published ${date} • ` : ""}Official package available on GitHub Releases`;
+      }
+      const releaseBtn = $("#releaseBtn");
+      if (releaseBtn) {
+        releaseBtn.href = releaseUrl;
+      }
+      return;
     }
 
     const apk =
       apkAssets.find(a => /universal/i.test(a.name)) ||
       apkAssets.find(a => /release/i.test(a.name)) ||
       apkAssets[0];
-
-    const version = release.tag_name || release.name || "Latest";
-    const date = formatDate(release.published_at);
 
     setDownloadLink(apk.browser_download_url, version);
 
@@ -95,28 +108,36 @@ async function loadLatestRelease() {
 
     const releaseBtn = $("#releaseBtn");
     if (releaseBtn) {
-      releaseBtn.href = release.html_url || `https://github.com/${OWNER}/${REPO}/releases`;
+      releaseBtn.href = release.html_url || LATEST_RELEASE_URL;
     }
   } catch (error) {
     console.error(error);
     if (releaseText) {
-      releaseText.textContent = "Latest release could not be loaded";
+      releaseText.textContent = "v3.5 • Available on GitHub";
     }
     if (releaseMeta) {
-      releaseMeta.textContent = "Please open GitHub Releases to download the current APK.";
+      releaseMeta.textContent = "Download the latest official v3.5 APK directly from GitHub Releases.";
     }
     const versionTitle = $("#versionTitle");
     if (versionTitle) {
-      versionTitle.textContent = "Latest MyPlayer Release";
+      versionTitle.textContent = "MyPlayer v3.5";
     }
     const heroDownload = $("#heroDownload");
     if (heroDownload) {
-      heroDownload.href = `https://github.com/${OWNER}/${REPO}/releases`;
+      heroDownload.href = LATEST_RELEASE_URL;
+      heroDownload.target = "_blank";
+      heroDownload.rel = "noopener";
     }
     const downloadBtn = $("#downloadBtn");
     if (downloadBtn) {
-      downloadBtn.href = `https://github.com/${OWNER}/${REPO}/releases`;
+      downloadBtn.href = LATEST_RELEASE_URL;
+      downloadBtn.target = "_blank";
+      downloadBtn.rel = "noopener";
       downloadBtn.removeAttribute("aria-disabled");
+    }
+    const releaseBtn = $("#releaseBtn");
+    if (releaseBtn) {
+      releaseBtn.href = LATEST_RELEASE_URL;
     }
   }
 }
