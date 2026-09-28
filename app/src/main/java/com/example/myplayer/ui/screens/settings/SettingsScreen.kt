@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
 
@@ -228,6 +229,12 @@ fun SettingsScreen(
                             "A newer version (${state.updateInfo.versionName}) is available!",
                             fontWeight = FontWeight.Bold,
                             color = OnSurface
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Visit our official website to download the latest update.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceVariant
                         )
                         if (state.updateInfo.releaseNotes.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
@@ -479,8 +486,22 @@ fun SettingsScreen(
             SettingsNavigationRow(
                 icon = Icons.Filled.SystemUpdate,
                 title = "Check for Updates",
-                subtitle = "Check GitHub for the latest MyPlayer release",
+                subtitle = "Check official website & GitHub for updates",
                 onClick = { viewModel.checkForUpdates() }
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Language,
+                title = "Official Website",
+                subtitle = UpdateChecker.UPDATE_WEBSITE_URL,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.UPDATE_WEBSITE_URL)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
             )
         }
 

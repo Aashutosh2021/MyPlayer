@@ -21,8 +21,10 @@ import javax.inject.Singleton
 
 data class UpdateInfo(
     val versionName: String,
-    val releaseUrl: String,
-    val releaseNotes: String
+    val releaseUrl: String = UpdateChecker.UPDATE_WEBSITE_URL,
+    val releaseNotes: String = "",
+    val apkUrl: String? = null,
+    val githubReleaseUrl: String? = null
 )
 
 class NoInternetException(
@@ -43,6 +45,8 @@ class UpdateChecker @Inject constructor(
 
         private const val GITHUB_OWNER = "Aashutosh2021"
         private const val GITHUB_REPO = "MyPlayer"
+
+        const val UPDATE_WEBSITE_URL = "https://aashutosh2021.github.io/MyPlayer/"
 
         private const val RELEASES_URL =
             "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
@@ -130,7 +134,6 @@ class UpdateChecker @Inject constructor(
                 val remoteVersion = extractVersion(tagName, releaseName, notes, apkFileName)
                 val defaultUrl = "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
                 val releaseHtmlUrl = json.optString("html_url", defaultUrl)
-                val targetUrl = apkDownloadUrl?.takeIf { it.isNotBlank() } ?: releaseHtmlUrl
                 val displayName = releaseName.ifBlank { "v$remoteVersion" }
 
                 if (!isNewerVersion(remoteVersion, BuildConfig.VERSION_NAME)) {
@@ -139,8 +142,10 @@ class UpdateChecker @Inject constructor(
 
                 UpdateInfo(
                     versionName = displayName,
-                    releaseUrl = targetUrl,
-                    releaseNotes = notes
+                    releaseUrl = UPDATE_WEBSITE_URL,
+                    releaseNotes = notes,
+                    apkUrl = apkDownloadUrl,
+                    githubReleaseUrl = releaseHtmlUrl
                 )
             }
         } catch (e: UnknownHostException) {
