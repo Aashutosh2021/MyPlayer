@@ -350,12 +350,18 @@ class MusicController @Inject constructor(
                         return@launch
                     }
 
-                    Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId attempt=$retryAttempt/$MAX_ONLINE_RETRIES")
+                    val isStreamExpired = error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+                    Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId attempt=$retryAttempt/$MAX_ONLINE_RETRIES expired=$isStreamExpired")
                     val freshUrl = withContext(Dispatchers.IO) {
                         try {
-                            playbackSourceResolver.resolveFreshStreamUrl(videoId)
+                            if (isStreamExpired || retryAttempt > 1) {
+                                playbackSourceResolver.resolveFreshStreamUrl(videoId)
+                            } else {
+                                playbackSourceResolver.resolveOnlineStream(videoId, forceRefresh = false)
+                                    ?: uriStr?.takeIf { it.startsWith("http") }
+                            }
                         } catch (e: Exception) {
-                            Log.e("MusicController", "Exception while resolving fresh stream URL for $videoId", e)
+                            Log.e("MusicController", "Exception while resolving stream URL for $videoId", e)
                             null
                         }
                     }
@@ -421,11 +427,15 @@ class MusicController @Inject constructor(
                             playbackErrorHandler.clearPlaybackError()
                         }
                     } else {
-                        Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId fresh resolution returned null on attempt $retryAttempt")
-                        onlineRetryCount.remove(videoId)
+                        Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId attempt $retryAttempt returned null")
                         withContext(Dispatchers.Main) {
                             if (token != currentRecoveryToken || !isActive) return@withContext
-                            handleOnlineFailureExhausted(mediaId, videoId, error)
+                            if (retryAttempt < MAX_ONLINE_RETRIES) {
+                                onPlayerError(error)
+                            } else {
+                                onlineRetryCount.remove(videoId)
+                                handleOnlineFailureExhausted(mediaId, videoId, error)
+                            }
                         }
                     }
                 }
@@ -694,7 +704,7 @@ class MusicController @Inject constructor(
             }
             val hasNextInQueue = (ctrl?.hasNextMediaItem() == true) || (currentIndex != -1 && currentIndex + 1 < _songQueue.size)
             playbackEventBus.emit(PlaybackEvent.SongError(currentMediaId, error.message ?: "Playback failed"))
-            playbackErrorHandler.handleError(error, hasNextInQueue, isOnline = true)
+            playbackErrorHandler.handleError(error, hasNextInQueue, isOnline = true, videoId = videoId)
             if (hasNextInQueue) {
                 skipToNext()
             } else {
@@ -883,16 +893,21 @@ class MusicController @Inject constructor(
         playbackStateManager.updatePosition(0L)
         playbackStateManager.updateDuration(targetEntity.duration)
 
-        val request = PlayRequest(
-            songId = vId,
-            title = targetEntity.title,
-            artist = targetEntity.artist,
-            playbackSource = PlaybackSourceType.ONLINE,
-            localUri = targetEntity.path,
-            streamUrl = onlineSong.streamUrl,
-            albumArt = artUrl
-        )
-        playbackRouter.play(scope, this, listOf(request), 0)
+        val requests = _songQueue.map { entity ->
+            val entityVid = entity.videoId ?: entity.id
+            val entityArt = entity.albumArt ?: "https://img.youtube.com/vi/$entityVid/hqdefault.jpg"
+            val isLocalFile = entity.path.startsWith("/") || entity.path.startsWith("content://") || entity.path.startsWith("file://")
+            PlayRequest(
+                songId = entityVid,
+                title = entity.title,
+                artist = entity.artist,
+                playbackSource = if (isLocalFile) PlaybackSourceType.LOCAL else PlaybackSourceType.ONLINE,
+                localUri = entity.path,
+                streamUrl = if (entity.path.startsWith("http")) entity.path else null,
+                albumArt = entityArt
+            )
+        }
+        playbackRouter.play(scope, this, requests, index)
     }
 
     fun playOnlineSong(song: OnlineSong) {
@@ -1275,6 +1290,8 @@ class MusicController @Inject constructor(
         runOnApplicationThread { controller ->
             controller.stop()
             playbackStateManager.updatePlayingState(false)
+            playbackStateManager.updatePosition(0L)
+            playbackStateManager.updateDuration(0L)
             playbackStateManager.updateCurrentSong(null)
             playbackStateManager.updateCurrentOnlineSong(null)
         }

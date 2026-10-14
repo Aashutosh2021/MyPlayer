@@ -249,11 +249,11 @@ class PlaybackRouter @Inject constructor(
         delegate: PlaybackRouterDelegate,
         currentIndex: Int
     ) {
-        if (currentIndex !in currentRequests.indices) return
-        val currentReq = currentRequests[currentIndex]
         lastScope = scope
         lastDelegate = delegate
         lastIndex = currentIndex
+
+        val currentReq = currentRequests.getOrNull(currentIndex)
 
         prefetchJob?.cancel()
         prefetchJob = scope.launch(Dispatchers.Main) {
@@ -261,7 +261,7 @@ class PlaybackRouter @Inject constructor(
             val currentUri = currentItem?.localConfiguration?.uri?.toString()
 
             // 1. If current item still has unresolved online:// URI, resolve and replace immediately
-            if (currentUri != null && currentUri.startsWith("online://")) {
+            if (currentReq != null && currentUri != null && currentUri.startsWith("online://")) {
                 _isResolving.value = true
                 playbackStateManager.updateMachineState(PlaybackMachineState.RESOLVING)
                 delegate.onStreamResolving(currentReq)
@@ -287,7 +287,7 @@ class PlaybackRouter @Inject constructor(
                 }
             }
 
-            // 2. Pre-resolve next track after playback stabilizes (delay 2.5s)
+            // 2. Pre-resolve next track while current song is actively playing (before STATE_ENDED!)
             val nextIndex = currentIndex + 1
             val nextReq = if (nextIndex in currentRequests.indices) {
                 currentRequests[nextIndex]
@@ -297,17 +297,19 @@ class PlaybackRouter @Inject constructor(
 
             if (nextReq != null) {
                 // Prefetch upcoming tracks in background immediately
-                val upcoming = currentRequests.drop(nextIndex).take(3)
+                val upcoming = if (nextIndex in currentRequests.indices) {
+                    currentRequests.drop(nextIndex).take(3)
+                } else {
+                    listOf(nextReq)
+                }
                 if (upcoming.isNotEmpty()) {
                     sourceResolver.prefetchSongs(upcoming)
-                } else {
-                    sourceResolver.prefetchSongs(listOf(nextReq))
                 }
 
                 kotlinx.coroutines.delay(2500)
-                val nextItem = if (nextIndex in currentRequests.indices) delegate.getMediaItemAt(nextIndex) else null
+                val nextItem = delegate.getMediaItemAt(nextIndex)
                 val nextUri = nextItem?.localConfiguration?.uri?.toString() ?: nextReq.localUri
-                if (nextUri != null && nextUri.startsWith("online://")) {
+                if (nextUri != null && (nextUri.startsWith("online://") || nextItem == null)) {
                     val nextResolved = withContext(Dispatchers.IO) {
                         sourceResolver.resolve(nextReq) { /* ignore background errors */ }
                     }
