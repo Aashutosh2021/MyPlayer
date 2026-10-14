@@ -68,6 +68,20 @@ class MusicService : MediaSessionService() {
         return mediaSession
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    override fun onUpdateNotification(
+        session: MediaSession,
+        startInForegroundRequired: Boolean
+    ) {
+        // Retain foreground state during track transitions when player is still in playing mode
+        val keepForeground = startInForegroundRequired || player.playWhenReady
+        try {
+            super.onUpdateNotification(session, keepForeground)
+        } catch (_: Exception) {
+            // Suppress ForegroundServiceStartNotAllowedException on Android 12+ background transitions
+        }
+    }
+
     override fun onDestroy() {
         mediaSession?.run {
             player.release()

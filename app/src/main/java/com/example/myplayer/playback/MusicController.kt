@@ -323,16 +323,17 @@ class MusicController @Inject constructor(
                 }
 
                 if (!isRetryable || videoId.isNullOrBlank()) {
-                    val hasNext = controller.hasNextMediaItem()
-                    playbackEventBus.emit(PlaybackEvent.SongError(mediaId, error.message ?: "Unknown error"))
-                    playbackErrorHandler.handleError(error, hasNext, isOnline = isOnline)
-                    if (hasNext) {
-                        controller.seekToNext()
-                        controller.prepare()
-                        controller.play()
-                    } else {
-                        playbackStateManager.updatePlayingState(false)
-                    }
+                    handleOnlineFailureExhausted(mediaId, videoId ?: "", error)
+                    return
+                }
+
+                val retryAttempt = (onlineRetryCount[videoId] ?: 0) + 1
+                onlineRetryCount[videoId] = retryAttempt
+
+                if (retryAttempt > MAX_ONLINE_RETRIES) {
+                    Log.e("MusicController", "[ONLINE_RECOVERY_EXHAUSTED] videoId=$videoId exceeded $MAX_ONLINE_RETRIES attempts")
+                    onlineRetryCount.remove(videoId)
+                    handleOnlineFailureExhausted(mediaId, videoId, error)
                     return
                 }
 
@@ -340,48 +341,32 @@ class MusicController @Inject constructor(
                 val token = ++currentRecoveryToken
                 activeRecoveryJob?.cancel()
                 activeRecoveryJob = scope.launch {
-                    var recoveredFreshUrl: String? = null
-                    for (attempt in 1..MAX_ONLINE_RETRIES) {
-                        if (token != currentRecoveryToken || !isActive) {
-                            Log.d("MusicController", "Recovery cancelled before attempt $attempt for $videoId")
-                            return@launch
-                        }
-                        val delayMs = RETRY_DELAYS_MS.getOrElse(attempt - 1) { 1500L }
-                        if (delayMs > 0L) {
-                            delay(delayMs)
-                        }
-                        if (token != currentRecoveryToken || !isActive) {
-                            Log.d("MusicController", "Recovery cancelled after delay for $videoId")
-                            return@launch
-                        }
+                    val delayMs = RETRY_DELAYS_MS.getOrElse(retryAttempt - 1) { 1500L }
+                    if (delayMs > 0L) {
+                        delay(delayMs)
+                    }
+                    if (token != currentRecoveryToken || !isActive) {
+                        Log.d("MusicController", "Recovery cancelled before attempt $retryAttempt for $videoId")
+                        return@launch
+                    }
 
-                        Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId attempt=$attempt/$MAX_ONLINE_RETRIES")
-                        val freshUrl = withContext(Dispatchers.IO) {
-                            try {
-                                playbackSourceResolver.resolveFreshStreamUrl(videoId)
-                            } catch (e: Exception) {
-                                Log.e("MusicController", "Exception while resolving fresh stream URL for $videoId", e)
-                                null
-                            }
-                        }
-
-                        if (token != currentRecoveryToken || !isActive) {
-                            Log.d("MusicController", "Recovery cancelled after resolution for $videoId")
-                            return@launch
-                        }
-
-                        if (!freshUrl.isNullOrBlank()) {
-                            recoveredFreshUrl = freshUrl
-                            Log.i("MusicController", "[ONLINE_RECOVERY_SUCCESS] videoId=$videoId on attempt $attempt")
-                            break
-                        } else {
-                            Log.w("MusicController", "[ONLINE_RECOVERY_ATTEMPT_FAILED] videoId=$videoId attempt $attempt returned null")
+                    Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId attempt=$retryAttempt/$MAX_ONLINE_RETRIES")
+                    val freshUrl = withContext(Dispatchers.IO) {
+                        try {
+                            playbackSourceResolver.resolveFreshStreamUrl(videoId)
+                        } catch (e: Exception) {
+                            Log.e("MusicController", "Exception while resolving fresh stream URL for $videoId", e)
+                            null
                         }
                     }
 
-                    if (token != currentRecoveryToken || !isActive) return@launch
+                    if (token != currentRecoveryToken || !isActive) {
+                        Log.d("MusicController", "Recovery cancelled after resolution for $videoId")
+                        return@launch
+                    }
 
-                    if (!recoveredFreshUrl.isNullOrBlank()) {
+                    if (!freshUrl.isNullOrBlank()) {
+                        Log.i("MusicController", "[ONLINE_RECOVERY_SUCCESS] videoId=$videoId on attempt $retryAttempt")
                         withContext(Dispatchers.Main) {
                             if (token != currentRecoveryToken || !isActive) return@withContext
                             val ctrl = mediaController ?: return@withContext
@@ -394,12 +379,12 @@ class MusicController @Inject constructor(
                             val qIndex = _songQueue.indexOfFirst { it.id == mediaId || it.videoId == videoId }
                             val queueEntity = if (qIndex != -1) _songQueue[qIndex] else null
                             if (qIndex != -1 && queueEntity != null) {
-                                _songQueue[qIndex] = queueEntity.copy(path = recoveredFreshUrl)
+                                _songQueue[qIndex] = queueEntity.copy(path = freshUrl)
                                 _playbackQueue.value = _songQueue.toList()
                             }
                             val onlineSong = playbackStateManager.currentOnlineSong.value
                             if (onlineSong != null && (onlineSong.videoId == videoId || onlineSong.videoId == mediaId)) {
-                                playbackStateManager.updateCurrentOnlineSong(onlineSong.copy(streamUrl = recoveredFreshUrl))
+                                playbackStateManager.updateCurrentOnlineSong(onlineSong.copy(streamUrl = freshUrl))
                             }
 
                             val currentItemMeta = ctrl.currentMediaItem?.mediaMetadata
@@ -411,7 +396,7 @@ class MusicController @Inject constructor(
 
                             val freshMediaItem = mediaItemFactory.createMediaItem(
                                 songId = mediaId.ifBlank { videoId },
-                                path = recoveredFreshUrl,
+                                path = freshUrl,
                                 title = title,
                                 artist = artist,
                                 albumArt = artworkUri
@@ -436,31 +421,11 @@ class MusicController @Inject constructor(
                             playbackErrorHandler.clearPlaybackError()
                         }
                     } else {
-                        // Retries exhausted!
-                        Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId reason=Exhausted $MAX_ONLINE_RETRIES retries")
+                        Log.e("MusicController", "[ONLINE_RECOVERY_FAILED] videoId=$videoId fresh resolution returned null on attempt $retryAttempt")
+                        onlineRetryCount.remove(videoId)
                         withContext(Dispatchers.Main) {
                             if (token != currentRecoveryToken || !isActive) return@withContext
-                            val isAutoplayTrack = isCurrentTrackAutoplayRecommendation ||
-                                _songQueue.firstOrNull { it.id == mediaId || it.videoId == videoId }?.album == "Recommended"
-
-                            if (isAutoplayTrack) {
-                                Log.w("MusicController", "[AUTOPLAY_SKIP_FAILED_TRACK] videoId=$videoId, advancing to next recommendation")
-                                playbackEventBus.emit(PlaybackEvent.SongError(mediaId.ifBlank { videoId }, "Exhausted retries"))
-                                playbackEventBus.emit(PlaybackEvent.AutoplayRequested)
-                            } else {
-                                val ctrl = mediaController
-                                val hasNext = ctrl?.hasNextMediaItem() == true
-                                playbackEventBus.emit(PlaybackEvent.SongError(mediaId, error.message ?: "Playback failed"))
-                                playbackErrorHandler.handleError(error, hasNext, isOnline = true)
-                                if (hasNext && ctrl != null) {
-                                    ctrl.seekToNext()
-                                    ctrl.prepare()
-                                    ctrl.play()
-                                } else {
-                                    playbackStateManager.updatePlayingState(false)
-                                    playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
-                                }
-                            }
+                            handleOnlineFailureExhausted(mediaId, videoId, error)
                         }
                     }
                 }
@@ -709,6 +674,32 @@ class MusicController @Inject constructor(
                 cause is java.net.SocketTimeoutException ||
                 cause is java.net.UnknownHostException ||
                 cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException
+            }
+        }
+    }
+
+    private fun handleOnlineFailureExhausted(mediaId: String, videoId: String, error: PlaybackException) {
+        val isAutoplayTrack = isCurrentTrackAutoplayRecommendation ||
+            _songQueue.firstOrNull { it.id == mediaId || it.videoId == videoId }?.album == "Recommended"
+
+        if (isAutoplayTrack) {
+            Log.w("MusicController", "[AUTOPLAY_SKIP_FAILED_TRACK] videoId=$videoId, advancing to next recommendation")
+            playbackEventBus.emit(PlaybackEvent.SongError(mediaId.ifBlank { videoId }, "Exhausted retries"))
+            playbackEventBus.emit(PlaybackEvent.AutoplayRequested)
+        } else {
+            val ctrl = mediaController
+            val currentMediaId = mediaId.ifBlank { videoId }
+            val currentIndex = _songQueue.indexOfFirst {
+                it.id == currentMediaId || it.videoId == currentMediaId
+            }
+            val hasNextInQueue = (ctrl?.hasNextMediaItem() == true) || (currentIndex != -1 && currentIndex + 1 < _songQueue.size)
+            playbackEventBus.emit(PlaybackEvent.SongError(currentMediaId, error.message ?: "Playback failed"))
+            playbackErrorHandler.handleError(error, hasNextInQueue, isOnline = true)
+            if (hasNextInQueue) {
+                skipToNext()
+            } else {
+                playbackStateManager.updatePlayingState(false)
+                playbackStateManager.updateMachineState(PlaybackMachineState.FAILED)
             }
         }
     }
@@ -1272,8 +1263,10 @@ class MusicController @Inject constructor(
 
     override fun replaceMediaItem(index: Int, mediaItem: MediaItem) {
         runOnApplicationThread { controller ->
-            if (controller.mediaItemCount == _songQueue.size && index in 0 until controller.mediaItemCount) {
+            if (index in 0 until controller.mediaItemCount) {
                 controller.replaceMediaItem(index, mediaItem)
+            } else if (index == controller.mediaItemCount) {
+                controller.addMediaItem(mediaItem)
             }
         }
     }
@@ -1432,7 +1425,7 @@ class MusicController @Inject constructor(
         const val KEY_REPEAT_MODE = "playback_repeat_mode"
         const val KEY_SHUFFLE_MODE = "playback_shuffle_mode"
         const val MAX_ONLINE_RETRIES = 3
-        val RETRY_DELAYS_MS = longArrayOf(0L, 750L, 1750L)
+        val RETRY_DELAYS_MS = longArrayOf(500L, 1500L, 3000L)
     }
 }
 

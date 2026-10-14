@@ -218,12 +218,11 @@ class PlaybackSourceResolver @Inject constructor(
     fun isNetworkAvailable(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
-        // Checking NET_CAPABILITY_INTERNET ensures we have network interface access.
-        // We do NOT strictly demand NET_CAPABILITY_VALIDATED because on mobile data,
-        // Wi-Fi handover, or aggressive OEM battery saver modes (e.g. ColorOS/RealmeUI),
-        // VALIDATED may be false or delayed even when socket connections succeed.
+        // ponytail: activeNetwork returns null during Doze/screen-off even when
+        // the foreground service still has internet. Assume online and let the
+        // actual HTTP call fail if truly offline — ExoPlayer handles IO errors.
+        val network = cm.activeNetwork ?: return true
+        val caps = cm.getNetworkCapabilities(network) ?: return true
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
