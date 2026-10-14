@@ -20,6 +20,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,11 +79,6 @@ fun NowPlayingScreen(
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(1L)
 
-    val artScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0.94f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "artScale"
-    )
 
     if (showQualityDetails) {
         AlertDialog(
@@ -271,42 +269,14 @@ fun NowPlayingScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // ── Album Artwork ────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .size(280.dp)
-                    .graphicsLayer {
-                        scaleX = artScale
-                        scaleY = artScale
-                    }
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(28.dp), spotColor = Color.Black)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(SurfaceLight)
-                    .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(28.dp))
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (hasSong) {
-                    AlbumArtImage(
-                        uri = artUri ?: "",
-                        title = title,
-                        artist = artist,
-                        size = 264.dp,
-                        shape = RoundedCornerShape(22.dp),
-                        iconSize = 80.dp
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(SurfaceContainerLow),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(72.dp))
-                    }
-                }
-            }
+            // ── Album Artwork (Interactive 3D Perspective Tilt & Song-Switch Flip) ─
+            Interactive3DAlbumArt(
+                artUri = artUri,
+                title = title,
+                artist = artist,
+                isPlaying = isPlaying,
+                hasSong = hasSong
+            )
 
             Spacer(Modifier.height(20.dp))
 
@@ -813,4 +783,111 @@ fun CustomLyricsDialog(
         }
     )
 }
+
+@Composable
+fun Interactive3DAlbumArt(
+    artUri: String?,
+    title: String?,
+    artist: String?,
+    isPlaying: Boolean,
+    hasSong: Boolean
+) {
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(0f) }
+    var isTouching by remember { mutableStateOf(false) }
+
+    val animatedTiltX by animateFloatAsState(
+        targetValue = if (isTouching) tiltX else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "tiltX"
+    )
+    val animatedTiltY by animateFloatAsState(
+        targetValue = if (isTouching) tiltY else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "tiltY"
+    )
+    val artScale by animateFloatAsState(
+        targetValue = when {
+            isTouching -> 1.03f
+            isPlaying -> 1f
+            else -> 0.93f
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "artScale"
+    )
+
+    // 3D Flip when song changes
+    androidx.compose.animation.AnimatedContent(
+        targetState = Triple(artUri, title, artist),
+        transitionSpec = {
+            (androidx.compose.animation.fadeIn(tween(280)) +
+                androidx.compose.animation.scaleIn(initialScale = 0.86f, animationSpec = tween(280)))
+                .togetherWith(
+                    androidx.compose.animation.fadeOut(tween(200)) +
+                        androidx.compose.animation.scaleOut(targetScale = 0.86f, animationSpec = tween(200))
+                )
+        },
+        label = "songArt3DTransition"
+    ) { (currentArt, currentTitle, currentArtist) ->
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isTouching = true
+                            val cx = size.width / 2f
+                            val cy = size.height / 2f
+                            tiltY = ((offset.x - cx) / cx).coerceIn(-1f, 1f) * 14f
+                            tiltX = -((offset.y - cy) / cy).coerceIn(-1f, 1f) * 14f
+                        },
+                        onDrag = { change, _ ->
+                            val cx = size.width / 2f
+                            val cy = size.height / 2f
+                            tiltY = ((change.position.x - cx) / cx).coerceIn(-1f, 1f) * 14f
+                            tiltX = -((change.position.y - cy) / cy).coerceIn(-1f, 1f) * 14f
+                        },
+                        onDragEnd = { isTouching = false },
+                        onDragCancel = { isTouching = false }
+                    )
+                }
+                .graphicsLayer {
+                    scaleX = artScale
+                    scaleY = artScale
+                    rotationX = animatedTiltX
+                    rotationY = animatedTiltY
+                    cameraDistance = 14f * density
+                    shadowElevation = if (isPlaying) 24.dp.toPx() else 8.dp.toPx()
+                    shape = RoundedCornerShape(28.dp)
+                    clip = true
+                }
+                .background(SurfaceLight)
+                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(28.dp))
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (hasSong) {
+                AlbumArtImage(
+                    uri = currentArt ?: "",
+                    title = currentTitle,
+                    artist = currentArtist,
+                    size = 264.dp,
+                    shape = RoundedCornerShape(22.dp),
+                    iconSize = 80.dp
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(SurfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(72.dp))
+                }
+            }
+        }
+    }
+}
+
 

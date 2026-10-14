@@ -47,11 +47,19 @@ class ArtworkRepository @Inject constructor(
         val cleanArtist = matcher.cleanArtist(safeArtist)
         val cleanTitle = matcher.cleanTitle(safeTitle, cleanArtist)
 
+        // Return immediately if local or pre-existing artwork URI is provided (<1ms)
+        if (!localArtworkUri.isNullOrBlank()) {
+            return ArtworkResult(
+                url = upgradeThumbnailIfNeeded(localArtworkUri),
+                provider = "Direct",
+                width = 0,
+                height = 0
+            )
+        }
+
         // If both title and artist are missing, return local/fallback URI immediately
         if (cleanTitle.isBlank() && cleanArtist.isBlank()) {
-            return localArtworkUri?.takeIf { it.isNotBlank() }?.let {
-                ArtworkResult(url = upgradeThumbnailIfNeeded(it), provider = "Local", width = 0, height = 0)
-            }
+            return null
         }
 
         val cacheKey = matcher.createStableCacheKey(safeArtist, safeTitle)
