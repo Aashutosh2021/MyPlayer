@@ -311,17 +311,15 @@ class PlaybackRouter @Inject constructor(
                     val nextResolved = withContext(Dispatchers.IO) {
                         sourceResolver.resolve(nextReq) { /* ignore background errors */ }
                     }
-                    if (nextResolved != null && nextResolved != nextUri && nextItem != null) {
-                        if (delegate.getMediaItemCount() == currentRequests.size && nextIndex < delegate.getMediaItemCount()) {
-                            val resolvedNextItem = mediaItemFactory.createMediaItem(
-                                songId = nextReq.songId,
-                                path = nextResolved,
-                                title = nextReq.title,
-                                artist = nextReq.artist,
-                                albumArt = nextReq.albumArt
-                            )
-                            delegate.replaceMediaItem(nextIndex, resolvedNextItem)
-                        }
+                    if (nextResolved != null && nextResolved != nextUri) {
+                        val resolvedNextItem = mediaItemFactory.createMediaItem(
+                            songId = nextReq.songId,
+                            path = nextResolved,
+                            title = nextReq.title,
+                            artist = nextReq.artist,
+                            albumArt = nextReq.albumArt
+                        )
+                        delegate.replaceMediaItem(nextIndex, resolvedNextItem)
                     }
                 }
             }

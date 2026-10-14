@@ -59,8 +59,9 @@ class PlaybackErrorHandler internal constructor(
         val ctx = context ?: return true
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
+        // ponytail: same as PlaybackSourceResolver — null during Doze != offline
+        val network = cm.activeNetwork ?: return true
+        val caps = cm.getNetworkCapabilities(network) ?: return true
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
@@ -148,9 +149,11 @@ class PlaybackErrorHandler internal constructor(
                 Log.i("PlaybackErrorHandler", "Suppressing UI error on first network/stream failure to prevent killing UI")
             }
 
-            // Auto-retry mechanism: if STREAM_EXPIRED or NETWORK_UNAVAILABLE and no next item,
+            // Auto-retry mechanism: if STREAM_EXPIRED, NETWORK_UNAVAILABLE, or STREAM_RESOLUTION_FAILED and no next item,
             // wait 2 seconds and attempt to call PlaybackRouter to resolve a fresh stream URL before giving up.
-            if (errorType == PlaybackErrorType.STREAM_EXPIRED || errorType == PlaybackErrorType.NETWORK_UNAVAILABLE) {
+            if (errorType == PlaybackErrorType.STREAM_EXPIRED ||
+                errorType == PlaybackErrorType.NETWORK_UNAVAILABLE ||
+                errorType == PlaybackErrorType.STREAM_RESOLUTION_FAILED) {
                 retryJob?.cancel()
                 retryJob = retryScope.launch {
                     try {

@@ -11,6 +11,8 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -38,17 +40,11 @@ object PlayerModule {
         @ApplicationContext context: Context,
         simpleCache: SimpleCache
     ): CacheDataSource.Factory {
-        // DefaultHttpDataSource handles https:// streams
         val httpFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(15_000)
 
-        // DefaultDataSource wraps httpFactory AND adds support for:
-        //   - content:// URIs (SAF / MediaStore) via ContentResolver
-        //   - file:// URIs via FileDataSource
-        //   - android.resource:// etc.
-        // This is the fix for "unknown protocol: content" crash on local songs.
         val defaultDataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         return CacheDataSource.Factory()
@@ -67,11 +63,26 @@ object PlayerModule {
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
         val initialShuffle = prefs.getBoolean("playback_shuffle_mode", false)
 
+        // Buffer up to 5 minutes (entire song) upfront so playback never stalls in background
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 60_000,
+                /* maxBufferMs = */ 300_000,
+                /* bufferForPlaybackMs = */ 1_000,
+                /* bufferForPlaybackAfterRebufferMs = */ 2_000
+            )
+            .setBackBuffer(30_000, true)
+            .build()
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
+            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 2))
+
         return ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+            .setLoadControl(loadControl)
+            .setMediaSourceFactory(mediaSourceFactory)
             .build().apply {
                 repeatMode = initialRepeat
                 shuffleModeEnabled = initialShuffle
