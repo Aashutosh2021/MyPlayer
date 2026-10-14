@@ -46,6 +46,9 @@ fun HomeScreen(
     val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
     val userState by viewModel.userState.collectAsStateWithLifecycle()
     val isLoadingRecommendations by viewModel.isLoadingRecommendations.collectAsStateWithLifecycle()
+    val popularPool = remember(mostPlayed, recentSongs, allSongs) {
+        (mostPlayed.ifEmpty { recentSongs.ifEmpty { allSongs } }).take(8)
+    }
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf("") }
@@ -236,7 +239,6 @@ fun HomeScreen(
 
         if (selectedCategory == "All") {
             // ── Popular Songs Section ─────────────────────────────────────────────
-            val popularPool = (mostPlayed.ifEmpty { recentSongs.ifEmpty { allSongs } })
             if (popularPool.isNotEmpty()) {
                 item {
                     Row(
@@ -260,20 +262,24 @@ fun HomeScreen(
                 }
 
                 item {
+                    val popularListState = rememberLazyListState()
                     LazyRow(
+                        state = popularListState,
                         contentPadding = PaddingValues(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(vertical = 12.dp)
                     ) {
-                        itemsIndexed(popularPool.take(8), key = { _, song -> song.id }) { index, song ->
-                            PopularSongCard(
-                                song = song,
-                                isPlaying = currentSong?.id == song.id,
-                                onClick = {
-                                    viewModel.playSong(popularPool, index)
-                                    onNavigateToNowPlaying()
-                                }
-                            )
+                        itemsIndexed(popularPool, key = { _, song -> song.id }) { index, song ->
+                            Box(modifier = Modifier.carousel3DItem(popularListState, index)) {
+                                PopularSongCard(
+                                    song = song,
+                                    isPlaying = currentSong?.id == song.id,
+                                    onClick = {
+                                        viewModel.playSong(popularPool, index)
+                                        onNavigateToNowPlaying()
+                                    }
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -299,20 +305,24 @@ fun HomeScreen(
                     }
                 }
                 item {
+                    val recoListState = rememberLazyListState()
                     LazyRow(
+                        state = recoListState,
                         contentPadding = PaddingValues(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         if (recommendations.isNotEmpty()) {
                             itemsIndexed(recommendations, key = { _, reco -> reco.videoId }) { index, reco ->
-                                RecommendedSongCard(
-                                    song = reco,
-                                    isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId,
-                                    onClick = {
-                                        viewModel.playRecommendedSongs(recommendations, index)
-                                        onNavigateToNowPlaying()
-                                    }
-                                )
+                                Box(modifier = Modifier.carousel3DItem(recoListState, index)) {
+                                    RecommendedSongCard(
+                                        song = reco,
+                                        isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId,
+                                        onClick = {
+                                            viewModel.playRecommendedSongs(recommendations, index)
+                                            onNavigateToNowPlaying()
+                                        }
+                                    )
+                                }
                             }
                         } else {
                             items(4) {
@@ -342,7 +352,7 @@ fun HomeScreen(
                     }
                 }
                 item {
-                    val chunked = favoriteSongs.take(6).chunked(2)
+                    val chunked = remember(favoriteSongs) { favoriteSongs.take(6).chunked(2) }
                     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                         chunked.forEach { pair ->
                             Row(
@@ -697,12 +707,7 @@ private fun RecommendedSongCard(
                             .background(NeonLimePrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Filled.GraphicEq,
-                            contentDescription = "Playing",
-                            tint = OnNeonLime,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = OnNeonLime)
                     }
                 }
             }
@@ -791,12 +796,7 @@ private fun DarkRecommendationListItem(
         }
 
         if (isPlaying) {
-            Icon(
-                Icons.Filled.GraphicEq,
-                contentDescription = "Playing",
-                tint = NeonLimePrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = NeonLimePrimary)
         } else {
             Icon(
                 Icons.Filled.PlayArrow,
@@ -858,12 +858,7 @@ private fun PopularSongCard(
                             .background(NeonLimePrimary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Filled.GraphicEq,
-                            contentDescription = "Playing",
-                            tint = OnNeonLime,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = OnNeonLime)
                     }
                 }
             }
@@ -1017,12 +1012,7 @@ private fun DarkSongListItem(
         }
 
         if (isPlaying) {
-            Icon(
-                Icons.Filled.GraphicEq,
-                contentDescription = "Playing",
-                tint = NeonLimePrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = NeonLimePrimary)
         } else {
             Icon(
                 Icons.Filled.MoreVert,
@@ -1074,3 +1064,41 @@ fun formatDurationHome(durationMs: Long): String {
     val s = durationMs / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
+
+@Composable
+fun AnimatedEqualizerBars(
+    modifier: Modifier = Modifier.size(18.dp),
+    color: Color = NeonLimePrimary
+) {
+    val transition = rememberInfiniteTransition(label = "eqBars")
+    val bar1 by transition.animateFloat(
+        initialValue = 0.25f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(420), RepeatMode.Reverse), label = "b1"
+    )
+    val bar2 by transition.animateFloat(
+        initialValue = 0.85f, targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(tween(340), RepeatMode.Reverse), label = "b2"
+    )
+    val bar3 by transition.animateFloat(
+        initialValue = 0.4f, targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse), label = "b3"
+    )
+
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val barWidth = size.width / 5f
+        val maxH = size.height
+        val heights = floatArrayOf(bar1, bar2, bar3)
+        for (i in 0..2) {
+            val h = (heights[i] * maxH).coerceAtLeast(barWidth)
+            val x = i * (barWidth * 1.8f) + barWidth / 2f
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(x, maxH - (maxH - h) / 2f),
+                end = androidx.compose.ui.geometry.Offset(x, (maxH - h) / 2f),
+                strokeWidth = barWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        }
+    }
+}
+

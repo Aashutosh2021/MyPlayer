@@ -109,6 +109,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                             isPlaying = isPlaying,
                             onPlayPauseClick = { viewModel.playPause() },
                             onNextClick = { viewModel.skipToNext() },
+                            onPreviousClick = { viewModel.skipToPrevious() },
                             onPlayerClick = {
                                 navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                             }

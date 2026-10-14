@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -291,8 +292,14 @@ fun PlaylistSongRow(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(if (isDragging) 1f else 0f)
-            .offset(y = if (isDragging) dragOffsetY.dp / 3 else 0.dp)
-            .shadow(elevation, RoundedCornerShape(20.dp))
+            .graphicsLayer {
+                translationY = if (isDragging) dragOffsetY else 0f
+                scaleX = if (isDragging) 1.03f else 1f
+                scaleY = if (isDragging) 1.03f else 1f
+                shadowElevation = elevation.toPx()
+                shape = RoundedCornerShape(20.dp)
+                clip = true
+            }
             .claySurface(borderRadius = 20.dp, backgroundColor = if (isDragging) SurfaceContainerHigh else SurfaceLight)
             .clickable(onClick = onPlayClick)
             .padding(12.dp),
