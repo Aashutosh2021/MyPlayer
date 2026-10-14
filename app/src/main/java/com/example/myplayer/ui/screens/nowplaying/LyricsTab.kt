@@ -233,8 +233,8 @@ private fun SyncedLyricsView(
                     text = lyricLine.ifBlank { "•" },
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal,
-                        fontSize = if (isActive) 18.sp else 16.sp,
-                        lineHeight = 28.sp
+                        fontSize = 16.sp,
+                        lineHeight = 26.sp
                     ),
                     color = color,
                     textAlign = TextAlign.Center,

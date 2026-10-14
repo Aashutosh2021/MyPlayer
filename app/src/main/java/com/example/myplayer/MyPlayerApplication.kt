@@ -54,6 +54,19 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
                 add(AudioAlbumArtFetcher.Factory(this@MyPlayerApplication))
                 add(ArtworkFetcher.Factory(artworkRepositoryProvider))
             }
+            .memoryCache {
+                coil.memory.MemoryCache.Builder(this)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                coil.disk.DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(100L * 1024 * 1024) // 100 MB disk cache
+                    .build()
+            }
+            .allowHardware(true)
+            .respectCacheHeaders(false)
             .build()
     }
 }

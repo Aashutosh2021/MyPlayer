@@ -289,7 +289,11 @@ fun HybridSongsTab(
         modifier = Modifier.padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+        itemsIndexed(
+            items = songs,
+            key = { _, song -> song.id },
+            contentType = { _, _ -> "hybrid_song" }
+        ) { index, song ->
             HybridSongItem(
                 song = song,
                 onPlaySong = { onPlaySong(songs, index) },
@@ -323,13 +327,13 @@ fun HybridSongItem(
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            val artUrl = song.thumbnailUrl
-            if (!artUrl.isNullOrBlank()) {
-                AsyncImage(model = artUrl, contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
-            } else {
-                Icon(Icons.Filled.MusicNote, null, tint = TextMuted)
-            }
+            com.example.myplayer.ui.common.AlbumArtImage(
+                uri = song.thumbnailUrl,
+                title = song.title,
+                artist = song.artist,
+                size = 48.dp,
+                shape = RoundedCornerShape(12.dp)
+            )
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -371,24 +375,26 @@ fun HybridSongItem(
             ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
                 Icon(Icons.Filled.MoreVert, "More", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
-                DropdownMenuItem(
-                    text = { Text("Add to Playlist", color = OnSurface) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
-                    onClick = {
-                        showMenu = false
-                        onAddToPlaylist()
-                    }
-                )
-                if (song is PlayableSong.Downloaded) {
+            if (showMenu) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
                     DropdownMenuItem(
-                        text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
-                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                        text = { Text("Add to Playlist", color = OnSurface) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
                         onClick = {
                             showMenu = false
-                            onRemoveDownload()
+                            onAddToPlaylist()
                         }
                     )
+                    if (song is PlayableSong.Downloaded) {
+                        DropdownMenuItem(
+                            text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                            onClick = {
+                                showMenu = false
+                                onRemoveDownload()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -489,10 +495,12 @@ fun PlaylistItem(name: String, onClick: () -> Unit, onDelete: () -> Unit) {
             ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
                 Icon(Icons.Filled.MoreVert, "More", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
-                DropdownMenuItem(text = { Text("Delete", color = Color(0xFFBA1A1A)) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
-                    onClick = { showMenu = false; onDelete() })
+            if (showMenu) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
+                    DropdownMenuItem(text = { Text("Delete", color = Color(0xFFBA1A1A)) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                        onClick = { showMenu = false; onDelete() })
+                }
             }
         }
     }

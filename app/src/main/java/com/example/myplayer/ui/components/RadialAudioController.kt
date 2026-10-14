@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -66,25 +67,34 @@ fun RadialAudioController(
     val currentProgress = if (isDragging) dragProgress else actualProgress
 
     // Concentric pulsing aura animation when playing
-    val infiniteTransition = rememberInfiniteTransition(label = "radialAura")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.35f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
+    val pulseScale: Float
+    val pulseAlpha: Float
+    if (isPlaying) {
+        val infiniteTransition = rememberInfiniteTransition(label = "radialAura")
+        val animatedScale by infiniteTransition.animateFloat(
+            initialValue = 0.94f,
+            targetValue = 1.06f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        )
+        val animatedAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.15f,
+            targetValue = 0.35f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseAlpha"
+        )
+        pulseScale = animatedScale
+        pulseAlpha = animatedAlpha
+    } else {
+        pulseScale = 1f
+        pulseAlpha = 0.15f
+    }
 
     // Favorite heart bounce
     val heartScale by animateFloatAsState(
@@ -267,7 +277,10 @@ fun RadialAudioController(
                         indication = null,
                         onClick = onToggleFavorite
                     )
-                    .scale(heartScale),
+                    .graphicsLayer {
+                        scaleX = heartScale
+                        scaleY = heartScale
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
