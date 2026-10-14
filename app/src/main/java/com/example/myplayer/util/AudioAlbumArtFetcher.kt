@@ -1,14 +1,19 @@
 package com.example.myplayer.util
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
+import android.util.Size
 import coil.ImageLoader
 import coil.decode.DataSource
 import coil.fetch.DrawableResult
 import coil.fetch.FetchResult
 import coil.fetch.Fetcher
 import coil.request.Options
+import coil.size.pxOrElse
 
 class AudioAlbumArtFetcher(
     private val data: Uri,
@@ -16,33 +21,55 @@ class AudioAlbumArtFetcher(
     private val context: Context
 ) : Fetcher {
     override suspend fun fetch(): FetchResult? {
-        // Try Android 10+ ContentResolver thumbnail API first
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        val targetWidth = options.size.width.pxOrElse { 256 }.coerceIn(96, 1024)
+        val targetHeight = options.size.height.pxOrElse { 256 }.coerceIn(96, 1024)
+
+        // Try Android 10+ ContentResolver thumbnail API first with exact requested size
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                val bitmap = context.contentResolver.loadThumbnail(data, android.util.Size(1024, 1024), null)
+                val bitmap = context.contentResolver.loadThumbnail(
+                    data,
+                    Size(targetWidth, targetHeight),
+                    null
+                )
                 return DrawableResult(
-                    drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap),
-                    isSampled = false,
+                    drawable = BitmapDrawable(context.resources, bitmap),
+                    isSampled = targetWidth < 1024,
                     dataSource = DataSource.DISK
                 )
             } catch (e: Exception) {
-                // Ignore and fall back to MediaMetadataRetriever
+                // Fall back to MediaMetadataRetriever
             }
         }
 
-        // Fallback to MediaMetadataRetriever
         val retriever = MediaMetadataRetriever()
         try {
             context.contentResolver.openFileDescriptor(data, "r")?.use { pfd ->
                 retriever.setDataSource(pfd.fileDescriptor)
                 val picture = retriever.embeddedPicture
                 if (picture != null) {
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(picture, 0, picture.size)
-                    return DrawableResult(
-                        drawable = android.graphics.drawable.BitmapDrawable(context.resources, bitmap),
-                        isSampled = false,
-                        dataSource = DataSource.DISK
-                    )
+                    val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(picture, 0, picture.size, boundsOpts)
+
+                    var sampleSize = 1
+                    val halfW = boundsOpts.outWidth / 2
+                    val halfH = boundsOpts.outHeight / 2
+                    while ((halfW / sampleSize) >= targetWidth && (halfH / sampleSize) >= targetHeight) {
+                        sampleSize *= 2
+                    }
+
+                    val decodeOpts = BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+                    }
+                    val bitmap = BitmapFactory.decodeByteArray(picture, 0, picture.size, decodeOpts)
+                    if (bitmap != null) {
+                        return DrawableResult(
+                            drawable = BitmapDrawable(context.resources, bitmap),
+                            isSampled = sampleSize > 1,
+                            dataSource = DataSource.DISK
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -62,3 +89,4 @@ class AudioAlbumArtFetcher(
         }
     }
 }
+

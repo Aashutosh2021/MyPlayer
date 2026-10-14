@@ -9,19 +9,21 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import coil.request.CachePolicy
-import androidx.compose.runtime.remember
-
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.example.myplayer.data.artwork.model.ArtworkModel
 
 /**
@@ -40,6 +42,10 @@ fun AlbumArtImage(
     iconSize: Dp = 24.dp
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val sizePx = remember(size, density) {
+        with(density) { (size * 2f).roundToPx().coerceAtLeast(128) }
+    }
     val hasValidRequest = !uri.isNullOrBlank() || (!title.isNullOrBlank() && !artist.isNullOrBlank())
 
     Box(
@@ -58,29 +64,28 @@ fun AlbumArtImage(
                 }
             }
 
-            val imageRequest = remember(context, requestModel) {
+            val isLargeArt = size >= 120.dp
+            val imageRequest = remember(context, requestModel, sizePx, isLargeArt) {
                 ImageRequest.Builder(context)
                     .data(requestModel)
-                    .crossfade(true)
-                    .size(coil.size.Size.ORIGINAL)
+                    .size(sizePx, sizePx)
+                    .precision(Precision.INEXACT)
+                    .allowHardware(true)
+                    .crossfade(if (isLargeArt) 200 else 0)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .build()
             }
-            val errorRequest = remember(context) {
-                ImageRequest.Builder(context).data("").build()
-            }
+
+            val fallbackPainter = rememberVectorPainter(Icons.Filled.MusicNote)
+
             AsyncImage(
                 model = imageRequest,
                 contentDescription = "Album art",
-                modifier = Modifier
-                    .size(size)
-                    .clip(shape),
+                modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
-                error = coil.compose.rememberAsyncImagePainter(
-                    model = errorRequest,
-                    fallback = coil.compose.rememberAsyncImagePainter(model = null)
-                )
+                error = fallbackPainter,
+                fallback = fallbackPainter
             )
         } else {
             Icon(

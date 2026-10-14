@@ -40,10 +40,6 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val currentOnlineSong by viewModel.currentOnlineSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsStateWithLifecycle()
-    val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
-    val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()
-    val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
 
     // Surface one-shot playback errors (e.g. a downloaded file that is no longer on disk).
     val context = LocalContext.current
@@ -136,6 +132,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
+            enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) },
+            exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
+            popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) },
+            popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = if (showNav) innerPadding.calculateBottomPadding() else 0.dp)
@@ -188,6 +188,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 )
             }
             composable(Screen.NowPlaying.route) {
+                val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsStateWithLifecycle()
+                val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
+                val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()
+                val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
                 val durationMs = currentSong?.duration ?: viewModel.currentDuration.collectAsStateWithLifecycle().value
                 val canDownload by viewModel.isCurrentSongOnline.collectAsStateWithLifecycle()
                 val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsStateWithLifecycle()

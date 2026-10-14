@@ -1,15 +1,16 @@
-# Project Structure
+﻿# Project Structure
 
-`	ext
+`
+ext
 +--- .claude
-|    +--- SYSTEM_PROMPT.md
-|    +--- UNIVERSAL_AI_BRAIN_PROMPT.md
 |    +--- settings.json
-|    \--- settings.local.json
+|    +--- settings.local.json
+|    +--- SYSTEM_PROMPT.md
+|    \--- UNIVERSAL_AI_BRAIN_PROMPT.md
 +--- .gemini
+|    +--- settings.json
 |    +--- SYSTEM_PROMPT.md
 |    +--- UNIVERSAL_AI_BRAIN_PROMPT.md
-|    +--- settings.json
 |    \--- skills
 |         +--- find-skills
 |         |    +--- .skillfish.json
@@ -106,30 +107,20 @@
 |         |    \--- templates
 |         |         +--- component-library.tsx
 |         |         \--- nextjs-page.tsx
-|         +--- seedance-prompt-en
-|         |    \--- SKILL.md
+|         \--- seedance-prompt-en
+|              \--- SKILL.md
 |         \--- skills-lock.json
 +--- .gitignore
 +--- .vscode
 |    \--- settings.json
 +--- Agent_BOOT.md
 +--- CLAUDE.md
-+--- CRASH_REPORT.md
-+--- DATA_LAYER_CONSOLIDATION_REPORT.md
-+--- DATA_MODEL_NORMALIZATION_REPORT.md
-+--- DOWNLOAD_SYSTEM_REPORT.md
-+--- MUSICCONTROLLER_REFACTOR_REPORT.md
-+--- PERFORMANCE_RECOVERY_REPORT.md
-+--- PERFORMANCE_REPORT.md
-+--- PLAYBACK_INTEGRATION_REPORT.md
-+--- PLAYBACK_PIPELINE_REPORT.md
-+--- PLAYBACK_RECOVERY_REPORT.md
++--- CONTRIBUTING.md
++--- LICENSE
 +--- PROMPT.md
-+--- QA_REPORT.md
 +--- README.md
-+--- RECOMMENDATION_DECOUPLING_REPORT.md
-+--- RELEASE_READINESS.md
-+--- Recovery.md
++--- RELEASE_NOTES_v3.5.md
++--- RELEASE_NOTES_v3.6.md
 +--- app
 |    +--- .gitignore
 |    +--- build.gradle.kts
@@ -144,227 +135,251 @@
 |         |                        \--- ExampleInstrumentedTest.kt
 |         +--- main
 |         |    +--- AndroidManifest.xml
+|         |    +--- ic_launcher-playstore.png
+|         |    +--- aidl
+|         |    |    \--- com
+|         |    |         \--- example
+|         |    |              \--- aria
+|         |    |                   \--- connector
+|         |    |                        +--- AppCommandContainer.aidl
+|         |    |                        +--- AppResponseContainer.aidl
+|         |    |                        +--- Capability.aidl
+|         |    |                        +--- ConnectorVersionInfo.aidl
+|         |    |                        +--- EcosystemEventContainer.aidl
+|         |    |                        +--- IAriaCallback.aidl
+|         |    |                        \--- IAriaConnector.aidl
 |         |    +--- cpp
 |         |    |    +--- CMakeLists.txt
 |         |    |    \--- native-lib.cpp
-|         |    +--- ic_launcher-playstore.png
 |         |    +--- java
 |         |    |    \--- com
 |         |    |         \--- example
-|         |    |              \--- myplayer
-|         |    |                   +--- MainActivity.kt
-|         |    |                   +--- MyPlayerApplication.kt
-|         |    |                   +--- aria
-|         |    |                   |    +--- cache
-|         |    |                   |    |    \--- AriaMemoryCache.kt
-|         |    |                   |    +--- dispatcher
-|         |    |                   |    |    \--- CommandDispatcher.kt
-|         |    |                   |    +--- event
-|         |    |                   |    |    \--- AriaEventPublisher.kt
-|         |    |                   |    +--- model
-|         |    |                   |    |    +--- AriaCommand.kt
-|         |    |                   |    |    +--- AriaResponse.kt
-|         |    |                   |    |    +--- AriaStatus.kt
-|         |    |                   |    |    +--- QueueInfo.kt
-|         |    |                   |    |    +--- Responses.kt
-|         |    |                   |    |    \--- SongInfo.kt
-|         |    |                   |    +--- performance
-|         |    |                   |    |    \--- AriaPerformanceMonitor.kt
-|         |    |                   |    +--- providers
-|         |    |                   |    |    +--- DownloadProvider.kt
-|         |    |                   |    |    +--- EqualizerProvider.kt
-|         |    |                   |    |    +--- HistoryProvider.kt
-|         |    |                   |    |    +--- LyricsProvider.kt
-|         |    |                   |    |    +--- MetadataProvider.kt
-|         |    |                   |    |    +--- PlaybackController.kt
-|         |    |                   |    |    +--- PlaylistProvider.kt
-|         |    |                   |    |    +--- QueueProvider.kt
-|         |    |                   |    |    +--- RecommendationProvider.kt
-|         |    |                   |    |    \--- SearchProvider.kt
-|         |    |                   |    +--- recovery
-|         |    |                   |    |    \--- AriaStateRecoveryManager.kt
-|         |    |                   |    +--- security
-|         |    |                   |    |    +--- AriaPermission.kt
-|         |    |                   |    |    +--- AriaSecurityConfig.kt
-|         |    |                   |    |    \--- CallerVerifier.kt
-|         |    |                   |    \--- service
-|         |    |                   |         \--- AriaService.kt
-|         |    |                   +--- data
-|         |    |                   |    +--- backup
-|         |    |                   |    |    \--- BackupRestoreManager.kt
-|         |    |                   |    +--- download
-|         |    |                   |    |    \--- DownloadWorker.kt
-|         |    |                   |    +--- local
-|         |    |                   |    |    +--- AppDatabase.kt
-|         |    |                   |    |    +--- dao
-|         |    |                   |    |    |    +--- CachedLyricsDao.kt
-|         |    |                   |    |    |    +--- DownloadedSongDao.kt
-|         |    |                   |    |    |    +--- FavoriteDao.kt
-|         |    |                   |    |    |    +--- FolderDao.kt
-|         |    |                   |    |    |    +--- PlaylistDao.kt
-|         |    |                   |    |    |    +--- RecentHistoryDao.kt
-|         |    |                   |    |    |    +--- RecentSearchDao.kt
-|         |    |                   |    |    |    \--- SongDao.kt
-|         |    |                   |    |    +--- datastore
-|         |    |                   |    |    |    \--- SettingsDataStore.kt
-|         |    |                   |    |    +--- entity
-|         |    |                   |    |    |    +--- CachedLyricsEntity.kt
-|         |    |                   |    |    |    +--- DownloadedSongEntity.kt
-|         |    |                   |    |    |    +--- FavoriteEntity.kt
-|         |    |                   |    |    |    +--- FolderEntity.kt
-|         |    |                   |    |    |    +--- PlaylistEntity.kt
-|         |    |                   |    |    |    +--- PlaylistSongCrossReference.kt
-|         |    |                   |    |    |    +--- RecentHistoryEntity.kt
-|         |    |                   |    |    |    +--- RecentSearchEntity.kt
-|         |    |                   |    |    |    \--- SongEntity.kt
-|         |    |                   |    |    \--- prefs
-|         |    |                   |    |         \--- PreferencesManager.kt
-|         |    |                   |    +--- lyrics
-|         |    |                   |    |    \--- LyricsRepository.kt
-|         |    |                   |    +--- model
-|         |    |                   |    |    +--- MusicItem.kt
-|         |    |                   |    |    \--- MusicItemMapper.kt
-|         |    |                   |    +--- online
-|         |    |                   |    |    +--- InnertubeApi.kt
-|         |    |                   |    |    +--- NewPipeDownloader.kt
-|         |    |                   |    |    \--- model
-|         |    |                   |    |         \--- OnlineSong.kt
-|         |    |                   |    +--- recommendation
-|         |    |                   |    |    +--- RecommendationCoordinator.kt
-|         |    |                   |    |    +--- RecommendationManager.kt
-|         |    |                   |    |    +--- RecommendationModule.kt
-|         |    |                   |    |    +--- RecommendationRepository.kt
-|         |    |                   |    |    +--- api
-|         |    |                   |    |    |    +--- RecommendationApi.kt
-|         |    |                   |    |    |    \--- RecommendationSource.kt
-|         |    |                   |    |    +--- cache
-|         |    |                   |    |    |    \--- RecommendationCache.kt
-|         |    |                   |    |    +--- engine
-|         |    |                   |    |    |    +--- RecommendationEngine.kt
-|         |    |                   |    |    |    \--- RecommendationValidator.kt
-|         |    |                   |    |    +--- logging
-|         |    |                   |    |    |    +--- RecommendationLogger.kt
-|         |    |                   |    |    |    \--- RecommendationMetrics.kt
-|         |    |                   |    |    +--- mapper
-|         |    |                   |    |    |    \--- RecommendationMapper.kt
-|         |    |                   |    |    +--- model
-|         |    |                   |    |    |    +--- RecommendationResult.kt
-|         |    |                   |    |    |    +--- RecommendationSeed.kt
-|         |    |                   |    |    |    \--- RecommendationSong.kt
-|         |    |                   |    |    +--- playback
-|         |    |                   |    |    |    \--- RecommendationPlaybackRepository.kt
-|         |    |                   |    |    +--- queue
-|         |    |                   |    |    |    +--- QueueConstants.kt
-|         |    |                   |    |    |    +--- QueueMetrics.kt
-|         |    |                   |    |    |    +--- RecentPlaybackWindow.kt
-|         |    |                   |    |    |    +--- RecommendationFilter.kt
-|         |    |                   |    |    |    +--- RecommendationHistory.kt
-|         |    |                   |    |    |    +--- RecommendationQueue.kt
-|         |    |                   |    |    |    +--- RecommendationQueueHealth.kt
-|         |    |                   |    |    |    +--- RecommendationQueueManager.kt
-|         |    |                   |    |    |    +--- RecommendationQueuePolicy.kt
-|         |    |                   |    |    |    \--- RecommendationSession.kt
-|         |    |                   |    |    +--- strategy
-|         |    |                   |    |    |    \--- RecommendationStrategy.kt
-|         |    |                   |    |    \--- utils
-|         |    |                   |    |         \--- RecommendationConstants.kt
-|         |    |                   |    \--- repository
-|         |    |                   |         +--- DownloadRepository.kt
-|         |    |                   |         +--- FavoriteRepository.kt
-|         |    |                   |         +--- HybridLibraryRepository.kt
-|         |    |                   |         +--- MediaScanner.kt
-|         |    |                   |         +--- MusicRepository.kt
-|         |    |                   |         +--- OnlineSearchRepository.kt
-|         |    |                   |         +--- PlaylistRepository.kt
-|         |    |                   |         +--- RecentHistoryRepository.kt
-|         |    |                   |         \--- SongRepository.kt
-|         |    |                   +--- di
-|         |    |                   |    +--- AriaModule.kt
-|         |    |                   |    +--- CacheModule.kt
-|         |    |                   |    +--- DatabaseModule.kt
-|         |    |                   |    +--- NetworkModule.kt
-|         |    |                   |    \--- PlayerModule.kt
-|         |    |                   +--- playback
-|         |    |                   |    +--- MediaItemFactory.kt
-|         |    |                   |    +--- MusicController.kt
-|         |    |                   |    +--- MusicService.kt
-|         |    |                   |    +--- PlayRequest.kt
-|         |    |                   |    +--- PlaybackCompletionGuard.kt
-|         |    |                   |    +--- PlaybackErrorHandler.kt
-|         |    |                   |    +--- PlaybackEvent.kt
-|         |    |                   |    +--- PlaybackRouter.kt
-|         |    |                   |    +--- PlaybackSourceResolver.kt
-|         |    |                   |    +--- PlaybackStateManager.kt
-|         |    |                   |    \--- SleepTimerManager.kt
-|         |    |                   +--- security
-|         |    |                   |    +--- AntiDebugManager.kt
-|         |    |                   |    +--- EmulatorDetectionManager.kt
-|         |    |                   |    +--- FridaDetectionManager.kt
-|         |    |                   |    +--- HookDetectionManager.kt
-|         |    |                   |    +--- IntegrityManager.kt
-|         |    |                   |    +--- NetworkSecurityManager.kt
-|         |    |                   |    +--- RootDetectionManager.kt
-|         |    |                   |    +--- SecurityManager.kt
-|         |    |                   |    +--- SecurityNativeBridge.kt
-|         |    |                   |    +--- SignatureVerifier.kt
-|         |    |                   |    +--- StringEncryptionManager.kt
-|         |    |                   |    \--- TamperDetectionManager.kt
-|         |    |                   +--- ui
-|         |    |                   |    +--- common
-|         |    |                   |    |    \--- AlbumArtImage.kt
-|         |    |                   |    +--- components
-|         |    |                   |    |    +--- FloatingNavBar.kt
-|         |    |                   |    |    +--- GlassComponents.kt
-|         |    |                   |    |    \--- recommendation
-|         |    |                   |    |         +--- RecommendationQueuePreview.kt
-|         |    |                   |    |         +--- RecommendationReasonChip.kt
-|         |    |                   |    |         +--- RecommendationSection.kt
-|         |    |                   |    |         +--- RecommendationStates.kt
-|         |    |                   |    |         \--- RecommendedSongCard.kt
-|         |    |                   |    +--- navigation
-|         |    |                   |    |    \--- Screen.kt
-|         |    |                   |    +--- screens
-|         |    |                   |    |    +--- downloads
-|         |    |                   |    |    |    +--- DownloadsScreen.kt
-|         |    |                   |    |    |    \--- DownloadsViewModel.kt
-|         |    |                   |    |    +--- home
-|         |    |                   |    |    |    +--- HomeScreen.kt
-|         |    |                   |    |    |    \--- HomeViewModel.kt
-|         |    |                   |    |    +--- library
-|         |    |                   |    |    |    +--- LibraryScreen.kt
-|         |    |                   |    |    |    +--- LibraryViewModel.kt
-|         |    |                   |    |    |    +--- PlaylistDetailScreen.kt
-|         |    |                   |    |    |    \--- PlaylistDetailViewModel.kt
-|         |    |                   |    |    +--- main
-|         |    |                   |    |    |    +--- MainScreen.kt
-|         |    |                   |    |    |    +--- MainViewModel.kt
-|         |    |                   |    |    |    \--- MiniPlayer.kt
-|         |    |                   |    |    +--- nowplaying
-|         |    |                   |    |    |    +--- LyricsTab.kt
-|         |    |                   |    |    |    +--- LyricsViewModel.kt
-|         |    |                   |    |    |    \--- NowPlayingScreen.kt
-|         |    |                   |    |    +--- recommendation
-|         |    |                   |    |    |    \--- RecommendationViewModel.kt
-|         |    |                   |    |    +--- search
-|         |    |                   |    |    |    +--- OnlineSearchScreen.kt
-|         |    |                   |    |    |    +--- OnlineSearchViewModel.kt
-|         |    |                   |    |    |    +--- SearchScreen.kt
-|         |    |                   |    |    |    \--- SearchViewModel.kt
-|         |    |                   |    |    \--- settings
-|         |    |                   |    |         +--- SettingsScreen.kt
-|         |    |                   |    |         \--- SettingsViewModel.kt
-|         |    |                   |    \--- theme
-|         |    |                   |         +--- Color.kt
-|         |    |                   |         +--- Modifiers.kt
-|         |    |                   |         +--- Theme.kt
-|         |    |                   |         \--- Type.kt
-|         |    |                   \--- util
-|         |    |                        \--- AudioAlbumArtFetcher.kt
+|         |              +--- aria
+|         |              |    \--- connector
+|         |              |         +--- AppCommand.kt
+|         |              |         +--- AppCommandContainer.kt
+|         |              |         +--- AppResponse.kt
+|         |              |         +--- AppResponseContainer.kt
+|         |              |         +--- Capability.kt
+|         |              |         +--- ConnectorVersionInfo.kt
+|         |              |         +--- EcosystemEvent.kt
+|         |              |         +--- EcosystemEventContainer.kt
+|         |              |         \--- sdk
+|         |              |              +--- AriaConnectorService.kt
+|         |              |              \--- MusicConnectorService.kt
+|         |              \--- myplayer
+|         |                   +--- MainActivity.kt
+|         |                   +--- MyPlayerApplication.kt
+|         |                   +--- aria
+|         |                   |    +--- cache
+|         |                   |    |    \--- AriaMemoryCache.kt
+|         |                   |    +--- dispatcher
+|         |                   |    |    \--- CommandDispatcher.kt
+|         |                   |    +--- event
+|         |                   |    |    \--- AriaEventPublisher.kt
+|         |                   |    +--- model
+|         |                   |    |    +--- AriaCommand.kt
+|         |                   |    |    +--- AriaResponse.kt
+|         |                   |    |    +--- AriaStatus.kt
+|         |                   |    |    +--- QueueInfo.kt
+|         |                   |    |    +--- Responses.kt
+|         |                   |    |    \--- SongInfo.kt
+|         |                   |    +--- performance
+|         |                   |    |    \--- AriaPerformanceMonitor.kt
+|         |                   |    +--- providers
+|         |                   |    |    +--- DownloadProvider.kt
+|         |                   |    |    +--- EqualizerProvider.kt
+|         |                   |    |    +--- HistoryProvider.kt
+|         |                   |    |    +--- LyricsProvider.kt
+|         |                   |    |    +--- MetadataProvider.kt
+|         |                   |    |    +--- PlaybackController.kt
+|         |                   |    |    +--- PlaylistProvider.kt
+|         |                   |    |    +--- QueueProvider.kt
+|         |                   |    |    +--- RecommendationProvider.kt
+|         |                   |    |    \--- SearchProvider.kt
+|         |                   |    +--- recovery
+|         |                   |    |    \--- AriaStateRecoveryManager.kt
+|         |                   |    +--- security
+|         |                   |    |    +--- AriaPermission.kt
+|         |                   |    |    +--- AriaSecurityConfig.kt
+|         |                   |    |    \--- CallerVerifier.kt
+|         |                   |    \--- service
+|         |                   |         \--- AriaService.kt
+|         |                   +--- data
+|         |                   |    +--- backup
+|         |                   |    |    \--- BackupRestoreManager.kt
+|         |                   |    +--- download
+|         |                   |    |    \--- DownloadWorker.kt
+|         |                   |    +--- local
+|         |                   |    |    +--- AppDatabase.kt
+|         |                   |    |    +--- dao
+|         |                   |    |    |    +--- CachedLyricsDao.kt
+|         |                   |    |    |    +--- DownloadedSongDao.kt
+|         |                   |    |    |    +--- FavoriteDao.kt
+|         |                   |    |    |    +--- FolderDao.kt
+|         |                   |    |    |    +--- PlaylistDao.kt
+|         |                   |    |    |    +--- RecentHistoryDao.kt
+|         |                   |    |    |    +--- RecentSearchDao.kt
+|         |                   |    |    |    \--- SongDao.kt
+|         |                   |    |    +--- datastore
+|         |                   |    |    |    \--- SettingsDataStore.kt
+|         |                   |    |    +--- entity
+|         |                   |    |    |    +--- CachedLyricsEntity.kt
+|         |                   |    |    |    +--- DownloadedSongEntity.kt
+|         |                   |    |    |    +--- FavoriteEntity.kt
+|         |                   |    |    |    +--- FolderEntity.kt
+|         |                   |    |    |    +--- PlaylistEntity.kt
+|         |                   |    |    |    +--- PlaylistSongCrossReference.kt
+|         |                   |    |    |    +--- RecentHistoryEntity.kt
+|         |                   |    |    |    +--- RecentSearchEntity.kt
+|         |                   |    |    |    \--- SongEntity.kt
+|         |                   |    |    \--- prefs
+|         |                   |    |         \--- PreferencesManager.kt
+|         |                   |    +--- lyrics
+|         |                   |    |    \--- LyricsRepository.kt
+|         |                   |    +--- model
+|         |                   |    |    +--- MusicItem.kt
+|         |                   |    |    \--- MusicItemMapper.kt
+|         |                   |    +--- online
+|         |                   |    |    +--- InnertubeApi.kt
+|         |                   |    |    +--- NewPipeDownloader.kt
+|         |                   |    |    \--- model
+|         |                   |    |         \--- OnlineSong.kt
+|         |                   |    +--- recommendation
+|         |                   |    |    +--- RecommendationCoordinator.kt
+|         |                   |    |    +--- RecommendationManager.kt
+|         |                   |    |    +--- RecommendationModule.kt
+|         |                   |    |    +--- RecommendationRepository.kt
+|         |                   |    |    +--- api
+|         |                   |    |    |    +--- RecommendationApi.kt
+|         |                   |    |    |    \--- RecommendationSource.kt
+|         |                   |    |    +--- cache
+|         |                   |    |    |    \--- RecommendationCache.kt
+|         |                   |    |    +--- engine
+|         |                   |    |    |    +--- RecommendationEngine.kt
+|         |                   |    |    |    \--- RecommendationValidator.kt
+|         |                   |    |    +--- logging
+|         |                   |    |    |    +--- RecommendationLogger.kt
+|         |                   |    |    |    \--- RecommendationMetrics.kt
+|         |                   |    |    +--- mapper
+|         |                   |    |    |    \--- RecommendationMapper.kt
+|         |                   |    |    +--- model
+|         |                   |    |    |    +--- RecommendationResult.kt
+|         |                   |    |    |    +--- RecommendationSeed.kt
+|         |                   |    |    |    \--- RecommendationSong.kt
+|         |                   |    |    +--- playback
+|         |                   |    |    |    \--- RecommendationPlaybackRepository.kt
+|         |                   |    |    +--- queue
+|         |                   |    |    |    +--- QueueConstants.kt
+|         |                   |    |    |    +--- QueueMetrics.kt
+|         |                   |    |    |    +--- RecentPlaybackWindow.kt
+|         |                   |    |    |    +--- RecommendationFilter.kt
+|         |                   |    |    |    +--- RecommendationHistory.kt
+|         |                   |    |    |    +--- RecommendationQueue.kt
+|         |                   |    |    |    +--- RecommendationQueueHealth.kt
+|         |                   |    |    |    +--- RecommendationQueueManager.kt
+|         |                   |    |    |    +--- RecommendationQueuePolicy.kt
+|         |                   |    |    |    \--- RecommendationSession.kt
+|         |                   |    |    +--- strategy
+|         |                   |    |    |    \--- RecommendationStrategy.kt
+|         |                   |    |    \--- utils
+|         |                   |    |         \--- RecommendationConstants.kt
+|         |                   |    \--- repository
+|         |                   |         +--- DownloadRepository.kt
+|         |                   |         +--- FavoriteRepository.kt
+|         |                   |         +--- HybridLibraryRepository.kt
+|         |                   |         +--- MediaScanner.kt
+|         |                   |         +--- MusicRepository.kt
+|         |                   |         +--- OnlineSearchRepository.kt
+|         |                   |         +--- PlaylistRepository.kt
+|         |                   |         +--- RecentHistoryRepository.kt
+|         |                   |         \--- SongRepository.kt
+|         |                   +--- di
+|         |                   |    +--- AriaModule.kt
+|         |                   |    +--- CacheModule.kt
+|         |                   |    +--- DatabaseModule.kt
+|         |                   |    +--- NetworkModule.kt
+|         |                   |    \--- PlayerModule.kt
+|         |                   +--- playback
+|         |                   |    +--- MediaItemFactory.kt
+|         |                   |    +--- MusicController.kt
+|         |                   |    +--- MusicService.kt
+|         |                   |    +--- PlayRequest.kt
+|         |                   |    +--- PlaybackCompletionGuard.kt
+|         |                   |    +--- PlaybackErrorHandler.kt
+|         |                   |    +--- PlaybackEvent.kt
+|         |                   |    +--- PlaybackRouter.kt
+|         |                   |    +--- PlaybackSourceResolver.kt
+|         |                   |    +--- PlaybackStateManager.kt
+|         |                   |    \--- SleepTimerManager.kt
+|         |                   +--- security
+|         |                   |    +--- AntiDebugManager.kt
+|         |                   |    +--- EmulatorDetectionManager.kt
+|         |                   |    +--- FridaDetectionManager.kt
+|         |                   |    +--- HookDetectionManager.kt
+|         |                   |    +--- IntegrityManager.kt
+|         |                   |    +--- NetworkSecurityManager.kt
+|         |                   |    +--- RootDetectionManager.kt
+|         |                   |    +--- SecurityManager.kt
+|         |                   |    +--- SecurityNativeBridge.kt
+|         |                   |    +--- SignatureVerifier.kt
+|         |                   |    +--- StringEncryptionManager.kt
+|         |                   |    \--- TamperDetectionManager.kt
+|         |                   +--- ui
+|         |                   |    +--- common
+|         |                   |    |    \--- AlbumArtImage.kt
+|         |                   |    +--- components
+|         |                   |    |    +--- FloatingNavBar.kt
+|         |                   |    |    +--- GlassComponents.kt
+|         |                   |    |    \--- recommendation
+|         |                   |    |         +--- RecommendationQueuePreview.kt
+|         |                   |    |         +--- RecommendationReasonChip.kt
+|         |                   |    |         +--- RecommendationSection.kt
+|         |                   |    |         +--- RecommendationStates.kt
+|         |                   |    |         \--- RecommendedSongCard.kt
+|         |                   |    +--- navigation
+|         |                   |    |    \--- Screen.kt
+|         |                   |    +--- screens
+|         |                   |    |    +--- downloads
+|         |                   |    |    |    +--- DownloadsScreen.kt
+|         |                   |    |    |    \--- DownloadsViewModel.kt
+|         |                   |    |    +--- home
+|         |                   |    |    |    +--- HomeScreen.kt
+|         |                   |    |    |    \--- HomeViewModel.kt
+|         |                   |    |    +--- library
+|         |                   |    |    |    +--- LibraryScreen.kt
+|         |                   |    |    |    +--- LibraryViewModel.kt
+|         |                   |    |    |    +--- PlaylistDetailScreen.kt
+|         |                   |    |    |    \--- PlaylistDetailViewModel.kt
+|         |                   |    |    +--- main
+|         |                   |    |    |    +--- MainScreen.kt
+|         |                   |    |    |    +--- MainViewModel.kt
+|         |                   |    |    |    \--- MiniPlayer.kt
+|         |                   |    |    +--- nowplaying
+|         |                   |    |    |    +--- LyricsTab.kt
+|         |                   |    |    |    +--- LyricsViewModel.kt
+|         |                   |    |    |    \--- NowPlayingScreen.kt
+|         |                   |    |    +--- recommendation
+|         |                   |    |    |    \--- RecommendationViewModel.kt
+|         |                   |    |    +--- search
+|         |                   |    |    |    +--- OnlineSearchScreen.kt
+|         |                   |    |    |    +--- OnlineSearchViewModel.kt
+|         |                   |    |    |    +--- SearchScreen.kt
+|         |                   |    |    |    \--- SearchViewModel.kt
+|         |                   |    |    \--- settings
+|         |                   |    |         +--- SettingsScreen.kt
+|         |                   |    |         \--- SettingsViewModel.kt
+|         |                   |    \--- theme
+|         |                   |         +--- Color.kt
+|         |                   |         +--- Modifiers.kt
+|         |                   |         +--- Theme.kt
+|         |                   |         \--- Type.kt
+|         |                   \--- util
+|         |                        \--- AudioAlbumArtFetcher.kt
 |         |    \--- res
 |         |         +--- drawable
 |         |         |    +--- ic_launcher_background.xml
 |         |         |    \--- ic_launcher_foreground.xml
-|         |         +--- mipmap-anydpi
 |         |         +--- mipmap-anydpi-v26
 |         |         |    +--- ic_launcher.xml
 |         |         |    \--- ic_launcher_round.xml
@@ -394,7 +409,7 @@
 |         |         |    \--- themes.xml
 |         |         \--- xml
 |         |              +--- backup_rules.xml
-|         |              +--- data_extraction_rules.xml
+|         |              +--- data_extraction_rules.md
 |         |              \--- network_security_config.xml
 |         \--- test
 |              \--- java
@@ -407,11 +422,36 @@
 |                                  +--- ExampleUnitTest.kt
 |                                  +--- aria
 |                                  |    \--- AriaSdkTests.kt
-|                                  \--- data
-|                                       \--- recommendation
-|                                            \--- queue
-|                                                 \--- RecommendationQueueManagerTest.kt
-+--- app_logs.txt
+|                                  +--- data
+|                                  |    +--- artwork
+|                                  |    |    +--- ArtworkCacheTest.kt
+|                                  |    |    +--- ArtworkMatcherTest.kt
+|                                  |    |    \--- ArtworkRepositoryTest.kt
+|                                  |    +--- download
+|                                  |    |    \--- DownloadPipelineTest.kt
+|                                  |    +--- lyrics
+|                                  |    |    \--- LyricsRepositoryTest.kt
+|                                  |    \--- recommendation
+|                                  |         +--- queue
+|                                  |         |    \--- RecommendationQueueManagerTest.kt
+|                                  |         +--- strategy
+|                                  |         |    \--- SmartRankingStrategyTest.kt
+|                                  |         +--- LastFmChartSourceTest.kt
+|                                  |         +--- LastFmTrackMatcherTest.kt
+|                                  |         +--- RecommendationAutoplayTest.kt
+|                                  |         +--- RecommendationSourceRouterTest.kt
+|                                  |         \--- RecommendationUserStateTest.kt
+|                                  +--- dualbud
+|                                  |    \--- DualChannelPlaybackTest.kt
+|                                  +--- playback
+|                                  |    +--- LosslessStreamResolverTest.kt
+|                                  |    +--- OnlinePlaybackRecoveryTest.kt
+|                                  |    +--- PlaybackQueueOrderTest.kt
+|                                  |    \--- RepeatModeTest.kt
+|                                  \--- sync
+|                                       +--- SyncMessageCodecTest.kt
+|                                       +--- SyncPlayBarrierTest.kt
+|                                       \--- SyncTrackMatcherTest.kt
 +--- brain
 |    +--- 00_INDEX.md
 |    +--- 01_PROJECT_MEMORY.md
@@ -457,28 +497,52 @@
 |    +--- TODO.md
 |    +--- TRD.md
 |    \--- VERSION.json
-+--- build.gradle.kts
 +--- docs
+|    +--- screenshots
+|    |    +--- downloads_screen.jpg
+|    |    +--- library_playlists_screen.jpg
+|    |    +--- library_songs_screen.jpg
+|    |    +--- search_screen.jpg
+|    |    +--- settings_screen.jpg
+|    |    \--- ui_design_overview.webp
 |    +--- architecture.md
 |    +--- aria_sdk_architecture.md
+|    +--- index.html
+|    +--- logo.png
 |    +--- lyrics.md
 |    +--- overview.md
 |    +--- playback.md
+|    +--- README.md
 |    +--- recommendation.md
+|    +--- releases.html
+|    +--- script.js
 |    +--- settings.md
+|    +--- style.css
 |    \--- ui.md
 +--- gradle
-|    +--- gradle-daemon-jvm.properties
-|    +--- libs.versions.toml
-|    \--- wrapper
+|    +--- wrapper
 |         +--- gradle-wrapper.jar
 |         \--- gradle-wrapper.properties
+|    +--- gradle-daemon-jvm.properties
+|    \--- libs.versions.toml
++--- graphify-out
+|    +--- 2026-10-08
+|    |    +--- .graphify_labels.json
+|    |    +--- graph.json
+|    |    +--- GRAPH_REPORT.md
+|    |    \--- manifest.json
+|    +--- 2026-10-14
+|    |    +--- .graphify_labels.json
+|    |    +--- graph.json
+|    |    +--- GRAPH_REPORT.md
+|    |    \--- manifest.json
+|    \--- cache
+|         \--- ast
+|              \--- v0.9.80-s6
++--- build.gradle.kts
 +--- gradle.properties
 +--- gradlew
 +--- gradlew.bat
 +--- local.properties
-+--- my_tree_clean.txt
-+--- report-2.md
-+--- report.md
 +--- settings.gradle.kts
-\--- structure.md`
+\--- structure.md

@@ -433,15 +433,19 @@ fun OnlineSongCard(
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            val artworkRequest = remember(song.title, song.artist, song.thumbnailUrl) {
-                com.example.myplayer.data.artwork.model.ArtworkModel(
-                    title = song.title,
-                    artist = song.artist,
-                    localUri = song.thumbnailUrl
-                )
+            val smallThumbUrl = remember(song.thumbnailUrl) {
+                song.thumbnailUrl
+                    .replace("=w800-h800-l90-rj", "=w226-h226-l90-rj")
+                    .replace("w800-h800", "w226-h226")
             }
             AsyncImage(
-                model = artworkRequest,
+                model = smallThumbUrl.ifBlank {
+                    com.example.myplayer.data.artwork.model.ArtworkModel(
+                        title = song.title,
+                        artist = song.artist,
+                        localUri = song.thumbnailUrl
+                    )
+                },
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
@@ -540,28 +544,30 @@ fun OnlineSongCard(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                    modifier = Modifier.background(SurfaceLight)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Add to Playlist", color = OnSurface) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
-                        onClick = {
-                            showMenu = false
-                            onAddToPlaylistClick()
-                        }
-                    )
-                    if (isDownloaded) {
+                if (showMenu) {
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(SurfaceLight)
+                    ) {
                         DropdownMenuItem(
-                            text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
-                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                            text = { Text("Add to Playlist", color = OnSurface) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
                             onClick = {
                                 showMenu = false
-                                onRemoveDownloadClick()
+                                onAddToPlaylistClick()
                             }
                         )
+                        if (isDownloaded) {
+                            DropdownMenuItem(
+                                text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                                onClick = {
+                                    showMenu = false
+                                    onRemoveDownloadClick()
+                                }
+                            )
+                        }
                     }
                 }
             }
