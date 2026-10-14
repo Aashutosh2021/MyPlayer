@@ -2,7 +2,9 @@ package com.example.myplayer.playback
 
 import android.content.Context
 import android.content.Intent
-import androidx.media3.common.AudioAttributes
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.PowerManager
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -20,11 +22,33 @@ class MusicService : MediaSessionService() {
     @Inject
     lateinit var player: ExoPlayer
 
+    @Inject
+    lateinit var playbackStateManager: PlaybackStateManager
+
     private var mediaSession: MediaSession? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onCreate() {
         super.onCreate()
-        
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MyPlayer:MusicServiceWakeLock"
+        ).apply { setReferenceCounted(false) }
+
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val wifiLockMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        } else {
+            @Suppress("DEPRECATION")
+            WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        }
+        wifiLock = wifiManager.createWifiLock(wifiLockMode, "MyPlayer:MusicServiceWifiLock").apply {
+            setReferenceCounted(false)
+        }
+
         val callback = object : MediaSession.Callback {
             override fun onPlaybackResumption(
                 mediaSession: MediaSession,
@@ -43,11 +67,25 @@ class MusicService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(callback)
             .build()
-            
+
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 super.onMediaItemTransition(mediaItem, reason)
                 // We can broadcast song changes or update recent history here
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                super.onIsPlayingChanged(isPlaying)
+                updateServiceLocks(isPlaying || player.playWhenReady)
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                super.onPlaybackStateChanged(playbackState)
+                val active = player.playWhenReady &&
+                    (playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_READY)
+                if (active) {
+                    acquireLocks()
+                }
             }
 
             override fun onRepeatModeChanged(repeatMode: Int) {
@@ -64,6 +102,33 @@ class MusicService : MediaSessionService() {
         })
     }
 
+    private fun acquireLocks() {
+        if (wakeLock?.isHeld == false) {
+            // 4-hour safety timeout so locks never leak indefinitely
+            wakeLock?.acquire(4 * 60 * 60 * 1000L)
+        }
+        if (wifiLock?.isHeld == false) {
+            wifiLock?.acquire()
+        }
+    }
+
+    private fun updateServiceLocks(keepActive: Boolean) {
+        if (keepActive) {
+            acquireLocks()
+        } else if (
+            playbackStateManager.playbackMachineState.value != PlaybackMachineState.RESOLVING &&
+            playbackStateManager.playbackMachineState.value != PlaybackMachineState.PREPARING &&
+            playbackStateManager.playbackMachineState.value != PlaybackMachineState.RECOVERING
+        ) {
+            releaseLocks()
+        }
+    }
+
+    private fun releaseLocks() {
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+        if (wifiLock?.isHeld == true) wifiLock?.release()
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
     }
@@ -73,8 +138,14 @@ class MusicService : MediaSessionService() {
         session: MediaSession,
         startInForegroundRequired: Boolean
     ) {
-        // Retain foreground state during track transitions when player is still in playing mode
-        val keepForeground = startInForegroundRequired || player.playWhenReady
+        val state = playbackStateManager.playbackMachineState.value
+        val isResolvingOrRecovering = state == PlaybackMachineState.RESOLVING ||
+            state == PlaybackMachineState.PREPARING ||
+            state == PlaybackMachineState.RECOVERING
+        val keepForeground = startInForegroundRequired || player.playWhenReady || isResolvingOrRecovering
+        if (keepForeground) {
+            acquireLocks()
+        }
         try {
             super.onUpdateNotification(session, keepForeground)
         } catch (_: Exception) {
@@ -83,6 +154,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        releaseLocks()
         mediaSession?.run {
             player.release()
             release()
@@ -95,6 +167,7 @@ class MusicService : MediaSessionService() {
         super.onTaskRemoved(rootIntent)
         // If the user swipes away the app from recent apps, we should stop the service if it's paused.
         if (!player.playWhenReady || player.playbackState == Player.STATE_ENDED) {
+            releaseLocks()
             stopSelf()
         }
     }

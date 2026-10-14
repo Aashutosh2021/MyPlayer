@@ -1,6 +1,6 @@
 const OWNER = "Aashutosh2021";
 const REPO = "MyPlayer";
-const LATEST_RELEASE_URL = "https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.5";
+const LATEST_RELEASE_URL = "https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6";
 const RELEASE_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`;
 const ALL_RELEASES_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases`;
 
@@ -73,7 +73,7 @@ async function loadLatestRelease() {
       asset.name.toLowerCase().endsWith(".apk")
     );
 
-    const version = release.tag_name || release.name || "v3.5";
+    const version = release.tag_name || release.name || "v3.6";
     const date = formatDate(release.published_at);
 
     if (!apkAssets.length) {
@@ -113,14 +113,14 @@ async function loadLatestRelease() {
   } catch (error) {
     console.error(error);
     if (releaseText) {
-      releaseText.textContent = "v3.5 • Available on GitHub";
+      releaseText.textContent = "v3.6 • Available on GitHub";
     }
     if (releaseMeta) {
-      releaseMeta.textContent = "Download the latest official v3.5 APK directly from GitHub Releases.";
+      releaseMeta.textContent = "Download the latest official v3.6 APK directly from GitHub Releases.";
     }
     const versionTitle = $("#versionTitle");
     if (versionTitle) {
-      versionTitle.textContent = "MyPlayer v3.5";
+      versionTitle.textContent = "MyPlayer v3.6";
     }
     const heroDownload = $("#heroDownload");
     if (heroDownload) {

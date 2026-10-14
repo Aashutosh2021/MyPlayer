@@ -42,8 +42,8 @@ object PlayerModule {
     ): CacheDataSource.Factory {
         val httpFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(15_000)
+            .setConnectTimeoutMs(30_000)
+            .setReadTimeoutMs(30_000)
 
         val defaultDataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
@@ -54,6 +54,7 @@ object PlayerModule {
     }
 
     @Provides
+    @Singleton
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
@@ -75,7 +76,7 @@ object PlayerModule {
             .build()
 
         val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
-            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 2))
+            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 5))
 
         return ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true)

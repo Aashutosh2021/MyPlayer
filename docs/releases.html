@@ -40,7 +40,7 @@
         </svg>
         GitHub
       </a>
-      <a class="nav-download" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.5" target="_blank" rel="noopener">DOWNLOAD APK</a>
+      <a class="nav-download" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6" target="_blank" rel="noopener">DOWNLOAD APK</a>
     </nav>
 
     <button class="menu-btn" aria-label="Open menu" aria-expanded="false">
@@ -97,13 +97,91 @@
     <!-- Release Cards Timeline (Chronological Order: Newest to Oldest) -->
     <section class="releases-container" id="releasesList">
 
-      <!-- Release 1: v3.5 (Latest) -->
-      <article class="release-card latest" id="v3.5" data-version="v3.5 version3.5 3.5"
+      <!-- Release 1: v3.6 (Latest) -->
+      <article class="release-card latest" id="v3.6" data-version="v3.6 version3.6 3.6"
+        data-tags="background playback screen-off wakelock wifilock queue prefetch retry socket reconnect exoplayer">
+        <div class="release-card-header">
+          <div class="version-badge-group">
+            <span class="version-tag">v3.6</span>
+            <span class="status-badge latest-badge">LATEST STABLE</span>
+            <span class="release-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              October 14, 2026
+            </span>
+          </div>
+          <a class="github-tag-link" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6"
+            target="_blank" rel="noopener">
+            <span>tag: v3.6</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+        </div>
+
+        <h2 class="release-title">MyPlayer version 3.6 &bull; Background & Screen-Off Streaming Engine & Queue Resilience</h2>
+
+        <p class="release-summary">
+          A critical playback reliability update eliminating background socket drops and screen-off streaming errors
+          via service-level WakeLocks, Wi-Fi locks, full-queue prefetching, and progressive network recovery.
+        </p>
+
+        <div class="release-highlights-box">
+          <h4>Key Release Highlights:</h4>
+          <ul>
+            <li><strong>Continuous Background & Screen-Off Audio:</strong> Eliminated fatal "Stream server could not be reached"
+              and "Failed to load audio stream" errors when switching apps or locking the screen via service-level
+              <code>PARTIAL_WAKE_LOCK</code> and <code>WIFI_MODE_FULL_LOW_LATENCY</code> in <code>MusicService</code>.</li>
+            <li><strong>Persistent Foreground Service:</strong> Retained foreground service state and acquired locks during
+              stream resolution, prefetching, and network recovery to prevent Android 12+ socket throttling.</li>
+            <li><strong>Uninterrupted Online Queue Transitions:</strong> Fixed single-item online request bottleneck in
+              <code>MusicController</code> by passing full-queue requests to <code>PlaybackRouter</code>, ensuring next songs
+              are pre-resolved before the current song reaches <code>STATE_ENDED</code>.</li>
+            <li><strong>Smart Transient Recovery:</strong> Differentiates between actual HTTP 403 stream expiry and transient socket
+              drops, avoiding unnecessary cache invalidation and premature retry abandonment.</li>
+            <li><strong>ExoPlayer Resilience & Singleton Scope:</strong> Raised load error retry count to 5, increased HTTP timeouts
+              to 30s, and annotated <code>provideExoPlayer</code> with <code>@Singleton</code>.</li>
+            <li><strong>Timestamp & Battery Polish:</strong> Cleaned up frozen elapsed/duration counters on playback stop and added
+              <code>REQUEST_IGNORE_BATTERY_OPTIMIZATIONS</code> for aggressive OEM battery managers.</li>
+          </ul>
+        </div>
+
+        <div class="release-assets-panel">
+          <div class="asset-info">
+            <span class="asset-name">MyPlayer-v3.6.apk</span>
+            <span class="asset-meta">Android Universal Package &bull; 81.4 MB &bull; Signed Release</span>
+          </div>
+          <div class="asset-buttons">
+            <a class="primary-btn download-apk-btn"
+              href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download APK</span>
+            </a>
+            <a class="secondary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6"
+              target="_blank" rel="noopener">
+              <span>GitHub Release Notes</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Release 2: v3.5 -->
+      <article class="release-card" id="v3.5" data-version="v3.5 version3.5 3.5"
         data-tags="stream recovery innertube ttl 5-hour error handler radial ui polish website redirect updates">
         <div class="release-card-header">
           <div class="version-badge-group">
             <span class="version-tag">v3.5</span>
-            <span class="status-badge latest-badge">LATEST STABLE</span>
+            <span class="status-badge">STABLE</span>
             <span class="release-date">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -177,7 +255,7 @@
         </div>
       </article>
 
-      <!-- Release 2: v3.4 -->
+      <!-- Release 3: v3.4 -->
       <article class="release-card" id="v3.4" data-version="v3.4 vesrion3.4 3.4"
         data-tags="prefetching deep discovery search cache responsive instant playback">
         <div class="release-card-header">
@@ -251,7 +329,7 @@
         </div>
       </article>
 
-      <!-- Release 2: v3.3.5 -->
+      <!-- Release 4: v3.3.5 -->
       <article class="release-card" id="v3.3.5" data-version="v3.3.5 version3.3.5 3.3.5"
         data-tags="sync play socket transport reconnect recovery diagnostics resilience">
         <div class="release-card-header">
@@ -589,7 +667,7 @@
     <div class="footer-column">
       <h4>Releases & Project</h4>
       <a href="releases.html">All Version Releases</a>
-      <a href="releases.html#v3.5">Latest Release (v3.5)</a>
+      <a href="releases.html#v3.6">Latest Release (v3.6)</a>
       <a href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener">GitHub Releases</a>
       <a href="https://github.com/Aashutosh2021/MyPlayer" target="_blank" rel="noopener">Source Code</a>
       <a href="https://github.com/Aashutosh2021/MyPlayer/issues" target="_blank" rel="noopener">Report Issue</a>
