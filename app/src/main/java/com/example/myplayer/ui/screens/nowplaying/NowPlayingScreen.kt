@@ -320,6 +320,7 @@ fun NowPlayingScreen(
             positionState = positionState,
             durationMs = duration,
             songKey = title ?: "",
+            isPlaying = isPlaying,
             onSeek = onSeek
         )
 
@@ -423,6 +424,7 @@ private fun EditorialWaveformSeekBar(
     positionState: State<Long>,
     durationMs: Long,
     songKey: String,
+    isPlaying: Boolean,
     onSeek: (Long) -> Unit
 ) {
     val positionMs = positionState.value
@@ -432,6 +434,31 @@ private fun EditorialWaveformSeekBar(
 
     val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
     val currentProgress = if (isDragging) dragProgress else actualProgress
+
+    val infiniteTransition = rememberInfiniteTransition(label = "waveformBeat")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "waveformPhase"
+    )
+    val beatPulse by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "beatPulse"
+    )
+    val isPlayingFactor by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0f,
+        animationSpec = tween(durationMillis = 350),
+        label = "isPlayingFactor"
+    )
 
     // Deterministic organic waveform bar heights like "Unsayable" in reference image
     val barHeights = remember(songKey) {
@@ -482,9 +509,21 @@ private fun EditorialWaveformSeekBar(
 
             for (i in 0 until totalBars) {
                 val x = i * (barWidth + gap)
-                val barH = (barHeights[i] * size.height).coerceAtLeast(4.dp.toPx())
-                val top = centerY - barH / 2f
+                val baseH = barHeights[i]
                 val isPlayed = x <= activeX
+
+                // Rhythmic up-and-down beat bounce when playing
+                val animFactor = if (isPlayingFactor > 0f) {
+                    val wave = sin(phase + i * 0.28f).toFloat()
+                    val secondary = sin(phase * 1.6f + i * 0.48f).toFloat()
+                    val modulation = (wave * 0.35f + secondary * 0.18f) * beatPulse
+                    (1f + modulation * isPlayingFactor).coerceAtLeast(0.2f)
+                } else {
+                    1f
+                }
+
+                val barH = (baseH * size.height * animFactor).coerceIn(4.dp.toPx(), size.height)
+                val top = centerY - barH / 2f
 
                 drawRoundRect(
                     color = if (isPlayed) CharcoalPrimary else SilverMuted.copy(alpha = 0.45f),
