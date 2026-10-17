@@ -3,12 +3,12 @@ package com.example.myplayer.playback
 import androidx.media3.common.MediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,6 +47,7 @@ class PlaybackRouter @Inject constructor(
 
     private fun isOnlineRequest(request: PlayRequest): Boolean {
         return request.playbackSource == PlaybackSourceType.ONLINE ||
+                request.playbackSource == PlaybackSourceType.RECOMMENDATION ||
                 request.localUri?.startsWith("online://") == true ||
                 request.localUri?.startsWith("http") == true
     }
@@ -131,7 +132,7 @@ class PlaybackRouter @Inject constructor(
             delegate.onStreamResolving(currentRequest)
         }
 
-        // Prefetch subsequent songs in queue
+        // Prefetch upcoming songs in queue into InnertubeApi cache
         val upcomingRequests = requests.drop(clampedIndex + 1).take(3)
         if (upcomingRequests.isNotEmpty()) {
             sourceResolver.prefetchSongs(upcomingRequests)
@@ -140,7 +141,6 @@ class PlaybackRouter @Inject constructor(
         activePlayJob = scope.launch {
             try {
                 var resolutionError: String? = null
-                // 1. Resolve current request path immediately
                 val currentPath = sourceResolver.resolve(currentRequest) { err ->
                     resolutionError = err
                 }
@@ -161,7 +161,6 @@ class PlaybackRouter @Inject constructor(
                     playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
                 }
 
-                // 2. Build MediaItem for the current song
                 val currentMediaItem = mediaItemFactory.createMediaItem(
                     songId = currentRequest.songId,
                     path = currentPath,
@@ -170,13 +169,10 @@ class PlaybackRouter @Inject constructor(
                     albumArt = currentRequest.albumArt
                 )
 
-                // CRITICAL: NEVER pass unresolvable "online://" items to ExoPlayer!
-                val hasOnlineItems = requests.any {
-                    it.playbackSource == PlaybackSourceType.ONLINE ||
-                    it.localUri?.startsWith("online://") == true ||
-                    it.localUri?.startsWith("http") == true
-                } || currentPath.startsWith("http")
+                val hasOnlineItems = requests.any { isOnlineRequest(it) } || currentPath.startsWith("http")
 
+                // For online queues, always keep 1 active item in ExoPlayer so MusicController's
+                // _songQueue handles Shuffle, Repeat-All, Repeat-One, and Next/Prev without index mismatch.
                 val mediaItems = if (hasOnlineItems || requests.size <= 1) {
                     listOf(currentMediaItem)
                 } else {
@@ -225,7 +221,7 @@ class PlaybackRouter @Inject constructor(
             rawUri.removePrefix("online://")
         } else if (currentReq.songId.startsWith("online://")) {
             currentReq.songId.removePrefix("online://")
-        } else if (currentReq.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+        } else if (currentReq.songId.matches(Regex("^[a-zA-Z0-9_-]{11}\$"))) {
             currentReq.songId
         } else {
             currentReq.metadata["videoId"]
@@ -244,86 +240,33 @@ class PlaybackRouter @Inject constructor(
         return true
     }
 
+    /**
+     * Pre-warms the stream URL cache for upcoming tracks (both linear next and shuffle candidates)
+     * WITHOUT mutating ExoPlayer's mediaItem list so queue indices, Shuffle, and Repeat stay intact.
+     */
     fun onTrackTransition(
         scope: CoroutineScope,
         delegate: PlaybackRouterDelegate,
-        currentIndex: Int
+        queueIndex: Int
     ) {
         lastScope = scope
         lastDelegate = delegate
-        lastIndex = currentIndex
-
-        val currentReq = currentRequests.getOrNull(currentIndex)
+        if (queueIndex in currentRequests.indices) {
+            lastIndex = queueIndex
+        }
 
         prefetchJob?.cancel()
-        prefetchJob = scope.launch(Dispatchers.Main) {
-            val currentItem = delegate.getMediaItemAt(currentIndex)
-            val currentUri = currentItem?.localConfiguration?.uri?.toString()
-
-            // 1. If current item still has unresolved online:// URI, resolve and replace immediately
-            if (currentReq != null && currentUri != null && currentUri.startsWith("online://")) {
-                _isResolving.value = true
-                playbackStateManager.updateMachineState(PlaybackMachineState.RESOLVING)
-                delegate.onStreamResolving(currentReq)
-                try {
-                    val resolvedPath = withContext(Dispatchers.IO) {
-                        sourceResolver.resolve(currentReq) { err ->
-                            delegate.setCustomError(err)
-                        }
-                    }
-                    if (resolvedPath != null && resolvedPath != currentUri) {
-                        playbackStateManager.updateMachineState(PlaybackMachineState.PREPARING)
-                        val resolvedItem = mediaItemFactory.createMediaItem(
-                            songId = currentReq.songId,
-                            path = resolvedPath,
-                            title = currentReq.title,
-                            artist = currentReq.artist,
-                            albumArt = currentReq.albumArt
-                        )
-                        delegate.replaceMediaItem(currentIndex, resolvedItem)
-                    }
-                } finally {
-                    _isResolving.value = false
-                }
-            }
-
-            // 2. Pre-resolve next track while current song is actively playing (before STATE_ENDED!)
-            val nextIndex = currentIndex + 1
-            val nextReq = if (nextIndex in currentRequests.indices) {
-                currentRequests[nextIndex]
-            } else {
-                delegate.getNextPlayRequest()
-            }
+        prefetchJob = scope.launch(Dispatchers.IO) {
+            val nextReq = delegate.getNextPlayRequest()
+                ?: currentRequests.getOrNull(lastIndex + 1)
 
             if (nextReq != null) {
-                // Prefetch upcoming tracks in background immediately
-                val upcoming = if (nextIndex in currentRequests.indices) {
-                    currentRequests.drop(nextIndex).take(3)
-                } else {
-                    listOf(nextReq)
-                }
-                if (upcoming.isNotEmpty()) {
-                    sourceResolver.prefetchSongs(upcoming)
-                }
+                val upcoming = currentRequests.drop(lastIndex + 1).take(3).ifEmpty { listOf(nextReq) }
+                sourceResolver.prefetchSongs(upcoming)
 
-                kotlinx.coroutines.delay(2500)
-                val nextItem = delegate.getMediaItemAt(nextIndex)
-                val nextUri = nextItem?.localConfiguration?.uri?.toString() ?: nextReq.localUri
-                if (nextUri != null && (nextUri.startsWith("online://") || nextItem == null)) {
-                    val nextResolved = withContext(Dispatchers.IO) {
-                        sourceResolver.resolve(nextReq) { /* ignore background errors */ }
-                    }
-                    if (nextResolved != null && nextResolved != nextUri) {
-                        val resolvedNextItem = mediaItemFactory.createMediaItem(
-                            songId = nextReq.songId,
-                            path = nextResolved,
-                            title = nextReq.title,
-                            artist = nextReq.artist,
-                            albumArt = nextReq.albumArt
-                        )
-                        delegate.replaceMediaItem(nextIndex, resolvedNextItem)
-                    }
-                }
+                kotlinx.coroutines.delay(2000)
+                // Warm the stream URL in cache so STATE_ENDED transition is 0ms instant
+                sourceResolver.resolve(nextReq) { /* ignore background prefetch error */ }
             }
         }
     }

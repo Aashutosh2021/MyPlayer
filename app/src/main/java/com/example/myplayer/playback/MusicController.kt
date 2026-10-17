@@ -77,6 +77,7 @@ class MusicController @Inject constructor(
     private val playbackHistory = java.util.Stack<Int>()
     private var isNavigatingHistory = false
     private var lastIndex = C.INDEX_UNSET
+    @Volatile private var currentQueueIndex: Int = 0
 
     // Online playback recovery & bounded retry state
     private val onlineRetryCount = java.util.concurrent.ConcurrentHashMap<String, Int>()
@@ -145,13 +146,14 @@ class MusicController @Inject constructor(
                             dateAdded = System.currentTimeMillis(),
                             videoId = targetReq.songId
                         )
-                        val existingIndex = _songQueue.indexOfFirst { it.id == newEntity.id || it.videoId == newEntity.videoId }
-                        val playIndex = if (existingIndex != -1) {
-                            _songQueue[existingIndex] = newEntity
-                            existingIndex
+                        val playIndex = if (_songQueue.isNotEmpty() &&
+                            (_songQueue.last().id == newEntity.id || _songQueue.last().videoId == newEntity.videoId)
+                        ) {
+                            _songQueue[_songQueue.lastIndex] = newEntity
+                            _songQueue.lastIndex
                         } else {
                             _songQueue.add(newEntity)
-                            _songQueue.size - 1
+                            _songQueue.lastIndex
                         }
                         _playbackQueue.value = _songQueue.toList()
                         playOnlineQueueIndex(playIndex)
@@ -224,29 +226,38 @@ class MusicController @Inject constructor(
                 super.onMediaItemTransition(mediaItem, reason)
                 val controller = mediaController
                 if (controller != null) {
-                    val currentIndex = controller.currentMediaItemIndex
-                    Log.d("MusicController", "[TRANSITION] reason=$reason index=$currentIndex mediaId=${mediaItem?.mediaId}")
+                    val mediaId = mediaItem?.mediaId
+                    val resolvedQueueIdx = _songQueue.indexOfFirst {
+                        !mediaId.isNullOrBlank() && (it.id == mediaId || it.videoId == mediaId)
+                    }.takeIf { it != -1 } ?: currentQueueIndex
+
+                    Log.d("MusicController", "[TRANSITION] reason=$reason queueIdx=$resolvedQueueIdx mediaId=$mediaId")
+
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
-                        if (controller.mediaItemCount <= 1 && playbackStateManager.repeatMode.value != Player.REPEAT_MODE_ONE) {
-                            Log.d("MusicController", "Single track repeat intercepted under REPEAT_MODE_ALL - triggering completion for autoplay")
+                        // Only allow single-item repeat when user explicitly selected REPEAT_MODE_ONE
+                        if (playbackStateManager.repeatMode.value != Player.REPEAT_MODE_ONE) {
+                            Log.d("MusicController", "Single track repeat intercepted - advancing queue")
                             handlePlaybackEnded()
                             return
                         }
                     }
+
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
                         playbackHistory.clear()
-                        lastIndex = currentIndex
+                        lastIndex = resolvedQueueIdx
                         isNavigatingHistory = false
                     } else {
-                        if (lastIndex != C.INDEX_UNSET && lastIndex != currentIndex) {
+                        if (lastIndex != C.INDEX_UNSET && lastIndex != resolvedQueueIdx) {
                             if (!isNavigatingHistory) {
                                 playbackHistory.push(lastIndex)
                             }
                         }
-                        lastIndex = currentIndex
+                        lastIndex = resolvedQueueIdx
                         isNavigatingHistory = false
                     }
-                    playbackRouter.onTrackTransition(scope, this@MusicController, currentIndex)
+
+                    currentQueueIndex = resolvedQueueIdx
+                    playbackRouter.onTrackTransition(scope, this@MusicController, resolvedQueueIdx)
                 }
 
                 updateCurrentSong()
@@ -449,42 +460,69 @@ class MusicController @Inject constructor(
 
             override fun onRepeatModeChanged(repeatMode: Int) {
                 super.onRepeatModeChanged(repeatMode)
-                if (!(repeatMode == Player.REPEAT_MODE_OFF && playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && (mediaController?.mediaItemCount ?: 0) <= 1)) {
-                    playbackStateManager.updateRepeatMode(repeatMode)
-                    saveRepeatMode(repeatMode)
+                // Do not overwrite user's REPEAT_MODE_ALL when ExoPlayer has a 1-item online queue
+                val userMode = playbackStateManager.repeatMode.value
+                if (repeatMode == Player.REPEAT_MODE_OFF && userMode == Player.REPEAT_MODE_ALL) {
+                    return
                 }
+                playbackStateManager.updateRepeatMode(repeatMode)
+                saveRepeatMode(repeatMode)
             }
         })
     }
 
     private fun handlePlaybackEnded() {
         val controller = mediaController
-        if (controller?.hasNextMediaItem() == true) {
-            Log.d("MusicController", "ExoPlayer has remaining queue items, manual queue retains priority")
-            return
-        }
         val mediaId = controller?.currentMediaItem?.mediaId ?: ""
 
-        val currentIndex = _songQueue.indexOfFirst { (!mediaId.isNullOrBlank() && (it.id == mediaId || it.videoId == mediaId)) }
+        // 1. Repeat One: replay the current song immediately
+        if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ONE) {
+            if (controller != null && controller.mediaItemCount > 0) {
+                controller.seekTo(0L)
+                controller.play()
+            } else if (currentQueueIndex in _songQueue.indices) {
+                playOnlineQueueIndex(currentQueueIndex)
+            }
+            return
+        }
+
+        // 2. Multi-item pure local queue inside ExoPlayer
+        if (controller != null && controller.mediaItemCount > 1 && controller.hasNextMediaItem()) {
+            controller.seekToNext()
+            return
+        }
+
+        val currentIndex = _songQueue.indexOfFirst {
+            !mediaId.isBlank() && (it.id == mediaId || it.videoId == mediaId)
+        }.takeIf { it != -1 } ?: currentQueueIndex
+
+        // 3. Shuffle Mode: pick a random unplayed song from _songQueue
         if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
             val validIndices = _songQueue.indices.filter { it != currentIndex }
             val nextIndex = validIndices.randomOrNull() ?: 0
-            Log.d("MusicController", "Shuffle selected next online queue song at index $nextIndex")
+            if (currentIndex in _songQueue.indices) playbackHistory.push(currentIndex)
+            Log.d("MusicController", "Shuffle selected next queue song at index $nextIndex")
             playOnlineQueueIndex(nextIndex)
             return
         }
+
+        // 4. Normal Sequential Next in _songQueue
         if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
-            Log.d("MusicController", "Advancing to next online queue song at index ${currentIndex + 1} (${_songQueue[currentIndex + 1].title})")
+            playbackHistory.push(currentIndex)
+            Log.d("MusicController", "Advancing to next queue song at index ${currentIndex + 1}")
             playOnlineQueueIndex(currentIndex + 1)
             return
         }
 
-        if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.size > 1) {
+        // 5. Repeat All: loop back to index 0
+        if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.isNotEmpty()) {
+            if (currentIndex in _songQueue.indices) playbackHistory.push(currentIndex)
             Log.d("MusicController", "Queue loop under REPEAT_MODE_ALL, restarting from index 0")
             playOnlineQueueIndex(0)
             return
         }
 
+        // 6. Queue finished & Repeat Off -> request Autoplay Recommendation
         Log.d("MusicController", "Queue ended, emitting SongCompleted for autoplay recommendation")
         playbackEventBus.emit(PlaybackEvent.SongCompleted(mediaId))
     }
@@ -875,6 +913,7 @@ class MusicController @Inject constructor(
     fun playOnlineQueueIndex(index: Int) {
         if (index !in _songQueue.indices) return
         cancelActiveRecovery("playOnlineQueueIndex")
+        currentQueueIndex = index
         val targetEntity = _songQueue[index]
         val vId = targetEntity.videoId ?: targetEntity.id
         val artUrl = targetEntity.albumArt ?: "https://img.youtube.com/vi/$vId/hqdefault.jpg"
@@ -996,27 +1035,29 @@ class MusicController @Inject constructor(
             if (currentMediaId.isNotEmpty()) {
                 playbackEventBus.emit(PlaybackEvent.SongSkipped(currentMediaId))
             }
-            Log.d("MusicController", "[SKIP_NEXT] hasNext=${controller.hasNextMediaItem()} currentIndex=${controller.currentMediaItemIndex}")
-            if (controller.hasNextMediaItem()) {
+            if (controller.mediaItemCount > 1 && controller.hasNextMediaItem()) {
                 controller.seekToNext()
+                return@runOnApplicationThread
+            }
+            val currentIndex = _songQueue.indexOfFirst {
+                !currentMediaId.isBlank() && (it.id == currentMediaId || it.videoId == currentMediaId)
+            }.takeIf { it != -1 } ?: currentQueueIndex
+
+            if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
+                val nextIndex = _songQueue.indices.filter { it != currentIndex }.randomOrNull() ?: 0
+                if (currentIndex in _songQueue.indices) playbackHistory.push(currentIndex)
+                playOnlineQueueIndex(nextIndex)
+            } else if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
+                playbackHistory.push(currentIndex)
+                playOnlineQueueIndex(currentIndex + 1)
+            } else if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.isNotEmpty()) {
+                if (currentIndex in _songQueue.indices) playbackHistory.push(currentIndex)
+                playOnlineQueueIndex(0)
+            } else if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ONE && currentIndex in _songQueue.indices) {
+                controller.seekTo(0L)
+                controller.play()
             } else {
-                val currentIndex = _songQueue.indexOfFirst {
-                    (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
-                }
-                if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
-                    val nextIndex = _songQueue.indices.filter { it != currentIndex }.randomOrNull() ?: 0
-                    Log.d("MusicController", "[SKIP_NEXT] Shuffle playing queue item at $nextIndex")
-                    playOnlineQueueIndex(nextIndex)
-                } else if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
-                    Log.d("MusicController", "[SKIP_NEXT] Advancing to online queue song at ${currentIndex + 1}")
-                    playOnlineQueueIndex(currentIndex + 1)
-                } else if (playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL && _songQueue.isNotEmpty()) {
-                    Log.d("MusicController", "[SKIP_NEXT] Looping online queue under REPEAT_MODE_ALL")
-                    playOnlineQueueIndex(0)
-                } else {
-                    Log.d("MusicController", "[SKIP_NEXT] End of queue reached, requesting autoplay")
-                    playbackEventBus.emit(PlaybackEvent.SongCompleted(currentMediaId))
-                }
+                playbackEventBus.emit(PlaybackEvent.SongCompleted(currentMediaId))
             }
         }
     }
@@ -1034,21 +1075,20 @@ class MusicController @Inject constructor(
             }
             if (!playbackHistory.isEmpty()) {
                 val prevIndex = playbackHistory.pop()
-                if (prevIndex in 0 until controller.mediaItemCount) {
+                if (prevIndex in _songQueue.indices) {
                     isNavigatingHistory = true
-                    controller.seekTo(prevIndex, C.TIME_UNSET)
-                    controller.play()
+                    playOnlineQueueIndex(prevIndex)
                     return@runOnApplicationThread
                 }
             }
-            if (controller.hasPreviousMediaItem()) {
+            if (controller.mediaItemCount > 1 && controller.hasPreviousMediaItem()) {
                 controller.seekToPrevious()
                 return@runOnApplicationThread
             }
             val currentMediaId = controller.currentMediaItem?.mediaId ?: ""
             val currentIndex = _songQueue.indexOfFirst {
                 (!currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId))
-            }
+            }.takeIf { it != -1 } ?: currentQueueIndex
             if (currentIndex > 0) {
                 playOnlineQueueIndex(currentIndex - 1)
                 return@runOnApplicationThread
@@ -1343,9 +1383,18 @@ class MusicController @Inject constructor(
         } else {
             playbackStateManager.currentSong.value?.id ?: playbackStateManager.currentOnlineSong.value?.videoId
         }
-        val currentIndex = _songQueue.indexOfFirst { it.id == currentMediaId || it.videoId == currentMediaId }
-        if (currentIndex != -1 && currentIndex + 1 < _songQueue.size) {
-            val nextEntity = _songQueue[currentIndex + 1]
+        val currentIndex = _songQueue.indexOfFirst {
+            !currentMediaId.isNullOrBlank() && (it.id == currentMediaId || it.videoId == currentMediaId)
+        }.takeIf { it != -1 } ?: currentQueueIndex
+
+        val nextIndex = if (playbackStateManager.isShuffleOn.value && _songQueue.size > 1) {
+            _songQueue.indices.filter { it != currentIndex }.randomOrNull() ?: (currentIndex + 1)
+        } else {
+            currentIndex + 1
+        }
+
+        if (nextIndex in _songQueue.indices) {
+            val nextEntity = _songQueue[nextIndex]
             val vId = nextEntity.videoId ?: nextEntity.id
             return PlayRequest(
                 songId = vId,
@@ -1353,6 +1402,7 @@ class MusicController @Inject constructor(
                 artist = nextEntity.artist,
                 playbackSource = if (nextEntity.path.startsWith("http") || nextEntity.path.startsWith("online://")) PlaybackSourceType.ONLINE else PlaybackSourceType.LOCAL,
                 localUri = nextEntity.path,
+                streamUrl = if (nextEntity.path.startsWith("http")) nextEntity.path else null,
                 albumArt = nextEntity.albumArt
             )
         }
