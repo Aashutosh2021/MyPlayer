@@ -119,10 +119,25 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     FloatingNavBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (route == currentRoute) return@FloatingNavBar
+                            if (route == Screen.Home.route) {
+                                val popped = navController.popBackStack(Screen.Home.route, inclusive = false)
+                                if (!popped) {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            inclusive = false
+                                        }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            } else {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
                     )
@@ -242,7 +257,15 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        val popped = navController.popBackStack()
+                        if (!popped) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
                     onNavigateToSyncPlay = { navController.navigate(Screen.SyncPlay.route) { launchSingleTop = true } },
                     bottomPadding = 16.dp
@@ -262,3 +285,5 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         }
     }
 }
+
+

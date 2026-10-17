@@ -11,3 +11,5 @@ sealed class Screen(val route: String) {
     object DualBud : Screen("dual_bud")
     object SyncPlay : Screen("sync_play")
 }
+
+

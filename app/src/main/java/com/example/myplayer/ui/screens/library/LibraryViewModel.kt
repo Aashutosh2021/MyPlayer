@@ -32,6 +32,10 @@ class LibraryViewModel @Inject constructor(
     val hybridLibrary: StateFlow<List<PlayableSong>> = hybridLibraryRepository.getHybridLibrary()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val favoriteSongs: StateFlow<List<PlayableSong>> = repository.getFavoriteSongs()
+        .map { list -> list.map { PlayableSong.Local(it) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun createPlaylist(name: String) {
         viewModelScope.launch { repository.createPlaylist(name) }
     }
@@ -52,3 +56,5 @@ class LibraryViewModel @Inject constructor(
         }
     }
 }
+
+

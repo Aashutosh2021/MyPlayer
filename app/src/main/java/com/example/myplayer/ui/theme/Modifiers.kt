@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
  */
 fun Modifier.claySurface(
     borderRadius: Dp = 16.dp,
-    backgroundColor: Color = SurfaceLight,
+    backgroundColor: Color = Surface,
     outerShadowColor: Color = ClayShadowOuter,
     innerLightColor: Color = ClayShadowInnerLight,
     innerDarkColor: Color = ClayShadowInnerDark,
@@ -170,3 +170,5 @@ fun Modifier.carousel3DItem(
         alpha = 1f - (absOffset * 0.22f)
     }
 }
+
+

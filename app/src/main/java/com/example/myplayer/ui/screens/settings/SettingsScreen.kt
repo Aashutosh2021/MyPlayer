@@ -1,4 +1,4 @@
-package com.example.myplayer.ui.screens.settings
+﻿package com.example.myplayer.ui.screens.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -27,6 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
@@ -105,10 +109,10 @@ fun SettingsScreen(
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = NeonLimePrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
             title = { Text("Set Display Name", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
@@ -119,11 +123,11 @@ fun SettingsScreen(
                         onValueChange = { editNameInput = it },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonLimePrimary,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = CardBorderOlive,
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface,
-                            cursorColor = NeonLimePrimary
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Your Name", color = TextMuted) }
@@ -139,8 +143,8 @@ fun SettingsScreen(
                         showNameDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonLimePrimary,
-                        contentColor = OnNeonLime
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -150,7 +154,7 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showNameDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {
                     Text("Cancel")
                 }
@@ -166,9 +170,9 @@ fun SettingsScreen(
                     viewModel.resetStates()
                 }
             },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = {
                 Text(if (isLoadingDialog) "Please Wait" else "Backup & Restore")
             },
@@ -202,9 +206,9 @@ fun SettingsScreen(
         ManualUpdateState.Checking -> {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = SurfaceLight,
-                titleContentColor = OnSurface,
-                textContentColor = OnSurfaceVariant,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = { Text("Checking for Updates") },
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -219,29 +223,29 @@ fun SettingsScreen(
         is ManualUpdateState.Available -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = SurfaceLight,
-                titleContentColor = OnSurface,
-                textContentColor = OnSurfaceVariant,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = { Text("Update Available") },
                 text = {
                     Column {
                         Text(
                             "A newer version (${state.updateInfo.versionName}) is available!",
                             fontWeight = FontWeight.Bold,
-                            color = OnSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Visit our official website to download the latest update.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = OnSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (state.updateInfo.releaseNotes.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 state.updateInfo.releaseNotes.take(300),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = OnSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -259,8 +263,8 @@ fun SettingsScreen(
                             context.startActivity(intent)
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonLimePrimary,
-                            contentColor = OnNeonLime
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -270,7 +274,7 @@ fun SettingsScreen(
                 dismissButton = {
                     TextButton(
                         onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                     ) {
                         Text("Later")
                     }
@@ -280,9 +284,9 @@ fun SettingsScreen(
         ManualUpdateState.UpToDate -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = SurfaceLight,
-                titleContentColor = OnSurface,
-                textContentColor = OnSurfaceVariant,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = { Text("Up to Date") },
                 text = {
                     Text("You're using the latest version of MyPlayer (v${com.example.myplayer.BuildConfig.VERSION_NAME}).")
@@ -300,9 +304,9 @@ fun SettingsScreen(
         is ManualUpdateState.NoInternet -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = SurfaceLight,
-                titleContentColor = OnSurface,
-                textContentColor = OnSurfaceVariant,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 icon = {
                     Icon(
                         Icons.Filled.CloudOff,
@@ -328,9 +332,9 @@ fun SettingsScreen(
         is ManualUpdateState.Error -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = SurfaceLight,
-                titleContentColor = OnSurface,
-                textContentColor = OnSurfaceVariant,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = { Text("Update Check") },
                 text = {
                     Text(state.message)
@@ -366,16 +370,28 @@ fun SettingsScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = OnSurface,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
                 }
-                Spacer(Modifier.width(16.dp))
-                Text(
-                    "Settings",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = OnSurface
-                )
+                Spacer(Modifier.width(14.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.app_icon_spark),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
 
@@ -548,7 +564,7 @@ private fun SettingsToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -556,16 +572,16 @@ private fun SettingsToggleRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = SurfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = ClayPrimary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant, maxLines = 2)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
         }
         Spacer(Modifier.width(8.dp))
         Switch(
@@ -574,8 +590,8 @@ private fun SettingsToggleRow(
             colors = SwitchDefaults.colors(
                 checkedThumbColor = OnPrimary,
                 checkedTrackColor = ClayPrimary,
-                uncheckedThumbColor = OnSurfaceVariant,
-                uncheckedTrackColor = SurfaceContainerHigh
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
         )
     }
@@ -592,7 +608,7 @@ private fun SettingsNavigationRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -600,18 +616,18 @@ private fun SettingsNavigationRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = SurfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = ClayPrimary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -625,23 +641,23 @@ private fun SettingsInfoRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = SurfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -684,4 +700,6 @@ private fun sendEmail(
         }
     }
 }
+
+
 

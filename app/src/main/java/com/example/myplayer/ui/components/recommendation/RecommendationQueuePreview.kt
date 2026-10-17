@@ -1,5 +1,7 @@
-package com.example.myplayer.ui.components.recommendation
+﻿package com.example.myplayer.ui.components.recommendation
 
+
+import com.example.myplayer.ui.theme.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,10 +19,6 @@ import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.theme.clayConcave
 import com.example.myplayer.ui.theme.claySurface
 import com.example.myplayer.ui.theme.ClayPrimary
-import com.example.myplayer.ui.theme.OnSurface
-import com.example.myplayer.ui.theme.OnSurfaceVariant
-import com.example.myplayer.ui.theme.SurfaceLight
-
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 
@@ -40,7 +38,7 @@ fun RecommendationQueuePreview(
             Text(
                 text = "Up next: No recommendations yet",
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         return
@@ -49,7 +47,7 @@ fun RecommendationQueuePreview(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .claySurface(borderRadius = 24.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 24.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .padding(16.dp)
             .animateContentSize()
     ) {
@@ -61,12 +59,12 @@ fun RecommendationQueuePreview(
             Text(
                 text = "Up Next (Autoplay)",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "${recommendations.size} songs",
                 style = MaterialTheme.typography.labelMedium,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         
@@ -129,17 +127,19 @@ private fun QueuePreviewItem(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "${song.artist} • ${song.reason}",
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
+
+

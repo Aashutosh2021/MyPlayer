@@ -63,7 +63,7 @@ fun MiniPlayer(
                 .fillMaxWidth()
                 .shadow(elevation = 14.dp, shape = RoundedCornerShape(26.dp), spotColor = Color(0x33000000))
                 .clip(RoundedCornerShape(26.dp))
-                .background(CharcoalPrimary)
+                .background(MaterialTheme.colorScheme.primary)
                 .graphicsLayer {
                     translationX = animatedOffsetX * 0.35f
                     rotationZ = (animatedOffsetX / 60f).coerceIn(-3f, 3f)
@@ -126,7 +126,7 @@ fun MiniPlayer(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = PureWhite,
+                        color = MaterialTheme.colorScheme.surface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -134,7 +134,7 @@ fun MiniPlayer(
                     Text(
                         text = artist,
                         style = MaterialTheme.typography.bodySmall,
-                        color = LightSlateMuted,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -148,7 +148,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(PureWhite)
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -159,10 +159,12 @@ fun MiniPlayer(
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = CharcoalPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
             }
         }
     }
 }
+
+

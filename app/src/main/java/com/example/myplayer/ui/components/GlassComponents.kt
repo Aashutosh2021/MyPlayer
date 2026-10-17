@@ -101,7 +101,7 @@ fun ClayIconButton(
             .size(size)
             .claySurface(
                 borderRadius = size / 2,
-                backgroundColor = SurfaceLight,
+                backgroundColor = MaterialTheme.colorScheme.surface,
                 interactionSource = interactionSource
             )
             .clickable(
@@ -136,7 +136,7 @@ fun PremiumSectionHeader(
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
             ),
-            color = OnSurface
+            color = MaterialTheme.colorScheme.onSurface
         )
         if (actionLabel != null && onAction != null) {
             Text(
@@ -181,3 +181,5 @@ fun ClayProgressBar(
         )
     }
 }
+
+

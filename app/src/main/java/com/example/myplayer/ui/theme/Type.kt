@@ -7,7 +7,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 // Use system default (similar to Inter on most devices).
-// For true Inter, add font files to res/font/ and reference them here.
 val InterFontFamily = FontFamily.Default
 
 val Typography = Typography(

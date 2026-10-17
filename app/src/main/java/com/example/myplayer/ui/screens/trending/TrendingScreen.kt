@@ -28,6 +28,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.data.recommendation.model.RecommendationSong
 import com.example.myplayer.ui.common.AlbumArtImage
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.ui.screens.home.HomeViewModel
 import com.example.myplayer.ui.theme.*
 
@@ -43,19 +46,49 @@ fun TrendingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CleanBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
-        // ── Top Header ────────────────────────────────────────────────────────
+        // ── Top Header (Stitch Branding) ────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.app_icon_spark),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                )
+                Column {
+                    Text(
+                        text = "MYPLAYER",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        text = "Trending",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFFDE8E8)),
                 contentAlignment = Alignment.Center
@@ -64,25 +97,7 @@ fun TrendingScreen(
                     imageVector = Icons.Filled.LocalFireDepartment,
                     contentDescription = null,
                     tint = Color(0xFFE53935),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(Modifier.width(14.dp))
-
-            Column {
-                Text(
-                    text = "Trending",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = CharcoalPrimary
-                )
-                Text(
-                    text = "Top charts & viral tracks",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SlateSecondary
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -93,7 +108,7 @@ fun TrendingScreen(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = CharcoalPrimary,
+                    color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp,
                     modifier = Modifier.size(36.dp)
                 )
@@ -106,7 +121,7 @@ fun TrendingScreen(
                 Text(
                     text = "No trending songs available",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = SlateSecondary
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
         } else {
@@ -151,7 +166,7 @@ fun TrendingScreen(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = (-0.3).sp
                                 ),
-                                color = CharcoalPrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -159,13 +174,13 @@ fun TrendingScreen(
                             Text(
                                 text = "Hotlist • ${recommendations.size} tracks",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = SlateSecondary
+                                color = MaterialTheme.colorScheme.secondary
                             )
                             Spacer(Modifier.height(10.dp))
                             Text(
                                 text = "Updated Daily",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = LightSlateMuted
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -187,8 +202,8 @@ fun TrendingScreen(
                                 .height(48.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = CharcoalPrimary,
-                                contentColor = PureWhite
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.surface
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                         ) {
@@ -208,10 +223,10 @@ fun TrendingScreen(
                                 .height(48.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = PureWhite,
-                                contentColor = CharcoalPrimary
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            border = BorderStroke(1.dp, BorderSubtle)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -244,7 +259,7 @@ fun TrendingScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             ),
-                            color = SlateSecondary,
+                            color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.width(32.dp)
                         )
 
@@ -254,7 +269,7 @@ fun TrendingScreen(
                             Text(
                                 text = song.title,
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                                color = CharcoalPrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -262,7 +277,7 @@ fun TrendingScreen(
                             Text(
                                 text = "${song.artist} • ${formatDuration(song.durationMs)}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = SlateSecondary,
+                                color = MaterialTheme.colorScheme.secondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -280,3 +295,5 @@ private fun formatDuration(durationMs: Long): String {
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
 }
+
+

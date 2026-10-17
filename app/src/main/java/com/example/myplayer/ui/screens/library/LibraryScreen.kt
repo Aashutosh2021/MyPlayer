@@ -30,6 +30,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.data.local.entity.PlaylistEntity
 import com.example.myplayer.data.repository.PlayableSong
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.theme.*
 
@@ -42,6 +46,7 @@ fun LibraryScreen(
 ) {
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
+    val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -52,9 +57,9 @@ fun LibraryScreen(
     songToRemoveDownload?.let { song ->
         AlertDialog(
             onDismissRequest = { songToRemoveDownload = null },
-            containerColor = PureWhite,
-            titleContentColor = CharcoalPrimary,
-            textContentColor = SlateSecondary,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            textContentColor = MaterialTheme.colorScheme.secondary,
             title = { Text("Remove Download?", fontWeight = FontWeight.Bold) },
             text = { Text("This will remove the downloaded audio file from your device storage.") },
             confirmButton = {
@@ -69,7 +74,7 @@ fun LibraryScreen(
             dismissButton = {
                 TextButton(
                     onClick = { songToRemoveDownload = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = SlateSecondary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                 ) { Text("Cancel") }
             }
         )
@@ -78,9 +83,9 @@ fun LibraryScreen(
     if (showCreatePlaylistDialog) {
         AlertDialog(
             onDismissRequest = { showCreatePlaylistDialog = false; newPlaylistName = "" },
-            containerColor = PureWhite,
-            titleContentColor = CharcoalPrimary,
-            textContentColor = SlateSecondary,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            textContentColor = MaterialTheme.colorScheme.secondary,
             title = { Text("New Playlist", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
@@ -90,11 +95,11 @@ fun LibraryScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CharcoalPrimary,
-                        focusedLabelColor = CharcoalPrimary,
-                        unfocusedBorderColor = BorderSubtle,
-                        unfocusedLabelColor = SlateSecondary,
-                        cursorColor = CharcoalPrimary
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.secondary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
             },
@@ -106,13 +111,13 @@ fun LibraryScreen(
                             newPlaylistName = ""; showCreatePlaylistDialog = false
                         }
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = CharcoalPrimary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                 ) { Text("Create", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showCreatePlaylistDialog = false; newPlaylistName = "" },
-                    colors = ButtonDefaults.textButtonColors(contentColor = SlateSecondary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                 ) { Text("Cancel") }
             }
         )
@@ -121,9 +126,9 @@ fun LibraryScreen(
     songToAddToPlaylist?.let { song ->
         AlertDialog(
             onDismissRequest = { songToAddToPlaylist = null },
-            containerColor = PureWhite,
-            titleContentColor = CharcoalPrimary,
-            textContentColor = SlateSecondary,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            textContentColor = MaterialTheme.colorScheme.secondary,
             title = { Text("Add to Playlist", fontWeight = FontWeight.Bold) },
             text = {
                 if (playlists.isEmpty()) {
@@ -144,12 +149,12 @@ fun LibraryScreen(
                                     .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = CharcoalPrimary)
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(14.dp))
                                 Text(
                                     text = playlist.name,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                    color = CharcoalPrimary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -159,7 +164,7 @@ fun LibraryScreen(
             confirmButton = {
                 TextButton(
                     onClick = { songToAddToPlaylist = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = CharcoalPrimary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                 ) { Text("Close") }
             }
         )
@@ -168,66 +173,175 @@ fun LibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CleanBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
-        // ── Top Bar ───────────────────────────────────────────────────────────
+        // ── Top Header Bar (Stitch Screen 8) ──────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                "Library",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = CharcoalPrimary
-            )
-
-            // Tab Switcher Pill
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(PureWhite)
-                    .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(20.dp))
-                    .padding(4.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val tabs = listOf("Downloaded", "Playlist")
-                tabs.forEachIndexed { index, title ->
-                    val isSelected = selectedTab == index
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isSelected) CharcoalPrimary else Color.Transparent)
-                            .clickable { selectedTab = index }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                Image(
+                    painter = painterResource(R.drawable.app_icon_spark),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                )
+                Column {
+                    Text(
+                        text = "MYPLAYER",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        text = "Library",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Search",
+                        tint = OnSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = "Profile",
+                        tint = OnPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // ── Stitch Screen 8: Category Filter Chips ────────────────────────────
+        val categoryTabs = remember { listOf("Downloaded", "Playlists") }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            categoryTabs.forEachIndexed { index, title ->
+                val isSelected = selectedTab == index
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isSelected) PrimaryContainer else SurfaceContainer)
+                        .clickable { selectedTab = index }
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (title == "Downloaded") {
+                            Icon(
+                                imageVector = Icons.Filled.DownloadDone,
+                                contentDescription = null,
+                                tint = if (isSelected) OnPrimary else Secondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
                         Text(
                             text = title,
                             fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) PureWhite else SlateSecondary
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (isSelected) OnPrimary else Secondary
                         )
                     }
                 }
             }
         }
 
+        // ── Stitch Screen 8: Sort & Action Row ────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { /* Toggle sort */ }
+            ) {
+                Icon(Icons.Filled.SwapVert, contentDescription = null, tint = Secondary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = if (selectedTab == 0) "Alphabetical" else "Recently Added",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = OnSurface
+                )
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.FilterList, contentDescription = "Filter", tint = Secondary, modifier = Modifier.size(18.dp))
+                }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .shadow(2.dp, CircleShape, spotColor = Color(0x0C000000))
+                        .clip(CircleShape)
+                        .background(SurfaceContainer)
+                        .clickable { showCreatePlaylistDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "New Playlist", tint = OnSurface, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
         when (selectedTab) {
             0 -> DownloadedSongsTab(
-                songs = downloadedSongs,
+                songs = remember(downloadedSongs) { downloadedSongs.sortedBy { it.title.lowercase() } },
                 onPlaySong = onPlaySong,
                 onAddToPlaylist = { songToAddToPlaylist = it },
                 onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
-            1 -> PlaylistsTab(
+            else -> PlaylistsTab(
                 playlists = playlists,
+                favoriteSongs = favoriteSongs,
+                onPlayFavoriteSongs = { onPlaySong(favoriteSongs, 0) },
                 onCreatePlaylist = { showCreatePlaylistDialog = true },
                 onDeletePlaylist = viewModel::deletePlaylist,
                 onPlaylistClick = onPlaylistClick,
@@ -255,12 +369,12 @@ fun DownloadedSongsTab(
                         .background(Color(0xFFECEFF4)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.DownloadDone, null, modifier = Modifier.size(40.dp), tint = LightSlateMuted)
+                    Icon(Icons.Filled.DownloadDone, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Spacer(Modifier.height(18.dp))
-                Text("No downloaded songs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = CharcoalPrimary)
+                Text("No downloaded songs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(6.dp))
-                Text("Download songs from Search or Online charts", style = MaterialTheme.typography.bodyMedium, color = SlateSecondary)
+                Text("Download songs from Search or Online charts", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
             }
         }
         return
@@ -307,7 +421,7 @@ fun DownloadedSongsTab(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.3).sp
                         ),
-                        color = CharcoalPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -315,13 +429,13 @@ fun DownloadedSongsTab(
                     Text(
                         text = "Alphabetical • ${songs.size} songs",
                         style = MaterialTheme.typography.bodySmall,
-                        color = SlateSecondary
+                        color = MaterialTheme.colorScheme.secondary
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
                         text = "Offline Library",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = LightSlateMuted
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
@@ -341,8 +455,8 @@ fun DownloadedSongsTab(
                         .height(48.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CharcoalPrimary,
-                        contentColor = PureWhite
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.surface
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
@@ -362,10 +476,10 @@ fun DownloadedSongsTab(
                         .height(48.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = PureWhite,
-                        contentColor = CharcoalPrimary
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary
                     ),
-                    border = BorderStroke(1.dp, BorderSubtle)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -417,7 +531,7 @@ fun DownloadedSongListItem(
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             ),
-            color = SlateSecondary,
+            color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.width(32.dp)
         )
 
@@ -428,7 +542,7 @@ fun DownloadedSongListItem(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                color = CharcoalPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -436,7 +550,7 @@ fun DownloadedSongListItem(
             Text(
                 text = "${song.artist} • ${formatDuration(song.durationMs)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = SlateSecondary,
+                color = MaterialTheme.colorScheme.secondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -451,7 +565,7 @@ fun DownloadedSongListItem(
                 Icon(
                     Icons.Filled.MoreHoriz,
                     contentDescription = "Options",
-                    tint = LightSlateMuted,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -459,11 +573,11 @@ fun DownloadedSongListItem(
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(PureWhite)
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Add to Playlist", color = CharcoalPrimary) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = CharcoalPrimary) },
+                    text = { Text("Add to Playlist", color = MaterialTheme.colorScheme.primary) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = {
                         showMenu = false
                         onAddToPlaylist()
@@ -485,6 +599,8 @@ fun DownloadedSongListItem(
 @Composable
 fun PlaylistsTab(
     playlists: List<PlaylistEntity>,
+    favoriteSongs: List<PlayableSong>,
+    onPlayFavoriteSongs: () -> Unit,
     onCreatePlaylist: () -> Unit,
     onDeletePlaylist: (PlaylistEntity) -> Unit,
     onPlaylistClick: (Long) -> Unit,
@@ -495,31 +611,105 @@ fun PlaylistsTab(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // ── Pinned Feature: Liked Songs Hero Card (Stitch Screen 8) ───────────
+        if (favoriteSongs.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x10171C26))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(SurfaceContainerLow)
+                        .clickable(onClick = onPlayFavoriteSongs)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .shadow(8.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33171C26))
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Brush.linearGradient(listOf(PrimaryContainer, Secondary, PrimaryContainer))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Favorite,
+                                contentDescription = null,
+                                tint = OnPrimary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Liked Songs",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = OnSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.PushPin,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "${favoriteSongs.size} tracks • Auto-synced",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Secondary
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .shadow(2.dp, CircleShape, spotColor = Color(0x14000000))
+                            .clip(CircleShape)
+                            .background(SurfaceContainerLowest),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = "Play",
+                            tint = Primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Section Header (Stitch Screen 8) ─────────────────────────────────
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "${playlists.size} Playlist${if (playlists.size != 1) "s" else ""}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = CharcoalPrimary
-                )
-
-                Button(
-                    onClick = onCreatePlaylist,
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CharcoalPrimary,
-                        contentColor = PureWhite
+                    text = "YOUR COLLECTIONS",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.sp
                     ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("New Playlist", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
+                    color = Secondary
+                )
+                Text(
+                    text = "${playlists.size} Playlist${if (playlists.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Outline
+                )
             }
         }
 
@@ -539,12 +729,12 @@ fun PlaylistsTab(
                                 .background(Color(0xFFECEFF4)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.QueueMusic, null, modifier = Modifier.size(40.dp), tint = LightSlateMuted)
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text("No playlists yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = CharcoalPrimary)
+                        Text("No playlists yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.height(6.dp))
-                        Text("Create a custom playlist to organize your favorite tracks", style = MaterialTheme.typography.bodyMedium, color = SlateSecondary)
+                        Text("Create a custom playlist to organize your favorite tracks", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }
@@ -556,9 +746,9 @@ fun PlaylistsTab(
                 if (showDeleteConfirm) {
                     AlertDialog(
                         onDismissRequest = { showDeleteConfirm = false },
-                        containerColor = PureWhite,
-                        titleContentColor = CharcoalPrimary,
-                        textContentColor = SlateSecondary,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                        textContentColor = MaterialTheme.colorScheme.secondary,
                         title = { Text("Delete Playlist?", fontWeight = FontWeight.Bold) },
                         text = { Text("Are you sure you want to delete '${playlist.name}'?") },
                         confirmButton = {
@@ -579,53 +769,117 @@ fun PlaylistsTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(3.dp, RoundedCornerShape(16.dp), spotColor = Color(0x12000000))
+                        .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
                         .clip(RoundedCornerShape(16.dp))
-                        .background(PureWhite)
-                        .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(16.dp))
+                        .background(SurfaceContainerLowest)
                         .clickable { onPlaylistClick(playlist.id) }
-                        .padding(16.dp),
+                        .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(56.dp)
+                            .shadow(3.dp, RoundedCornerShape(12.dp), spotColor = Color(0x14171C26))
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF0F2F6)),
+                            .background(SurfaceContainerHigh),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = null,
-                            tint = CharcoalPrimary,
-                            modifier = Modifier.size(24.dp)
+                            tint = Primary,
+                            modifier = Modifier.size(26.dp)
                         )
                     }
 
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = playlist.name,
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                            color = CharcoalPrimary
+                            color = OnSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(Modifier.height(3.dp))
                         Text(
                             text = "Created ${formatDate(playlist.createdAt)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SlateSecondary
+                            color = Secondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = LightSlateMuted)
+                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = Secondary)
                     }
+                }
+            }
+        }
+
+        // ── Smart Auto-Mix Tactile Well (Stitch Screen 8) ────────────────────
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(SurfaceContainerLow)
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceContainerHighest),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = Secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Smart Auto-Mix",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = OnSurface
+                        )
+                        Text(
+                            text = "Generate mix from recent moods",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Secondary
+                        )
+                    }
+                }
+                Button(
+                    onClick = onCreatePlaylist,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SurfaceContainer,
+                        contentColor = OnSurface
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text("Create", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
+
 
 private fun formatDuration(ms: Long): String {
     val totalSeconds = (ms / 1000).coerceAtLeast(0)
@@ -638,3 +892,5 @@ private fun formatDate(timestamp: Long): String {
     val sdf = java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
     return sdf.format(java.util.Date(timestamp))
 }
+
+

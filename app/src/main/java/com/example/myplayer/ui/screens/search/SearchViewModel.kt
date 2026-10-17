@@ -43,3 +43,5 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch { repository.addRecentHistory(song.id) }
     }
 }
+
+

@@ -1,6 +1,7 @@
-package com.example.myplayer.ui.screens.library
+﻿package com.example.myplayer.ui.screens.library
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -37,6 +38,7 @@ import com.example.myplayer.data.local.entity.PlaylistEntity
 import com.example.myplayer.data.repository.HybridLibraryRepository
 import com.example.myplayer.data.repository.MusicRepository
 import com.example.myplayer.data.repository.PlayableSong
+import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,9 +68,9 @@ fun PlaylistDetailScreen(
     songToRemoveDownload?.let { song ->
         AlertDialog(
             onDismissRequest = { songToRemoveDownload = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Remove Download?") },
             text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
             confirmButton = {
@@ -83,7 +85,7 @@ fun PlaylistDetailScreen(
             dismissButton = {
                 TextButton(
                     onClick = { songToRemoveDownload = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Cancel") }
             }
         )
@@ -129,7 +131,7 @@ fun PlaylistDetailScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ClayIconButton(onClick = onBack, size = 48.dp) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = OnSurface)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
 
             Spacer(Modifier.width(16.dp))
@@ -137,7 +139,7 @@ fun PlaylistDetailScreen(
             Text(
                 playlist?.name ?: "Playlist",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
 
@@ -157,7 +159,7 @@ fun PlaylistDetailScreen(
                     Box(
                         modifier = Modifier
                             .size(100.dp)
-                            .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
+                            .clayConcave(borderRadius = 50.dp, backgroundColor = MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = TextMuted, modifier = Modifier.size(48.dp))
@@ -166,13 +168,13 @@ fun PlaylistDetailScreen(
                     Text(
                         "No songs yet",
                         style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(24.dp))
 
                     Box(
                         modifier = Modifier
-                            .claySurface(borderRadius = 24.dp, backgroundColor = SurfaceLight)
+                            .claySurface(borderRadius = 24.dp, backgroundColor = MaterialTheme.colorScheme.surface)
                             .clickable { showAddSheet = true }
                             .padding(horizontal = 24.dp, vertical = 12.dp)
                     ) {
@@ -191,21 +193,116 @@ fun PlaylistDetailScreen(
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // ── Stitch Screen 6 Album / Playlist Header ──────────────────────────
                 item {
+                    val firstSong = localSongs.firstOrNull()
                     Row(
-                        modifier = Modifier.padding(bottom = 4.dp, start = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .shadow(8.dp, RoundedCornerShape(20.dp), spotColor = Color(0x22000000))
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color(0xFF262C38)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AlbumArtImage(
+                                uri = firstSong?.thumbnailUrl,
+                                title = playlist?.name ?: "Playlist",
+                                artist = "Collection",
+                                size = 88.dp,
+                                shape = RoundedCornerShape(20.dp),
+                                iconSize = 34.dp
+                            )
+                        }
+
+                        Spacer(Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "PLAYLIST • ${localSongs.size} SONGS",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontSize = 11.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = playlist?.name ?: "Playlist",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.3).sp
+                                ),
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // Main Action Buttons: [> Play] and [Shuffle] (Stitch Screen 6)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Button(
+                            onClick = { onPlaySong(localSongs, 0) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color(0x28000000)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+
+                        Button(
+                            onClick = { onPlaySong(localSongs.shuffled(), 0) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .shadow(2.dp, RoundedCornerShape(24.dp), spotColor = Color(0x0F000000)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Icon(Icons.Filled.Shuffle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Shuffle", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.padding(bottom = 4.dp, start = 4.dp, top = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "${localSongs.size} song${if (localSongs.size != 1) "s" else ""}",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = OnSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "· Hold & drag to reorder",
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -300,7 +397,7 @@ fun PlaylistSongRow(
                 shape = RoundedCornerShape(20.dp)
                 clip = true
             }
-            .claySurface(borderRadius = 20.dp, backgroundColor = if (isDragging) SurfaceContainerHigh else SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface)
             .clickable(onClick = onPlayClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -325,7 +422,7 @@ fun PlaylistSongRow(
             Icon(
                 Icons.Filled.DragHandle,
                 contentDescription = "Drag to reorder",
-                tint = OnSurfaceVariant.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -336,7 +433,7 @@ fun PlaylistSongRow(
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .clayConcave(borderRadius = 16.dp, backgroundColor = SurfaceContainerLow),
+                .clayConcave(borderRadius = 16.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -386,7 +483,7 @@ fun PlaylistSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Medium,
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(2.dp))
@@ -395,20 +492,20 @@ fun PlaylistSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         // Remove button
         Box {
             ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
-                Icon(Icons.Filled.MoreVert, "More options", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.MoreVert, "More options", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
 
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(SurfaceLight)
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
                 DropdownMenuItem(
                     text = { Text("Remove", color = Color(0xFFBA1A1A)) },
@@ -481,7 +578,7 @@ fun AddSongsSheet(
                         "Add Songs",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = OnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (selectedIds.isNotEmpty()) {
                         Text(
@@ -492,7 +589,7 @@ fun AddSongsSheet(
                     }
                 }
                 ClayIconButton(onClick = onDismiss, size = 36.dp) {
-                    Icon(Icons.Filled.Close, "Close", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -516,9 +613,9 @@ fun AddSongsSheet(
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = ClayPrimary,
-                    unfocusedBorderColor = SurfaceContainerHigh,
-                    focusedContainerColor = SurfaceLight,
-                    unfocusedContainerColor = SurfaceLight,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     cursorColor = ClayPrimary
                 )
             )
@@ -559,7 +656,7 @@ fun AddSongsSheet(
                         if (library.isEmpty()) "No songs in your library yet.\nDownload songs or search online to add songs."
                         else "No songs match \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         modifier = Modifier.padding(32.dp)
                     )
@@ -578,9 +675,9 @@ fun AddSongsSheet(
                         val isSelected = song.id in selectedIds
 
                         val rowBg = when {
-                            alreadyAdded -> SurfaceContainerLow
+                            alreadyAdded -> MaterialTheme.colorScheme.surfaceContainerLow
                             isSelected   -> ClayPrimary.copy(alpha = 0.10f)
-                            else         -> SurfaceLight
+                            else         -> MaterialTheme.colorScheme.surface
                         }
 
                         Row(
@@ -608,7 +705,7 @@ fun AddSongsSheet(
                                     alreadyAdded -> Icon(
                                         Icons.Filled.CheckCircle,
                                         contentDescription = "Already in playlist",
-                                        tint = OnSurfaceVariant,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(22.dp)
                                     )
                                     isSelected -> Icon(
@@ -620,7 +717,7 @@ fun AddSongsSheet(
                                     else -> Icon(
                                         Icons.Filled.RadioButtonUnchecked,
                                         contentDescription = "Not selected",
-                                        tint = OnSurfaceVariant.copy(alpha = 0.5f),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -655,7 +752,7 @@ fun AddSongsSheet(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (alreadyAdded) OnSurfaceVariant else OnSurface
+                                    color = if (alreadyAdded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -664,14 +761,14 @@ fun AddSongsSheet(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = OnSurfaceVariant,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                     if (song is PlayableSong.Downloaded) {
                                         Box(
                                             modifier = Modifier
                                                 .padding(start = 8.dp)
-                                                .claySurface(borderRadius = 4.dp, backgroundColor = SurfaceContainerLow)
+                                                .claySurface(borderRadius = 4.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow)
                                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                                         ) {
                                             Text(
@@ -721,3 +818,5 @@ fun AddSongsSheet(
         }
     }
 }
+
+

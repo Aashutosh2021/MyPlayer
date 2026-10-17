@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "outline-variant": "#c6c6cc", "tertiary-container": "#161c26", "tertiary-fixed": "#dde2f0", "tertiary-fixed-dim": "#c1c7d4", "inverse-on-surface": "#f0f1f1", "surface-container-low": "#f3f3f4", "on-secondary-fixed-variant": "#3d4759", "on-tertiary": "#ffffff", "surface-bright": "#f9f9f9", "outline": "#76777c", "surface": "#f9f9f9", "on-surface": "#1a1c1c", "on-primary-container": "#7f8491", "secondary-container": "#d9e3f9", "on-surface-variant": "#45474b", "background": "#f9f9f9", "on-tertiary-fixed-variant": "#414752", "on-tertiary-container": "#7e8491", "on-secondary-container": "#5b6577", "surface-dim": "#dadada", "on-primary": "#ffffff", "on-tertiary-fixed": "#161c26", "on-error-container": "#93000a", "inverse-primary": "#c2c6d4", "secondary": "#555f71", "surface-container-highest": "#e2e2e2", "surface-container-high": "#e8e8e8", "primary-fixed": "#dee2f0", "secondary-fixed-dim": "#bdc7dc", "on-secondary": "#ffffff", "on-primary-fixed": "#171c26", "surface-tint": "#595e6a", "inverse-surface": "#2f3131", "error": "#ba1a1a", "on-primary-fixed-variant": "#424752", "tertiary": "#000002", "on-secondary-fixed": "#121c2b", "error-container": "#ffdad6", "surface-container-lowest": "#ffffff", "surface-container": "#eeeeee", "primary-container": "#171c26", "primary": "#000103", "on-error": "#ffffff", "on-background": "#1a1c1c", "primary-fixed-dim": "#c2c6d4", "secondary-fixed": "#d9e3f9", "surface-variant": "#e2e2e2" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-xs": "0.25rem", "space-xl": "2rem", "space-md": "1rem", "space-sm": "0.5rem", "margin": "1.25rem", "space-lg": "1.5rem", "gutter": "1rem" }, fontFamily: { "display-md": ["Inter"], "display-lg": ["Inter"], "label-sm": ["Inter"], "body-lg": ["Inter"], "body-md": ["Inter"], "body-sm": ["Inter"], "headline-lg": ["Inter"], "label-md": ["Inter"], "title-md": ["Inter"], "headline-sm": ["Inter"] }, fontSize: { "display-md": ["26px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "700" }], "display-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }], "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.02em", fontWeight: "500" }], "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "500" }], "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }], "headline-lg": ["22px", { lineHeight: "28px", letterSpacing: "-0.01em", fontWeight: "700" }], "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" }], "title-md": ["16px", { lineHeight: "22px", fontWeight: "600" }], "headline-sm": ["18px", { lineHeight: "24px", fontWeight: "600" }] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface-container-lowest font-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="w-full px-5 pt-1.5 pb-1 flex items-center justify-between text-on-surface font-label-md text-label-md"><span class="tracking-tight font-semibold">8:00</span><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">wifi</span><span class="material-symbols-outlined text-[16px]">signal_cellular_alt</span><span class="material-symbols-outlined text-[16px]">battery_full</span></div></div><div class="h-14 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Back" class="w-11 h-11 -ml-2 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Neumorphic Musical Spark App Icon.png" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1UXSv1eh30P2qXFw9_-NXl2fkJ_-t_4bCsJ9d74Bf6GAAtd4rRSGSeMOTNma6xtJPecwNOnus-asR6AFnSZigyUbUWv71LJBOVp9fw7_PKLsRjeWF0Z2h2ofCX7r3hAJsPBgcuTMdKikvKeFb0qIRkMBZA_Mk1eYERRpD7ddlyf6zVssSlGVZKX9HgG58CPwtWTRnZb5vmChTpJrfvXuwFFEFguDyOJzaghcGO6XGj20x47FS7TZxJwCnVFV6r7abLrO2iOjeoibA"/><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-tight">Now Playing</h1></div><div class="flex items-center gap-space-xs"><button aria-label="More Options" class="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">more_vert</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full px-margin pt-20 pb-safe bg-surface-container-lowest"><div class="flex flex-col w-full pb-8 select-none">
+<!-- Top Bar Controls -->
+<div class="flex items-center justify-between py-space-sm mb-4">
+<button aria-label="Minimize player" class="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors active:scale-95" type="button">
+<span class="material-symbols-outlined text-[24px]">keyboard_arrow_down</span>
+</button>
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest">Playing From Album</span>
+<span class="font-title-md text-title-md text-on-surface font-semibold tracking-tight">Charcoal</span>
+</div>
+<button aria-label="Current Queue" class="w-10 h-10 -mr-2 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors active:scale-95" type="button">
+<span class="material-symbols-outlined text-[22px]">queue_music</span>
+</button>
+</div>
+<!-- Hero Album Artwork Section -->
+<div class="relative w-full aspect-square max-w-[340px] mx-auto my-2 flex items-center justify-center">
+<div class="w-full h-full rounded-[28px] overflow-hidden bg-primary-container shadow-[0px_20px_40px_-12px_rgba(23,28,38,0.22),0px_6px_16px_rgba(23,28,38,0.08)] relative group">
+<img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" data-alt="Monochrome fine-art photograph of a cross-section tree trunk slice with prominent concentric age rings and organic bark texture, lit with subtle directional studio lighting against a deep velvety charcoal background, editorial high contrast audiophile album art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCSUuhXnTypKd4J41H77JNLLe85TRuE8sI2Vgf0lCqnhJkrdqwYRRlAvtiaTZeIU1SEMdILn2_oszQHpULZ9IwqVI2GWtzMkhLn5XOiutzdui0UuoZgF1R4E7nAFP3BYxigDvw8RiNNNYHhjrCJ7--tFNPrG4ggPzkl1f4FWl1EzVtON2pP05ZHEsr6nro88yIQxdKmdfNx6_t1Bd_yAF_JIbYU1luxWeQKKJN2C3RHjS1rrsBo8jH"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10 pointer-events-none"></div>
+</div>
+</div>
+<!-- Track Title, Metadata & Action Icons -->
+<div class="mt-8 px-space-xs flex items-center justify-between">
+<button aria-label="Add to favorites" class="w-11 h-11 rounded-full flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all active:scale-90" id="favorite-btn" type="button">
+<span class="material-symbols-outlined text-[26px]" id="fav-icon">favorite</span>
+</button>
+<div class="flex-1 flex flex-col items-center text-center px-2 min-w-0">
+<h2 class="font-headline-lg text-headline-lg text-primary tracking-tight font-bold truncate max-w-full">
+        Unsayable
+      </h2>
+<p class="font-body-md text-body-md text-secondary mt-0.5 truncate max-w-full">
+        Brambles
+      </p>
+</div>
+<button aria-label="Track options" class="w-11 h-11 rounded-full flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all active:scale-90" type="button">
+<span class="material-symbols-outlined text-[24px]">more_horiz</span>
+</button>
+</div>
+<!-- Audio Waveform Scrubber -->
+<div class="mt-7 px-space-xs flex flex-col gap-2">
+<!-- Dynamic Interactive Soundwave Graphic -->
+<div class="h-14 w-full flex items-center justify-between gap-[2.5px] cursor-pointer px-1 py-1 rounded-xl transition-colors hover:bg-surface-container-low/50" id="waveform-container">
+<!-- Elapsed Bars (Solid Charcoal) -->
+<span class="w-[3px] h-3 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-4 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-6 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-3 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-7 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-9 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-5 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-11 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-12 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-8 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-14 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-10 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-6 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-11 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-13 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-7 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-12 bg-primary rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-5 bg-primary rounded-full transition-all duration-150"></span>
+<!-- Scrubber Playhead Point -->
+<span class="w-[3.5px] h-14 bg-primary rounded-full scale-110 shadow-sm"></span>
+<!-- Remaining Bars (Muted Outline-Variant) -->
+<span class="w-[3px] h-8 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-11 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-6 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-10 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-12 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-7 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-9 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-5 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-8 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-4 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-7 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-10 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-6 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-4 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-3 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-5 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-2 bg-outline-variant rounded-full transition-all duration-150"></span>
+<span class="w-[3px] h-4 bg-outline-variant rounded-full transition-all duration-150"></span>
+</div>
+<!-- Timestamp Row -->
+<div class="flex items-center justify-between font-label-sm text-label-sm text-secondary font-medium px-1">
+<span id="elapsed-time">1:04</span>
+<span id="total-time">2:52</span>
+</div>
+</div>
+<!-- Primary Playback Controls -->
+<div class="mt-6 flex items-center justify-between px-2">
+<!-- Shuffle Toggle -->
+<button aria-label="Toggle shuffle" class="w-11 h-11 rounded-full flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all active:scale-95" id="shuffle-btn" type="button">
+<span class="material-symbols-outlined text-[22px]">shuffle</span>
+</button>
+<!-- Previous Track -->
+<button aria-label="Previous track" class="w-12 h-12 rounded-full flex items-center justify-center text-primary hover:bg-surface-container-low transition-all active:scale-90" type="button">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">skip_previous</span>
+</button>
+<!-- Elevated Floating Play/Pause Button -->
+<button aria-label="Pause" class="w-[68px] h-[68px] rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0px_10px_24px_-4px_rgba(23,28,38,0.28)] hover:scale-105 active:scale-95 transition-all duration-200" id="play-pause-btn" type="button">
+<span class="material-symbols-outlined text-[34px]" id="play-pause-icon" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<!-- Next Track -->
+<button aria-label="Next track" class="w-12 h-12 rounded-full flex items-center justify-center text-primary hover:bg-surface-container-low transition-all active:scale-90" type="button">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">skip_next</span>
+</button>
+<!-- Repeat Toggle -->
+<button aria-label="Toggle repeat" class="w-11 h-11 rounded-full flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all active:scale-95" id="repeat-btn" type="button">
+<span class="material-symbols-outlined text-[22px]">repeat</span>
+</button>
+</div>
+<!-- Bottom Utility & Hardware Routing Dock -->
+<div class="mt-8 flex items-center justify-between px-1">
+<!-- Device Output Selector Capsule -->
+<button class="h-10 px-3.5 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center gap-2 text-on-surface transition-all active:scale-95" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">speaker_group</span>
+<span class="font-label-md text-label-md font-semibold text-primary">Studio Monitor (LDAC)</span>
+</button>
+<!-- Quick Lyrics Pill & Share -->
+<div class="flex items-center gap-1.5">
+<button class="h-10 px-3 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center gap-1.5 text-secondary hover:text-primary transition-all active:scale-95" type="button">
+<span class="material-symbols-outlined text-[18px]">lyrics</span>
+<span class="font-label-md text-label-md font-semibold">Lyrics</span>
+</button>
+<button aria-label="Share track" class="w-10 h-10 rounded-full flex items-center justify-center text-secondary hover:text-primary hover:bg-surface-container-low transition-all active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">ios_share</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Interactive Play/Pause Toggle
+  const playPauseBtn = document.getElementById('play-pause-btn');
+  const playPauseIcon = document.getElementById('play-pause-icon');
+  let isPlaying = true;
+
+  if (playPauseBtn && playPauseIcon) {
+    playPauseBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      playPauseIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+      playPauseBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+      
+      const bars = document.querySelectorAll('#waveform-container span');
+      bars.forEach(bar => {
+        if (!isPlaying) {
+          bar.classList.add('opacity-70');
+        } else {
+          bar.classList.remove('opacity-70');
+        }
+      });
+    });
+  }
+
+  // Favorite Heart Toggle with Tactile Fill
+  const favBtn = document.getElementById('favorite-btn');
+  const favIcon = document.getElementById('fav-icon');
+  let isFav = false;
+
+  if (favBtn && favIcon) {
+    favBtn.addEventListener('click', () => {
+      isFav = !isFav;
+      if (isFav) {
+        favIcon.style.fontVariationSettings = "'FILL' 1";
+        favBtn.classList.remove('text-secondary');
+        favBtn.classList.add('text-primary');
+      } else {
+        favIcon.style.fontVariationSettings = "'FILL' 0";
+        favBtn.classList.remove('text-primary');
+        favBtn.classList.add('text-secondary');
+      }
+    });
+  }
+
+  // Shuffle & Repeat Active States
+  const shuffleBtn = document.getElementById('shuffle-btn');
+  const repeatBtn = document.getElementById('repeat-btn');
+
+  [shuffleBtn, repeatBtn].forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('text-secondary');
+        btn.classList.toggle('text-primary');
+        btn.classList.toggle('bg-surface-container-low');
+      });
+    }
+  });
+</script></main><div class="fixed bottom-0 w-full pb-safe flex justify-center pointer-events-none"><div class="w-32 h-1 bg-on-surface/20 rounded-full my-1.5"></div></div></body></html>

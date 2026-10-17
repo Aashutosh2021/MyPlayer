@@ -29,6 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.recommendation.model.RecommendationSong
 import com.example.myplayer.ui.common.AlbumArtImage
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.ui.theme.*
 
 @Composable
@@ -72,10 +74,10 @@ fun HomeScreen(
     if (showEditNameDialog) {
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            icon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = NeonLimePrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            icon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
             title = { Text("Set Display Name", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
@@ -86,11 +88,11 @@ fun HomeScreen(
                         onValueChange = { nameInput = it },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonLimePrimary,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = CardBorderOlive,
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface,
-                            cursorColor = NeonLimePrimary
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Your Name", color = TextMuted) }
@@ -106,8 +108,8 @@ fun HomeScreen(
                         showEditNameDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonLimePrimary,
-                        contentColor = OnNeonLime
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -117,7 +119,7 @@ fun HomeScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showEditNameDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {
                     Text("Cancel")
                 }
@@ -125,91 +127,154 @@ fun HomeScreen(
         )
     }
 
+    val jumpBackInSongs = remember(popularPool, recentSongs, allSongs) {
+        (recentSongs.ifEmpty { popularPool.ifEmpty { allSongs } }).take(8)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepOliveBackground)
+            .background(Background)
             .statusBarsPadding(),
         contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
     ) {
-        // ── Top Header (Avatar, Greeting & Notification Bell) ─────────────────
+        // ── Top Header Bar (Stitch Screen 7) ──────────────────────────────────
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable {
-                            nameInput = userName
-                            showEditNameDialog = true
-                        }
-                        .padding(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Avatar with subtle neon lime accent
+                    Image(
+                        painter = painterResource(R.drawable.app_icon_spark),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                    Column {
+                        Text(
+                            text = "MYPLAYER",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "Home",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(SurfaceLight)
-                            .border(BorderStroke(1.5.dp, CardBorderOlive), CircleShape),
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
+                            .clickable(onClick = onNavigateToSettings),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable(onClick = onNavigateToSettings),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Person,
-                            contentDescription = "Profile",
-                            tint = NeonLimePrimary,
-                            modifier = Modifier.size(26.dp)
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(20.dp)
                         )
-                    }
-
-                    Column {
-                        Text(
-                            text = greeting,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = OnSurfaceVariant
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = userName,
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = OnSurface
-                                )
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = "Edit name",
-                                tint = OnSurfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
                     }
                 }
+            }
+        }
 
-                // Dedicated Settings button in top corner
-                Box(
+        // ── Welcome & Greeting (Stitch Screen 7) ──────────────────────────────
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PureWhite)
-                        .border(BorderStroke(1.dp, BorderSubtle), CircleShape)
-                        .clickable(onClick = onNavigateToSettings),
-                    contentAlignment = Alignment.Center
+                        .clickable {
+                            nameInput = userName
+                            showEditNameDialog = true
+                        }
+                        .padding(vertical = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Settings",
-                        tint = CharcoalPrimary,
-                        modifier = Modifier.size(22.dp)
+                    Text(
+                        text = "WELCOME BACK",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontSize = 11.sp
                     )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "$greeting${if (userName.isNotBlank()) ", $userName" else ""}",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFECEFF4)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Equalizer,
+                            contentDescription = "Equalizer",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFECEFF4)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.NotificationsNone,
+                            contentDescription = "Notifications",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -224,11 +289,11 @@ fun HomeScreen(
                 items(categories) { category ->
                     val isSelected = category == selectedCategory
                     val pillBg by animateColorAsState(
-                        targetValue = if (isSelected) NeonLimePrimary else SurfaceLight,
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                         label = "pillBg_$category"
                     )
                     val textTint by animateColorAsState(
-                        targetValue = if (isSelected) OnNeonLime else OnSurfaceVariant,
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         label = "textTint_$category"
                     )
 
@@ -257,8 +322,8 @@ fun HomeScreen(
         }
 
         if (selectedCategory == "All") {
-            // ── Popular Songs Section ─────────────────────────────────────────────
-            if (popularPool.isNotEmpty()) {
+            // ── Stitch Screen 7: Jump Back In (Horizontal Scroll Section) ────────
+            if (jumpBackInSongs.isNotEmpty()) {
                 item {
                     Row(
                         modifier = Modifier
@@ -268,198 +333,185 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Popular Songs",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            text = "Jump Back In",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = OnSurface
                         )
                         Text(
-                            text = "See All",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = NeonLimePrimary
+                            text = "See all",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = Secondary,
+                            modifier = Modifier.clickable { /* See all */ }
                         )
                     }
                 }
 
                 item {
-                    val popularListState = rememberLazyListState()
                     LazyRow(
-                        state = popularListState,
                         contentPadding = PaddingValues(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(vertical = 12.dp)
+                        modifier = Modifier.padding(vertical = 8.dp)
                     ) {
-                        itemsIndexed(popularPool, key = { _, song -> song.id }) { index, song ->
-                            Box(modifier = Modifier.carousel3DItem(popularListState, index)) {
-                                PopularSongCard(
-                                    song = song,
-                                    isPlaying = currentSong?.id == song.id,
-                                    onClick = {
-                                        viewModel.playSong(popularPool, index)
-                                        onNavigateToNowPlaying()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-
-
-            // ── Recommended / Trending Section ──────────────────────────────────
-            if (recommendations.isNotEmpty() || isLoadingRecommendations) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (userState?.isColdStart != false) "Trending Music" else "Recommended For You",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
-                        )
-                    }
-                }
-                item {
-                    val recoListState = rememberLazyListState()
-                    LazyRow(
-                        state = recoListState,
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (recommendations.isNotEmpty()) {
-                            itemsIndexed(recommendations, key = { _, reco -> reco.videoId }) { index, reco ->
-                                Box(modifier = Modifier.carousel3DItem(recoListState, index)) {
-                                    RecommendedSongCard(
-                                        song = reco,
-                                        isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId,
-                                        onClick = {
-                                            viewModel.playRecommendedSongs(recommendations, index)
-                                            onNavigateToNowPlaying()
-                                        }
-                                    )
-                                }
-                            }
-                        } else {
-                            items(4) {
-                                RecommendationPlaceholderCard()
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-
-            // ── Favorite Songs (2-Column Grid) ────────────────────────────────────
-            if (favoriteSongs.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Favorite Songs",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
-                        )
-                    }
-                }
-                item {
-                    val chunked = remember(favoriteSongs) { favoriteSongs.take(6).chunked(2) }
-                    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                        chunked.forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                pair.forEach { song ->
-                                    val index = favoriteSongs.indexOf(song)
-                                    FavoriteSongCard(
-                                        song = song,
-                                        isPlaying = currentSong?.id == song.id,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = {
-                                            viewModel.playSong(favoriteSongs, index)
-                                            onNavigateToNowPlaying()
-                                        }
-                                    )
-                                }
-                                if (pair.size == 1) Spacer(Modifier.weight(1f))
-                            }
-                            Spacer(Modifier.height(12.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-
-            // ── Recently Played Row ───────────────────────────────────────────────
-            if (recentSongs.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Recently Played",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
-                        )
-                    }
-                }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        itemsIndexed(recentSongs.take(10), key = { _, song -> song.id }) { index, song ->
-                            PopularSongCard(
+                        itemsIndexed(jumpBackInSongs, key = { _, song -> song.id }) { index, song ->
+                            JumpBackInCard(
                                 song = song,
                                 isPlaying = currentSong?.id == song.id,
                                 onClick = {
-                                    viewModel.playSong(recentSongs, index)
+                                    viewModel.playSong(jumpBackInSongs, index)
                                     onNavigateToNowPlaying()
                                 }
                             )
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
                 }
             }
 
-            // ── All Songs List ────────────────────────────────────────────────────
-            if (displayedDownloadedSongs.isNotEmpty()) {
-                item {
+            // ── Stitch Screen 7: Your Quick Mixes (2x2 Bento Tiles!) ────────────
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Your Quick Mixes",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
+                    Text(
+                        text = "Updated today",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Secondary
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Row 1
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "All Songs",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
+                        QuickMixBentoTile(
+                            icon = Icons.Filled.GraphicEq,
+                            title = "Deep Focus",
+                            subtitle = "Drone, Lo-Fi & Ambient",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.selectCategory("Chill") }
+                        )
+                        QuickMixBentoTile(
+                            icon = Icons.Filled.MusicNote,
+                            title = "Acoustic Chill",
+                            subtitle = "Warm strings & vocals",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.selectCategory("Blues") }
+                        )
+                    }
+                    // Row 2
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        QuickMixBentoTile(
+                            icon = Icons.Filled.Nightlight,
+                            title = "Late Night",
+                            subtitle = "Synthwave & Electro",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.selectCategory("Party") }
+                        )
+                        QuickMixBentoTile(
+                            icon = Icons.Filled.AutoAwesome,
+                            title = "Discoveries",
+                            subtitle = "Custom picks for you",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (recommendations.isNotEmpty()) {
+                                    viewModel.playRecommendedSongs(recommendations, 0)
+                                    onNavigateToNowPlaying()
+                                } else {
+                                    viewModel.selectCategory("Pop")
+                                }
+                            }
                         )
                     }
                 }
+                Spacer(Modifier.height(14.dp))
+            }
 
-                itemsIndexed(displayedDownloadedSongs.take(10), key = { _, song -> song.id }) { index, song ->
-                    DarkSongListItem(
-                        song = song,
-                        isPlaying = currentSong?.id == song.id,
+            // ── Stitch Screen 7: Recommended For You (High-Fidelity Track List) ───
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Recommended For You",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
+                    Button(
                         onClick = {
-                            viewModel.playSong(displayedDownloadedSongs, index)
+                            if (recommendations.isNotEmpty()) {
+                                viewModel.playRecommendedSongs(recommendations, 0)
+                                onNavigateToNowPlaying()
+                            } else if (allSongs.isNotEmpty()) {
+                                viewModel.playSong(allSongs, 0)
+                                onNavigateToNowPlaying()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryContainer,
+                            contentColor = PureWhite
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Play all", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            if (recommendations.isNotEmpty()) {
+                itemsIndexed(recommendations.take(12), key = { index, reco -> "${reco.videoId}_$index" }) { index, reco ->
+                    val isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId
+                    StitchTrackRow(
+                        title = reco.title,
+                        artist = reco.artist,
+                        album = reco.album,
+                        artUri = reco.thumbnailUrl,
+                        durationMs = reco.durationMs,
+                        isPlaying = isPlaying,
+                        onClick = {
+                            viewModel.playRecommendedSongs(recommendations, index)
+                            onNavigateToNowPlaying()
+                        }
+                    )
+                }
+            } else if (allSongs.isNotEmpty()) {
+                itemsIndexed(allSongs.take(12), key = { _, s -> s.id }) { index, s ->
+                    val isPlaying = currentSong?.id == s.id
+                    StitchTrackRow(
+                        title = s.title,
+                        artist = s.artist,
+                        album = s.album,
+                        artUri = s.albumArt,
+                        durationMs = s.duration,
+                        isPlaying = isPlaying,
+                        onClick = {
+                            viewModel.playSong(allSongs, index)
                             onNavigateToNowPlaying()
                         }
                     )
@@ -480,13 +532,13 @@ fun HomeScreen(
                     Text(
                         text = "Downloaded in $selectedCategory",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (displayedDownloadedSongs.isNotEmpty()) {
                         Text(
                             text = "${displayedDownloadedSongs.size} songs",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = NeonLimePrimary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -519,7 +571,7 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(SurfaceLight)
+                            .background(MaterialTheme.colorScheme.surface)
                             .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(16.dp))
                             .padding(16.dp)
                     ) {
@@ -527,7 +579,7 @@ fun HomeScreen(
                             Icon(
                                 Icons.Filled.FolderOpen,
                                 contentDescription = null,
-                                tint = OnSurfaceVariant,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(Modifier.width(12.dp))
@@ -535,12 +587,12 @@ fun HomeScreen(
                                 Text(
                                     text = "No downloaded $selectedCategory songs",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = OnSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Stream from 30+ $selectedCategory recommendations below",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OnSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -561,13 +613,13 @@ fun HomeScreen(
                     Text(
                         text = "$selectedCategory Recommendations",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (recommendations.isNotEmpty()) {
                         Text(
                             text = "${recommendations.size} tracks",
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = NeonLimePrimary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -611,7 +663,7 @@ fun HomeScreen(
                         Text(
                             text = "All $selectedCategory Tracks (${recommendations.size})",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -647,7 +699,7 @@ private fun RecommendationPlaceholderCard() {
         modifier = Modifier
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(20.dp))
             .padding(12.dp)
     ) {
@@ -656,7 +708,7 @@ private fun RecommendationPlaceholderCard() {
                 modifier = Modifier
                     .size(132.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceContainerLow)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
             )
             Spacer(Modifier.height(8.dp))
             Box(
@@ -664,7 +716,7 @@ private fun RecommendationPlaceholderCard() {
                     .width(90.dp)
                     .height(14.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(SurfaceContainerLow)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
             )
             Spacer(Modifier.height(4.dp))
             Box(
@@ -672,7 +724,7 @@ private fun RecommendationPlaceholderCard() {
                     .width(60.dp)
                     .height(10.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(SurfaceContainerLow)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
             )
         }
     }
@@ -688,11 +740,11 @@ private fun RecommendedSongCard(
         modifier = Modifier
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.6f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else CardBorderOlive
                 ),
                 RoundedCornerShape(20.dp)
             )
@@ -704,7 +756,7 @@ private fun RecommendedSongCard(
                 modifier = Modifier
                     .size(132.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceContainerLow),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
@@ -723,10 +775,10 @@ private fun RecommendedSongCard(
                             .padding(8.dp)
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(NeonLimePrimary),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = OnNeonLime)
+                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -736,7 +788,7 @@ private fun RecommendedSongCard(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -746,7 +798,7 @@ private fun RecommendedSongCard(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -765,11 +817,11 @@ private fun DarkRecommendationListItem(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.5f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
                 ),
                 RoundedCornerShape(18.dp)
             )
@@ -781,7 +833,7 @@ private fun DarkRecommendationListItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SurfaceContainerLow),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             AlbumArtImage(
@@ -800,7 +852,7 @@ private fun DarkRecommendationListItem(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -808,19 +860,19 @@ private fun DarkRecommendationListItem(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
         if (isPlaying) {
-            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = NeonLimePrimary)
+            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
         } else {
             Icon(
                 Icons.Filled.PlayArrow,
                 contentDescription = "Play",
-                tint = NeonLimePrimary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -839,11 +891,11 @@ private fun PopularSongCard(
         modifier = Modifier
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.6f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else CardBorderOlive
                 ),
                 RoundedCornerShape(20.dp)
             )
@@ -855,7 +907,7 @@ private fun PopularSongCard(
                 modifier = Modifier
                     .size(132.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceContainerLow),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
@@ -874,10 +926,10 @@ private fun PopularSongCard(
                             .padding(8.dp)
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(NeonLimePrimary),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = OnNeonLime)
+                        AnimatedEqualizerBars(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -887,7 +939,7 @@ private fun PopularSongCard(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -897,7 +949,7 @@ private fun PopularSongCard(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -917,11 +969,11 @@ private fun FavoriteSongCard(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.5f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
                 ),
                 RoundedCornerShape(18.dp)
             )
@@ -933,7 +985,7 @@ private fun FavoriteSongCard(
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(SurfaceContainerLow),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             AlbumArtImage(
@@ -952,7 +1004,7 @@ private fun FavoriteSongCard(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -960,7 +1012,7 @@ private fun FavoriteSongCard(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.labelSmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -981,11 +1033,11 @@ private fun DarkSongListItem(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceLight)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) NeonLimePrimary.copy(alpha = 0.5f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
                 ),
                 RoundedCornerShape(18.dp)
             )
@@ -997,7 +1049,7 @@ private fun DarkSongListItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SurfaceContainerLow),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             AlbumArtImage(
@@ -1016,7 +1068,7 @@ private fun DarkSongListItem(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) NeonLimePrimary else OnSurface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1024,19 +1076,19 @@ private fun DarkSongListItem(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
         if (isPlaying) {
-            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = NeonLimePrimary)
+            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
         } else {
             Icon(
                 Icons.Filled.MoreVert,
                 contentDescription = null,
-                tint = OnSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1057,24 +1109,24 @@ private fun DarkEmptyState() {
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(SurfaceLight)
+                .background(MaterialTheme.colorScheme.surface)
                 .border(BorderStroke(1.dp, CardBorderOlive), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Filled.LibraryMusic,
                 contentDescription = null,
-                tint = NeonLimePrimary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(40.dp)
             )
         }
         Spacer(Modifier.height(20.dp))
-        Text("No music yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+        Text("No music yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
         Text(
             "Search online to stream or download songs",
             style = MaterialTheme.typography.bodySmall,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1087,7 +1139,7 @@ fun formatDurationHome(durationMs: Long): String {
 @Composable
 fun AnimatedEqualizerBars(
     modifier: Modifier = Modifier.size(18.dp),
-    color: Color = NeonLimePrimary
+    color: Color = MaterialTheme.colorScheme.primary
 ) {
     val transition = rememberInfiniteTransition(label = "eqBars")
     val bar1 by transition.animateFloat(
@@ -1120,4 +1172,281 @@ fun AnimatedEqualizerBars(
         }
     }
 }
+
+// ── Stitch Screen 7 Composables ──────────────────────────────────────────────
+
+@Composable
+private fun JumpBackInCard(
+    song: SongEntity,
+    isPlaying: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(144.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(144.dp)
+                .shadow(10.dp, RoundedCornerShape(16.dp), spotColor = Color(0x20171C26))
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceContainerHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            AlbumArtImage(
+                uri = song.albumArt,
+                title = song.title,
+                artist = song.artist,
+                size = 144.dp,
+                shape = RoundedCornerShape(16.dp),
+                iconSize = 52.dp
+            )
+
+            // Play button overlay in center
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .shadow(6.dp, CircleShape, spotColor = Color(0x33000000))
+                    .clip(CircleShape)
+                    .background(PureWhite),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            // Top-left "Recent" badge with pulsating green dot
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PrimaryContainer.copy(alpha = 0.85f))
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF34D399))
+                )
+                Text(
+                    text = "Recent",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = PureWhite
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = OnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = song.artist,
+            style = MaterialTheme.typography.bodySmall,
+            color = Secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun QuickMixBentoTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainerLow)
+            .clickable(onClick = onClick)
+            .padding(14.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .shadow(2.dp, RoundedCornerShape(10.dp), spotColor = Color(0x0C000000))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PureWhite),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(PureWhite),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = OnSurface,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun StitchTrackRow(
+    title: String,
+    artist: String,
+    album: String?,
+    artUri: String?,
+    durationMs: Long,
+    isPlaying: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isPlaying) SurfaceContainerLow else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceContainerHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            AlbumArtImage(
+                uri = artUri,
+                title = title,
+                artist = artist,
+                size = 48.dp,
+                shape = RoundedCornerShape(10.dp),
+                iconSize = 22.dp
+            )
+
+            // Animated Sound Wave Pill Overlay when playing
+            if (isPlaying) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Primary.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedEqualizerBars(modifier = Modifier.size(18.dp), color = PureWhite)
+                }
+            }
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold
+                    ),
+                    color = OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (isPlaying) {
+                    Spacer(Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Primary)
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "$artist${if (!album.isNullOrBlank()) " • $album" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        if (durationMs > 0) {
+            val minutes = (durationMs / 1000) / 60
+            val seconds = (durationMs / 1000) % 60
+            Text(
+                text = String.format("%d:%02d", minutes, seconds),
+                style = MaterialTheme.typography.labelSmall,
+                color = Secondary,
+                modifier = Modifier.padding(horizontal = 6.dp)
+            )
+        }
+
+        IconButton(
+            onClick = { /* more options */ },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = "More",
+                tint = Secondary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+
 
