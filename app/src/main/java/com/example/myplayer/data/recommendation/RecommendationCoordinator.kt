@@ -127,6 +127,7 @@ open class RecommendationCoordinator internal constructor(
             is PlaybackEvent.PlayRequestReady -> {
                 // Handled by MusicController
             }
+            else -> {}
         }
     }
 

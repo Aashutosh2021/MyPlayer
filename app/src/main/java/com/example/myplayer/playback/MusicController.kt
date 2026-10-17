@@ -158,6 +158,10 @@ class MusicController @Inject constructor(
                         _playbackQueue.value = _songQueue.toList()
                         playOnlineQueueIndex(playIndex)
                     }
+                } else if (event is PlaybackEvent.SkipToNextRequested) {
+                    skipToNext()
+                } else if (event is PlaybackEvent.SkipToPreviousRequested) {
+                    skipToPrevious()
                 }
             }
         }

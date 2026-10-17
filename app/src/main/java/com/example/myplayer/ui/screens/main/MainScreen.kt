@@ -90,7 +90,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(CloudBlueBackground),
+                        .background(androidx.compose.ui.graphics.Color.Transparent),
                     verticalArrangement = Arrangement.Bottom
                 ) {
                     // Mini player above nav bar

@@ -25,6 +25,9 @@ class MusicService : MediaSessionService() {
     @Inject
     lateinit var playbackStateManager: PlaybackStateManager
 
+    @Inject
+    lateinit var playbackEventBus: PlaybackEventBus
+
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
@@ -49,7 +52,69 @@ class MusicService : MediaSessionService() {
             setReferenceCounted(false)
         }
 
+        val forwardingPlayer = object : androidx.media3.common.ForwardingPlayer(player) {
+            override fun getAvailableCommands(): Player.Commands {
+                return super.getAvailableCommands().buildUpon()
+                    .add(Player.COMMAND_SEEK_TO_NEXT)
+                    .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .build()
+            }
+
+            override fun isCommandAvailable(command: Int): Boolean {
+                return if (command == Player.COMMAND_SEEK_TO_NEXT ||
+                    command == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM ||
+                    command == Player.COMMAND_SEEK_TO_PREVIOUS ||
+                    command == Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
+                ) {
+                    true
+                } else {
+                    super.isCommandAvailable(command)
+                }
+            }
+
+            override fun seekToNext() {
+                if (player.mediaItemCount > 1 && player.hasNextMediaItem()) {
+                    super.seekToNext()
+                } else {
+                    playbackEventBus.emit(PlaybackEvent.SkipToNextRequested)
+                }
+            }
+
+            override fun seekToNextMediaItem() {
+                seekToNext()
+            }
+
+            override fun seekToPrevious() {
+                if (player.mediaItemCount > 1 && player.hasPreviousMediaItem()) {
+                    super.seekToPrevious()
+                } else {
+                    playbackEventBus.emit(PlaybackEvent.SkipToPreviousRequested)
+                }
+            }
+
+            override fun seekToPreviousMediaItem() {
+                seekToPrevious()
+            }
+        }
+
         val callback = object : MediaSession.Callback {
+            override fun onConnect(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): MediaSession.ConnectionResult {
+                val connectionResult = super.onConnect(session, controller)
+                val sessionCommands = connectionResult.availableSessionCommands
+                val playerCommands = connectionResult.availablePlayerCommands.buildUpon()
+                    .add(Player.COMMAND_SEEK_TO_NEXT)
+                    .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .build()
+                return MediaSession.ConnectionResult.accept(sessionCommands, playerCommands)
+            }
+
             override fun onPlaybackResumption(
                 mediaSession: MediaSession,
                 controller: MediaSession.ControllerInfo
@@ -64,7 +129,7 @@ class MusicService : MediaSessionService() {
             }
         }
 
-        mediaSession = MediaSession.Builder(this, player)
+        mediaSession = MediaSession.Builder(this, forwardingPlayer)
             .setCallback(callback)
             .build()
 
