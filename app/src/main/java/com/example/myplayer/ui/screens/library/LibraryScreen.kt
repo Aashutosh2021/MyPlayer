@@ -190,11 +190,9 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Image(
-                    painter = painterResource(R.drawable.app_icon_spark),
+                    painter = painterResource(R.drawable.inside_logo),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                    modifier = Modifier.size(38.dp)
                 )
                 Column {
                     Text(

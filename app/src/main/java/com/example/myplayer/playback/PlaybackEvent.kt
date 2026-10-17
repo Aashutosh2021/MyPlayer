@@ -24,6 +24,9 @@ sealed class PlaybackEvent {
         val requests: List<PlayRequest>,
         val startIndex: Int
     ) : PlaybackEvent()
+
+    object SkipToNextRequested : PlaybackEvent()
+    object SkipToPreviousRequested : PlaybackEvent()
 }
 
 @Singleton

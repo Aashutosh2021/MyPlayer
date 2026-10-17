@@ -373,11 +373,9 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Image(
-                        painter = painterResource(R.drawable.app_icon_spark),
+                        painter = painterResource(R.drawable.inside_logo),
                         contentDescription = null,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                        modifier = Modifier.size(30.dp)
                     )
                     Text(
                         "Settings",

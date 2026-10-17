@@ -56,14 +56,18 @@ fun MiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(elevation = 14.dp, shape = RoundedCornerShape(26.dp), spotColor = Color(0x33000000))
-                .clip(RoundedCornerShape(26.dp))
-                .background(MaterialTheme.colorScheme.primary)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
+                    spotColor = Color.Black
+                )
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 16.dp, bottomEnd = 16.dp))
+                .background(PureBlack)
                 .graphicsLayer {
                     translationX = animatedOffsetX * 0.35f
                     rotationZ = (animatedOffsetX / 60f).coerceIn(-3f, 3f)
@@ -89,22 +93,22 @@ fun MiniPlayer(
                     indication = null,
                     onClick = onPlayerClick
                 )
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 30.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Squircle Album Art
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF262C38)),
+                    .background(Color(0xFF16181F)),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
                     uri = song.albumArt,
                     title = song.title,
                     artist = song.artist,
-                    size = 46.dp,
+                    size = 48.dp,
                     shape = RoundedCornerShape(14.dp),
                     iconSize = 22.dp
                 )
@@ -126,15 +130,15 @@ fun MiniPlayer(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = PureWhite,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = artist,
+                        text = if (artist.isBlank() || artist == "Unknown") "Unknown Artist" else artist,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = SilverMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -143,12 +147,12 @@ fun MiniPlayer(
 
             Spacer(Modifier.width(10.dp))
 
-            // Solid White Play/Pause Button with Dark Icon (matches design image 1)
+            // Solid White Play/Pause Button with Dark Icon
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(PureWhite)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -159,7 +163,7 @@ fun MiniPlayer(
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = PureBlack,
                     modifier = Modifier.size(24.dp)
                 )
             }
