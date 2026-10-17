@@ -79,7 +79,7 @@ fun TrendingScreen(
                         fontSize = 10.sp
                     )
                     Text(
-                        text = "Trending",
+                        text = "Hotlist",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -90,12 +90,13 @@ fun TrendingScreen(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFDE8E8)),
+                    .background(Color(0xFFFDE8E8))
+                    .clickable { viewModel.refreshTrendingMusic() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.LocalFireDepartment,
-                    contentDescription = null,
+                    contentDescription = "Refresh Trending",
                     tint = Color(0xFFE53935),
                     modifier = Modifier.size(20.dp)
                 )
@@ -161,7 +162,7 @@ fun TrendingScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Global Top Hits",
+                                text = "Your Choices",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = (-0.3).sp
@@ -209,7 +210,7 @@ fun TrendingScreen(
                         ) {
                             Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
                         }
 
                         OutlinedButton(
@@ -246,7 +247,8 @@ fun TrendingScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
+                            .slidePopIn(index + 1)
+                            .bouncyPopClick {
                                 viewModel.playRecommendedSongs(recommendations, index)
                                 onNavigateToNowPlaying()
                             }

@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.ui.screens.library
+package com.example.myplayer.ui.screens.library
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
@@ -388,6 +388,7 @@ fun PlaylistSongRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .slidePopIn(index)
             .zIndex(if (isDragging) 1f else 0f)
             .graphicsLayer {
                 translationY = if (isDragging) dragOffsetY else 0f
@@ -398,7 +399,7 @@ fun PlaylistSongRow(
                 clip = true
             }
             .claySurface(borderRadius = 20.dp, backgroundColor = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onPlayClick)
+            .bouncyPopClick(onClick = onPlayClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

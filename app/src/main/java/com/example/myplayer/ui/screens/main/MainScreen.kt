@@ -13,6 +13,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -83,7 +94,17 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     verticalArrangement = Arrangement.Bottom
                 ) {
                     // Mini player above nav bar
-                    if (hasAnySong) {
+                    AnimatedVisibility(
+                        visible = hasAnySong,
+                        enter = slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) + scaleIn(initialScale = 0.88f) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    ) {
                         // Memoize synthetic SongEntity: only rebuild when the online song reference
                         // changes, not on every isPlaying / position / any-state recomposition.
                         val miniSong = currentSong?.let {
@@ -148,10 +169,39 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) },
-            exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
-            popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) },
-            popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth / 4 },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) + scaleIn(
+                    initialScale = 0.92f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) + fadeIn(tween(180))
+            },
+            exitTransition = {
+                scaleOut(
+                    targetScale = 0.94f,
+                    animationSpec = tween(150)
+                ) + fadeOut(tween(150))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) + scaleIn(initialScale = 0.94f) + fadeIn(tween(180))
+            },
+            popExitTransition = {
+                scaleOut(targetScale = 0.92f) + fadeOut(tween(150))
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = if (showNav) innerPadding.calculateBottomPadding() else 0.dp)
@@ -217,7 +267,26 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     }
                 )
             }
-            composable(Screen.NowPlaying.route) {
+            composable(
+                route = Screen.NowPlaying.route,
+                enterTransition = {
+                    slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + scaleIn(initialScale = 0.90f) + fadeIn()
+                },
+                exitTransition = {
+                    slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                },
+                popExitTransition = {
+                    slideOutVertically(targetOffsetY = { it }) +
+                        scaleOut(targetScale = 0.90f) +
+                        fadeOut()
+                }
+            ) {
                 val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsStateWithLifecycle()
                 val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
                 val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()

@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.ui.screens.search
+package com.example.myplayer.ui.screens.search
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -267,8 +267,9 @@ fun RecentSearchesSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .slidePopIn(i)
                     .claySurface(borderRadius = 16.dp, backgroundColor = MaterialTheme.colorScheme.surface)
-                    .clickable { onSearchClick(s.query) }
+                    .bouncyPopClick { onSearchClick(s.query) }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -376,6 +377,7 @@ fun OnlineResultsList(
             val isDownloading = isLoadingStream == song.videoId + "_dl" || song.videoId in downloadProgress
  
             OnlineSongCard(
+                index = index,
                 song = song,
                 isDownloaded = isDownloaded,
                 isStreaming = isStreaming,
@@ -409,6 +411,7 @@ fun OnlineResultsList(
 
 @Composable
 fun OnlineSongCard(
+    index: Int = 0,
     song: OnlineSong,
     isDownloaded: Boolean,
     isStreaming: Boolean,
@@ -422,6 +425,8 @@ fun OnlineSongCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .slidePopIn(index)
+            .bouncyPopClick(onClick = onPlayClick)
             .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically

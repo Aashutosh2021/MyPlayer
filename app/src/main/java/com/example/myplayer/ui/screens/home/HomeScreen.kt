@@ -320,17 +320,13 @@ fun HomeScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = OnSurface
                         )
-                        Text(
-                            text = "See all",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = Secondary,
-                            modifier = Modifier.clickable { /* See all */ }
-                        )
                     }
                 }
 
                 item {
+                    val jumpBackInListState = rememberLazyListState()
                     LazyRow(
+                        state = jumpBackInListState,
                         contentPadding = PaddingValues(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -339,6 +335,7 @@ fun HomeScreen(
                             JumpBackInCard(
                                 song = song,
                                 isPlaying = currentSong?.id == song.id,
+                                modifier = Modifier.carouselSlidePop(jumpBackInListState, index),
                                 onClick = {
                                     viewModel.playSong(jumpBackInSongs, index)
                                     onNavigateToNowPlaying()
@@ -386,7 +383,7 @@ fun HomeScreen(
                             icon = Icons.Filled.GraphicEq,
                             title = "Deep Focus",
                             subtitle = "Drone, Lo-Fi & Ambient",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).slidePopIn(0),
                             onClick = { viewModel.selectCategory("Deep Focus") },
                             onPlayClick = {
                                 viewModel.playCategory("Deep Focus") { onNavigateToNowPlaying() }
@@ -396,7 +393,7 @@ fun HomeScreen(
                             icon = Icons.Filled.MusicNote,
                             title = "Acoustic Chill",
                             subtitle = "Warm strings & vocals",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).slidePopIn(1),
                             onClick = { viewModel.selectCategory("Acoustic Chill") },
                             onPlayClick = {
                                 viewModel.playCategory("Acoustic Chill") { onNavigateToNowPlaying() }
@@ -412,7 +409,7 @@ fun HomeScreen(
                             icon = Icons.Filled.Nightlight,
                             title = "Late Night",
                             subtitle = "Synthwave & Electro",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).slidePopIn(2),
                             onClick = { viewModel.selectCategory("Late Night") },
                             onPlayClick = {
                                 viewModel.playCategory("Late Night") { onNavigateToNowPlaying() }
@@ -422,7 +419,7 @@ fun HomeScreen(
                             icon = Icons.Filled.AutoAwesome,
                             title = "Discoveries",
                             subtitle = "Custom picks for you",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).slidePopIn(3),
                             onClick = { viewModel.selectCategory("Discoveries") },
                             onPlayClick = {
                                 viewModel.playCategory("Discoveries") { onNavigateToNowPlaying() }
@@ -465,7 +462,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         modifier = Modifier.height(34.dp)
                     ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
                         Spacer(Modifier.width(4.dp))
                         Text("Play all", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -482,6 +479,7 @@ fun HomeScreen(
                         artUri = reco.thumbnailUrl,
                         durationMs = reco.durationMs,
                         isPlaying = isPlaying,
+                        modifier = Modifier.slidePopIn(index),
                         onClick = {
                             viewModel.playRecommendedSongs(recommendations, index)
                             onNavigateToNowPlaying()
@@ -498,6 +496,7 @@ fun HomeScreen(
                         artUri = s.albumArt,
                         durationMs = s.duration,
                         isPlaying = isPlaying,
+                        modifier = Modifier.slidePopIn(index),
                         onClick = {
                             viewModel.playSong(allSongs, index)
                             onNavigateToNowPlaying()
@@ -589,7 +588,9 @@ fun HomeScreen(
 
             if (displayedDownloadedSongs.isNotEmpty()) {
                 item {
+                    val downloadedState = rememberLazyListState()
                     LazyRow(
+                        state = downloadedState,
                         contentPadding = PaddingValues(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.padding(vertical = 10.dp)
@@ -598,6 +599,7 @@ fun HomeScreen(
                             PopularSongCard(
                                 song = song,
                                 isPlaying = currentSong?.id == song.id,
+                                modifier = Modifier.carouselSlidePop(downloadedState, index),
                                 onClick = {
                                     viewModel.playSong(displayedDownloadedSongs, index)
                                     onNavigateToNowPlaying()
@@ -693,7 +695,9 @@ fun HomeScreen(
             }
 
             item {
+                val catRecoState = rememberLazyListState()
                 LazyRow(
+                    state = catRecoState,
                     contentPadding = PaddingValues(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -702,6 +706,7 @@ fun HomeScreen(
                             RecommendedSongCard(
                                 song = reco,
                                 isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId,
+                                modifier = Modifier.carouselSlidePop(catRecoState, index),
                                 onClick = {
                                     viewModel.playRecommendedSongs(recommendations, index)
                                     onNavigateToNowPlaying()
@@ -737,6 +742,7 @@ fun HomeScreen(
 
                 itemsIndexed(recommendations, key = { index, s -> "${s.videoId}_$index" }) { index, reco ->
                     DarkRecommendationListItem(
+                        index = index,
                         song = reco,
                         isPlaying = currentSong?.videoId == reco.videoId || currentSong?.id == reco.videoId,
                         onClick = {
@@ -801,10 +807,11 @@ private fun RecommendationPlaceholderCard() {
 private fun RecommendedSongCard(
     song: RecommendationSong,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface)
@@ -815,7 +822,7 @@ private fun RecommendedSongCard(
                 ),
                 RoundedCornerShape(20.dp)
             )
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(12.dp)
     ) {
         Column {
@@ -875,74 +882,72 @@ private fun RecommendedSongCard(
 
 @Composable
 private fun DarkRecommendationListItem(
+    index: Int = 0,
     song: RecommendationSong,
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
+    val durSec = (song.durationMs / 1000).coerceAtLeast(0L)
+    val durText = if (durSec > 0) " • %d:%02d".format(durSec / 60, durSec % 60) else ""
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                BorderStroke(
-                    1.dp,
-                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
-                ),
-                RoundedCornerShape(18.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
+            .slidePopIn(index)
+            .padding(horizontal = 20.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isPlaying) SoftGraySurface else Color.Transparent)
+            .bouncyPopClick(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.width(34.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
-            AlbumArtImage(
-                uri = song.thumbnailUrl,
-                title = song.title,
-                artist = song.artist,
-                size = 48.dp,
-                shape = RoundedCornerShape(12.dp),
-                iconSize = 22.dp
-            )
+            if (isPlaying) {
+                Icon(
+                    Icons.Filled.Equalizer,
+                    contentDescription = "Playing",
+                    tint = CharcoalPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text(
+                    text = "%02d".format(index + 1),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SlateSecondary
+                )
+            }
         }
-
-        Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                ),
+                color = CharcoalPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = song.artist,
+                text = "${song.artist}$durText",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = SlateSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        if (isPlaying) {
-            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
-        } else {
-            Icon(
-                Icons.Filled.PlayArrow,
-                contentDescription = "Play",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            Icons.Filled.MoreHoriz,
+            contentDescription = null,
+            tint = SilverMuted,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -952,10 +957,11 @@ private fun DarkRecommendationListItem(
 private fun PopularSongCard(
     song: SongEntity,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface)
@@ -966,7 +972,7 @@ private fun PopularSongCard(
                 ),
                 RoundedCornerShape(20.dp)
             )
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(12.dp)
     ) {
         Column {
@@ -1044,7 +1050,7 @@ private fun FavoriteSongCard(
                 ),
                 RoundedCornerShape(18.dp)
             )
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1091,74 +1097,72 @@ private fun FavoriteSongCard(
 
 @Composable
 private fun DarkSongListItem(
+    index: Int = 0,
     song: SongEntity,
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
+    val durSec = (song.duration / 1000).coerceAtLeast(0L)
+    val durText = if (durSec > 0) " • %d:%02d".format(durSec / 60, durSec % 60) else ""
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                BorderStroke(
-                    1.dp,
-                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
-                ),
-                RoundedCornerShape(18.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
+            .slidePopIn(index)
+            .padding(horizontal = 20.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isPlaying) SoftGraySurface else Color.Transparent)
+            .bouncyPopClick(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.width(34.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
-            AlbumArtImage(
-                uri = song.albumArt,
-                title = song.title,
-                artist = song.artist,
-                size = 48.dp,
-                shape = RoundedCornerShape(12.dp),
-                iconSize = 22.dp
-            )
+            if (isPlaying) {
+                Icon(
+                    Icons.Filled.Equalizer,
+                    contentDescription = "Playing",
+                    tint = CharcoalPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text(
+                    text = "%02d".format(index + 1),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SlateSecondary
+                )
+            }
         }
-
-        Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                ),
+                color = CharcoalPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = song.artist,
+                text = "${song.artist}$durText",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = SlateSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        if (isPlaying) {
-            AnimatedEqualizerBars(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
-        } else {
-            Icon(
-                Icons.Filled.MoreVert,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            Icons.Filled.MoreHoriz,
+            contentDescription = null,
+            tint = SilverMuted,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -1246,12 +1250,13 @@ fun AnimatedEqualizerBars(
 private fun JumpBackInCard(
     song: SongEntity,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(144.dp)
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -1346,7 +1351,7 @@ private fun QuickMixBentoTile(
             .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
             .clip(RoundedCornerShape(16.dp))
             .background(SurfaceContainerLow)
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(14.dp)
     ) {
         Column(
@@ -1419,14 +1424,15 @@ private fun StitchTrackRow(
     artUri: String?,
     durationMs: Long,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(if (isPlaying) SurfaceContainerLow else Color.Transparent)
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -28,36 +28,47 @@ open class LastFmRecommendationSource @Inject constructor(
     override val sourceName: String = "LastFmChart"
 
     override suspend fun fetchRawRecommendations(seed: RecommendationSeed): List<OnlineSong> {
-        Log.d(TAG, "Fetching Last.fm chart recommendations for cold start")
+        Log.d(TAG, "Fetching live Trending Music from APIs")
+        val allTrending = mutableListOf<OnlineSong>()
 
-        // 1. Fetch Last.fm chart tracks (uses memory cache or fresh network or stale fallback)
-        val chartTracks = lastFmChartSource.getTopTracks(limit = 25)
-
-        if (chartTracks.isNotEmpty()) {
-            // 2. Match Last.fm metadata to playable YouTube Music candidates with bounded concurrency
-            Log.d(TAG, "Matching ${chartTracks.size} Last.fm tracks to playable online sources")
-            val matchedTracks = lastFmTrackMatcher.matchTracks(chartTracks)
-            if (matchedTracks.isNotEmpty()) {
-                Log.d(TAG, "Successfully matched ${matchedTracks.size} playable tracks from Last.fm charts")
-                return matchedTracks
-            }
-            Log.w(TAG, "All Last.fm chart tracks failed to match playable sources, trying fallback")
-        } else {
-            Log.w(TAG, "Last.fm chart returned 0 tracks (rate limit or network error), using trending fallback")
-        }
-
-        // 3. Graceful Fallback: Query YouTube Music for trending / top hit songs
-        return try {
-            Log.d(TAG, "RECOMMENDATION_FALLBACK: Fetching trending YouTube Music tracks for cold-start")
-            val fallbackSearch = innertubeApi.search("Top Hits Global")
-            if (fallbackSearch.songs.isNotEmpty()) {
-                fallbackSearch.songs
-            } else {
-                innertubeApi.search("Trending Songs").songs
+        // 1. Fetch Last.fm Top Chart tracks if API key is configured
+        try {
+            val chartTracks = lastFmChartSource.getTopTracks(limit = 50)
+            if (chartTracks.isNotEmpty()) {
+                val matchedTracks = lastFmTrackMatcher.matchTracks(chartTracks)
+                allTrending.addAll(matchedTracks)
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Cold start fallback failed", e)
-            emptyList()
+            Log.w(TAG, "Last.fm chart fetch failed, continuing with YouTube Music Trending API", e)
         }
+
+        // 2. Fetch live Trending & Top Hits feeds from YouTube Music Innertube API
+        val trendingQueries = listOf(
+            "Trending Songs",
+            "Top Hits Global",
+            "Trending Music Hits",
+            "New Music Hits"
+        )
+
+        for (query in trendingQueries) {
+            try {
+                val page1 = innertubeApi.search(query, filtered = true)
+                allTrending.addAll(page1.songs)
+
+                // Fetch continuation page to get all trending tracks from the API
+                if (page1.continuationToken != null && allTrending.size < 60) {
+                    val page2 = innertubeApi.search(
+                        query = query,
+                        continuationToken = page1.continuationToken,
+                        filtered = true
+                    )
+                    allTrending.addAll(page2.songs)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Trending API query '$query' failed", e)
+            }
+        }
+
+        return allTrending.distinctBy { it.videoId }
     }
 }

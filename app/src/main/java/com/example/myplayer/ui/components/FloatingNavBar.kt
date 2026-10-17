@@ -2,29 +2,21 @@ package com.example.myplayer.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,14 +27,16 @@ import com.example.myplayer.ui.theme.*
 data class NavItem(
     val route: String,
     val label: String,
-    val icon: ImageVector
+    val activeIcon: ImageVector,
+    val inactiveIcon: ImageVector
 )
 
 val bottomNavItems = listOf(
-    NavItem(Screen.Home.route,     "Home",     Icons.Filled.Home),
-    NavItem(Screen.Search.route,   "Search",   Icons.Filled.Search),
-    NavItem(Screen.Library.route,  "Library",  Icons.Filled.LibraryMusic),
-    NavItem(Screen.Trending.route, "Trending", Icons.Filled.LocalFireDepartment),
+    NavItem(Screen.Home.route,      "Home",      Icons.Filled.Home,         Icons.Outlined.Home),
+    NavItem(Screen.Search.route,    "Search",    Icons.Filled.Search,       Icons.Outlined.Search),
+    NavItem(Screen.Library.route,   "Library",   Icons.Filled.LibraryMusic, Icons.Outlined.LibraryMusic),
+    NavItem(Screen.Trending.route,  "Hotlist",   Icons.Filled.Whatshot,     Icons.Outlined.Whatshot),
+    NavItem(Screen.Settings.route,  "Settings",  Icons.Filled.Settings,     Icons.Outlined.Settings)
 )
 
 @Composable
@@ -51,86 +45,52 @@ fun FloatingNavBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    // Pure White curved bottom dock that overlaps the bottom of the dark MiniPlayer
+    Row(
         modifier = modifier
             .fillMaxWidth()
+            .offset(y = (-14).dp)
+            .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), spotColor = CharcoalPrimary.copy(alpha = 0.12f))
+            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+            .background(PureWhite)
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(top = 12.dp, bottom = 10.dp, start = 12.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    spotColor = Color(0x1F000000),
-                    ambientColor = Color(0x0A000000)
-                )
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(32.dp))
-                .padding(vertical = 6.dp, horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            bottomNavItems.forEach { item ->
-                val isSelected = currentRoute == item.route
+        bottomNavItems.forEach { item ->
+            val isSelected = currentRoute == item.route
+            val tint by animateColorAsState(
+                targetValue = if (isSelected) CharcoalPrimary else SilverMuted,
+                animationSpec = tween(180),
+                label = "navTint_${item.route}"
+            )
 
-                val iconTint by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
-                    animationSpec = tween(180),
-                    label = "navIconColor_${item.route}"
-                )
-                val labelTint by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
-                    animationSpec = tween(180),
-                    label = "navLabelColor_${item.route}"
-                )
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onNavigate(item.route) }
-                        )
-                        .padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 44.dp, height = 32.dp)
-                            .then(
-                                if (isSelected) {
-                                    Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF0F2F6))
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            tint = iconTint,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = item.label,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = labelTint
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onNavigate(item.route) }
                     )
-                }
+                    .padding(vertical = 2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
+                    contentDescription = item.label,
+                    tint = tint,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = item.label,
+                    fontSize = 11.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = tint
+                )
             }
         }
     }
 }
-
-

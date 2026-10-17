@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.util.Log
+import com.example.myplayer.data.recommendation.api.LastFmRecommendationSource
 import com.example.myplayer.data.online.InnertubeApi
 import com.example.myplayer.data.recommendation.cache.RecommendationCache
 import com.example.myplayer.data.recommendation.model.RecommendationSeed
@@ -43,7 +45,8 @@ class HomeViewModel @Inject constructor(
     private val userStateDetector: RecommendationUserStateDetector,
     private val recentHistoryRepository: RecentHistoryRepository,
     private val innertubeApi: InnertubeApi,
-    private val recommendationCache: RecommendationCache
+    private val recommendationCache: RecommendationCache,
+    private val lastFmRecommendationSource: LastFmRecommendationSource
 ) : ViewModel() {
 
     private val _userState = MutableStateFlow<RecommendationUserState?>(null)
@@ -53,18 +56,16 @@ class HomeViewModel @Inject constructor(
 
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
-    // Persisted recommendations loaded from DB (shown while network fetch is in progress or offline)
-    private val _persistedRecommendations = MutableStateFlow<List<RecommendationSong>>(emptyList())
+    // Live Trending Music directly from API (never polluted by playback history)
+    private val _trendingApiSongs = MutableStateFlow<List<RecommendationSong>>(emptyList())
 
     val recommendations: StateFlow<List<RecommendationSong>> = combine(
         selectedCategory,
-        recommendationCoordinator.queueState,
-        _categoryRecommendations,
-        _persistedRecommendations
-    ) { category, queue, catMap, persisted ->
+        _trendingApiSongs,
+        _categoryRecommendations
+    ) { category, trending, catMap ->
         if (category == "All") {
-            // Prefer live queue; fall back to persisted DB data when queue is empty
-            queue.ifEmpty { persisted }
+            trending
         } else {
             catMap[category] ?: emptyList()
         }
@@ -74,19 +75,19 @@ class HomeViewModel @Inject constructor(
     val isLoadingRecommendations: StateFlow<Boolean> = _isLoadingRecommendations.asStateFlow()
 
     init {
-        // Load persisted recommendations from DB first (instant, works offline)
+        // Load persisted fallback from cache if available for immediate display
         viewModelScope.launch {
             val persisted = withContext(Dispatchers.IO) {
                 recommendationCache.getPersistedFallback(limit = 30)
             }
-            if (persisted.isNotEmpty()) {
-                _persistedRecommendations.value = persisted
+            if (persisted.isNotEmpty() && _trendingApiSongs.value.isEmpty()) {
+                _trendingApiSongs.value = persisted
                 _isLoadingRecommendations.value = false
             }
         }
 
         viewModelScope.launch {
-            loadInitialRecommendations()
+            loadLiveTrendingMusic()
         }
 
         viewModelScope.launch {
@@ -103,42 +104,51 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadInitialRecommendations() {
-        val state = userStateDetector.detectUserState()
-        _userState.value = state
+    fun refreshTrendingMusic() {
+        viewModelScope.launch {
+            loadLiveTrendingMusic()
+        }
+    }
 
-        if (recommendationCoordinator.queueState.value.isEmpty()) {
-            try {
-                val seed = if (state.isColdStart) {
-                    RecommendationSeed.ColdStartSeed
-                } else {
-                    val recent = recentHistoryRepository.getRecentHistoryEntries(limit = 1).firstOrNull()
-                    if (recent != null && recent.songId.isNotBlank()) {
-                        RecommendationSeed(
-                            songId = recent.songId,
-                            title = "",
-                            artist = "",
-                            source = "youtube"
-                        )
-                    } else {
-                        val firstDownload = downloadRepository.getAllDownloads().firstOrNull()?.firstOrNull()
-                        if (firstDownload != null && firstDownload.id.isNotBlank()) {
-                            RecommendationSeed(
-                                songId = firstDownload.id,
-                                title = firstDownload.title,
-                                artist = firstDownload.artist,
-                                source = "youtube"
-                            )
-                        } else {
-                            RecommendationSeed.ColdStartSeed
+    private suspend fun loadLiveTrendingMusic() {
+        _isLoadingRecommendations.value = true
+        try {
+            val trendingSongs = withContext(Dispatchers.IO) {
+                val collected = mutableListOf<OnlineSong>()
+                val queries = listOf(
+                    "Top Trending Songs",
+                    "Trending Music Hits",
+                    "YouTube Music Trending",
+                    "Top 50 Songs",
+                    "Viral Hits Music"
+                )
+                for (q in queries) {
+                    try {
+                        val firstPage = innertubeApi.search(q, filtered = true)
+                        collected.addAll(firstPage.songs)
+                        if (firstPage.continuationToken != null && collected.size < 60) {
+                            val nextPage = innertubeApi.search(q, continuationToken = firstPage.continuationToken, filtered = true)
+                            collected.addAll(nextPage.songs)
                         }
-                    }
+                    } catch (_: Exception) {}
                 }
-                recommendationCoordinator.prefetchRecommendations(seed)
-            } catch (e: Exception) {
-                _isLoadingRecommendations.value = false
+
+                collected.distinctBy { it.videoId }.map { online ->
+                    RecommendationSong(
+                        videoId = online.videoId,
+                        title = online.title,
+                        artist = online.artist,
+                        thumbnailUrl = online.thumbnailUrl,
+                        durationMs = online.durationMs,
+                        source = "trending_api"
+                    )
+                }
             }
-        } else {
+
+            if (trendingSongs.isNotEmpty()) {
+                _trendingApiSongs.value = trendingSongs
+            }
+        } finally {
             _isLoadingRecommendations.value = false
         }
     }
