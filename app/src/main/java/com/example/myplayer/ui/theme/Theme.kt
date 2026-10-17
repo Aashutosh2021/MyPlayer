@@ -1,27 +1,27 @@
 package com.example.myplayer.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkOliveColorScheme = darkColorScheme(
-    primary            = ClayPrimary,
-    onPrimary          = OnPrimary,
+private val CharcoalMinimalColorScheme = lightColorScheme(
+    primary            = CharcoalPrimary,
+    onPrimary          = PureWhite,
     primaryContainer   = PrimaryContainer,
-    onPrimaryContainer = OnPrimaryContainer,
+    onPrimaryContainer = PureWhite,
 
-    secondary          = ClaySecondary,
-    onSecondary        = OnSecondary,
+    secondary          = SlateSecondary,
+    onSecondary        = PureWhite,
     secondaryContainer = SecondaryContainer,
-    onSecondaryContainer = OnSecondaryContainer,
+    onSecondaryContainer = CharcoalPrimary,
 
-    tertiary           = ClayTertiary,
-    onTertiary         = OnTertiary,
+    tertiary           = LightSlateMuted,
+    onTertiary         = PureWhite,
     tertiaryContainer  = TertiaryContainer,
-    onTertiaryContainer = OnTertiaryContainer,
+    onTertiaryContainer = CharcoalPrimary,
 
-    background         = DeepOliveBackground,
+    background         = CleanBackground,
     onBackground       = OnSurface,
 
     surface            = SurfaceLight,
@@ -30,12 +30,12 @@ private val DarkOliveColorScheme = darkColorScheme(
     onSurfaceVariant   = OnSurfaceVariant,
 
     outline            = TextMuted,
-    outlineVariant     = SurfaceContainerHigh,
+    outlineVariant     = BorderSubtle,
 
-    error              = Color(0xFFFF5252),
-    onError            = Color(0xFF38000A),
-    errorContainer     = Color(0xFF491118),
-    onErrorContainer   = Color(0xFFFFDAD6)
+    error              = Color(0xFFBA1A1A),
+    onError            = PureWhite,
+    errorContainer     = Color(0xFFFFDAD6),
+    onErrorContainer   = Color(0xFF410002)
 )
 
 @Composable
@@ -43,7 +43,7 @@ fun MyPlayerTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = DarkOliveColorScheme,
+        colorScheme = CharcoalMinimalColorScheme,
         typography  = Typography,
         content     = content
     )

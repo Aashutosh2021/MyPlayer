@@ -1,11 +1,14 @@
 package com.example.myplayer.ui.screens.library
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -16,8 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -25,12 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import com.example.myplayer.data.local.entity.PlaylistEntity
 import com.example.myplayer.data.repository.PlayableSong
-import com.example.myplayer.ui.components.ClayIconButton
+import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit,
@@ -39,7 +41,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
-    val hybridLibrary by viewModel.hybridLibrary.collectAsStateWithLifecycle()
+    val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -50,11 +52,11 @@ fun LibraryScreen(
     songToRemoveDownload?.let { song ->
         AlertDialog(
             onDismissRequest = { songToRemoveDownload = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            title = { Text("Remove Download?") },
-            text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
+            containerColor = PureWhite,
+            titleContentColor = CharcoalPrimary,
+            textContentColor = SlateSecondary,
+            title = { Text("Remove Download?", fontWeight = FontWeight.Bold) },
+            text = { Text("This will remove the downloaded audio file from your device storage.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -62,12 +64,12 @@ fun LibraryScreen(
                         songToRemoveDownload = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
-                ) { Text("Remove") }
+                ) { Text("Remove", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(
                     onClick = { songToRemoveDownload = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = SlateSecondary)
                 ) { Text("Cancel") }
             }
         )
@@ -76,10 +78,10 @@ fun LibraryScreen(
     if (showCreatePlaylistDialog) {
         AlertDialog(
             onDismissRequest = { showCreatePlaylistDialog = false; newPlaylistName = "" },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            title = { Text("New Playlist") },
+            containerColor = PureWhite,
+            titleContentColor = CharcoalPrimary,
+            textContentColor = SlateSecondary,
+            title = { Text("New Playlist", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = newPlaylistName,
@@ -88,11 +90,11 @@ fun LibraryScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ClayPrimary,
-                        focusedLabelColor = ClayPrimary,
-                        unfocusedBorderColor = SurfaceContainerHigh,
-                        unfocusedLabelColor = OnSurfaceVariant,
-                        cursorColor = ClayPrimary
+                        focusedBorderColor = CharcoalPrimary,
+                        focusedLabelColor = CharcoalPrimary,
+                        unfocusedBorderColor = BorderSubtle,
+                        unfocusedLabelColor = SlateSecondary,
+                        cursorColor = CharcoalPrimary
                     )
                 )
             },
@@ -104,13 +106,13 @@ fun LibraryScreen(
                             newPlaylistName = ""; showCreatePlaylistDialog = false
                         }
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
-                ) { Text("Create") }
+                    colors = ButtonDefaults.textButtonColors(contentColor = CharcoalPrimary)
+                ) { Text("Create", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showCreatePlaylistDialog = false; newPlaylistName = "" },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = SlateSecondary)
                 ) { Text("Cancel") }
             }
         )
@@ -119,33 +121,35 @@ fun LibraryScreen(
     songToAddToPlaylist?.let { song ->
         AlertDialog(
             onDismissRequest = { songToAddToPlaylist = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-            title = { Text("Add to Playlist") },
+            containerColor = PureWhite,
+            titleContentColor = CharcoalPrimary,
+            textContentColor = SlateSecondary,
+            title = { Text("Add to Playlist", fontWeight = FontWeight.Bold) },
             text = {
                 if (playlists.isEmpty()) {
                     Text("No playlists available. Create one first.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(playlists, key = { it.id }) { playlist ->
+                        items(playlists.size, key = { playlists[it].id }) { idx ->
+                            val playlist = playlists[idx]
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .claySurface(borderRadius = 12.dp, backgroundColor = SurfaceLight)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF4F6F9))
                                     .clickable {
                                         viewModel.addSongToPlaylist(playlist.id, song)
                                         songToAddToPlaylist = null
                                     }
-                                    .padding(16.dp),
+                                    .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = ClayPrimary)
-                                Spacer(Modifier.width(16.dp))
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = CharcoalPrimary)
+                                Spacer(Modifier.width(14.dp))
                                 Text(
                                     text = playlist.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = OnSurface
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = CharcoalPrimary
                                 )
                             }
                         }
@@ -155,7 +159,7 @@ fun LibraryScreen(
             confirmButton = {
                 TextButton(
                     onClick = { songToAddToPlaylist = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = CharcoalPrimary)
                 ) { Text("Close") }
             }
         )
@@ -164,82 +168,59 @@ fun LibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(CleanBackground)
             .statusBarsPadding()
     ) {
-        // Header
+        // ── Top Bar ───────────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Library",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OnSurface
-                )
-                Text(
-                    "${hybridLibrary.size} songs total",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurfaceVariant
-                )
-            }
-        }
-
-        // Tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-                .clayConcave(borderRadius = 20.dp, backgroundColor = SurfaceContainerLow)
-                .padding(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            val tabs = listOf(
-                "All Songs" to Icons.Filled.LibraryMusic,
-                "Playlists" to Icons.AutoMirrored.Filled.QueueMusic
+            Text(
+                "Library",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
+                ),
+                color = CharcoalPrimary
             )
-            
-            tabs.forEachIndexed { index, (label, icon) ->
-                val active = selectedTab == index
-                val tabModifier = if (active) {
-                    Modifier
-                        .weight(1f)
-                        .claySurface(borderRadius = 14.dp, backgroundColor = SurfaceLight)
-                        .padding(vertical = 12.dp)
-                } else {
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable { selectedTab = index }
-                        .padding(vertical = 12.dp)
-                }
-                
-                Row(
-                    modifier = tabModifier,
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(icon, null, tint = if (active) ClayPrimary else OnSurfaceVariant, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        label, 
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (active) FontWeight.Bold else FontWeight.Medium), 
-                        color = if (active) ClayPrimary else OnSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
+            // Tab Switcher Pill
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(PureWhite)
+                    .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(20.dp))
+                    .padding(4.dp)
+            ) {
+                val tabs = listOf("Downloaded", "Playlist")
+                tabs.forEachIndexed { index, title ->
+                    val isSelected = selectedTab == index
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) CharcoalPrimary else Color.Transparent)
+                            .clickable { selectedTab = index }
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) PureWhite else SlateSecondary
+                        )
+                    }
                 }
             }
         }
-
-        Spacer(Modifier.height(8.dp))
 
         when (selectedTab) {
-            0 -> HybridSongsTab(
-                songs = hybridLibrary,
+            0 -> DownloadedSongsTab(
+                songs = downloadedSongs,
                 onPlaySong = onPlaySong,
                 onAddToPlaylist = { songToAddToPlaylist = it },
                 onRemoveDownload = { songToRemoveDownload = it },
@@ -257,7 +238,7 @@ fun LibraryScreen(
 }
 
 @Composable
-fun HybridSongsTab(
+fun DownloadedSongsTab(
     songs: List<PlayableSong>,
     onPlaySong: (List<PlayableSong>, Int) -> Unit,
     onAddToPlaylist: (PlayableSong) -> Unit,
@@ -269,34 +250,142 @@ fun HybridSongsTab(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
-                        .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFECEFF4)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.LibraryMusic, null, modifier = Modifier.size(48.dp), tint = TextMuted)
+                    Icon(Icons.Filled.DownloadDone, null, modifier = Modifier.size(40.dp), tint = LightSlateMuted)
                 }
-                Spacer(Modifier.height(24.dp))
-                Text("No songs yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                Spacer(Modifier.height(8.dp))
-                Text("Download songs online or search to add music", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
+                Spacer(Modifier.height(18.dp))
+                Text("No downloaded songs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = CharcoalPrimary)
+                Spacer(Modifier.height(6.dp))
+                Text("Download songs from Search or Online charts", style = MaterialTheme.typography.bodyMedium, color = SlateSecondary)
             }
         }
         return
     }
 
+    val firstSong = songs.firstOrNull()
+
     LazyColumn(
-        contentPadding = PaddingValues(bottom = bottomPadding, top = 8.dp),
-        modifier = Modifier.padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(bottom = bottomPadding + 20.dp, top = 4.dp),
+        modifier = Modifier.fillMaxSize()
     ) {
+        // ── Album / Collection Header Card (Image 1 Right) ───────────────────
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(92.dp)
+                        .shadow(8.dp, RoundedCornerShape(20.dp), spotColor = Color(0x22000000))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF262C38)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AlbumArtImage(
+                        uri = firstSong?.thumbnailUrl,
+                        title = firstSong?.title ?: "Downloads",
+                        artist = firstSong?.artist ?: "Offline",
+                        size = 92.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        iconSize = 36.dp
+                    )
+                }
+
+                Spacer(Modifier.width(18.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Downloaded",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp
+                        ),
+                        color = CharcoalPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = "Alphabetical • ${songs.size} songs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SlateSecondary
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "Offline Library",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = LightSlateMuted
+                    )
+                }
+            }
+
+            // ── Main Action Buttons: [> Play] and [Shuffle] (Image 1 Right) ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Play Pill
+                Button(
+                    onClick = { onPlaySong(songs, 0) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CharcoalPrimary,
+                        contentColor = PureWhite
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+
+                // Shuffle Pill
+                OutlinedButton(
+                    onClick = {
+                        val shuffled = songs.shuffled()
+                        onPlaySong(shuffled, 0)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = PureWhite,
+                        contentColor = CharcoalPrimary
+                    ),
+                    border = BorderStroke(1.dp, BorderSubtle)
+                ) {
+                    Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Shuffle", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // ── Song List Items (01, 02, 03... format) ───────────────────────────
         itemsIndexed(
             items = songs,
             key = { _, song -> song.id },
-            contentType = { _, _ -> "hybrid_song" }
+            contentType = { _, _ -> "downloaded_song" }
         ) { index, song ->
-            HybridSongItem(
+            DownloadedSongListItem(
+                index = index + 1,
                 song = song,
-                onPlaySong = { onPlaySong(songs, index) },
+                onPlay = { onPlaySong(songs, index) },
                 onAddToPlaylist = { onAddToPlaylist(song) },
                 onRemoveDownload = { onRemoveDownload(song) }
             )
@@ -305,97 +394,89 @@ fun HybridSongsTab(
 }
 
 @Composable
-fun HybridSongItem(
+fun DownloadedSongListItem(
+    index: Int,
     song: PlayableSong,
-    onPlaySong: () -> Unit,
+    onPlay: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onRemoveDownload: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
-            .clickable(onClick = onPlaySong)
-            .padding(12.dp),
+            .clickable(onClick = onPlay)
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clayConcave(borderRadius = 14.dp)
-                .padding(2.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            com.example.myplayer.ui.common.AlbumArtImage(
-                uri = song.thumbnailUrl,
-                title = song.title,
-                artist = song.artist,
-                size = 48.dp,
-                shape = RoundedCornerShape(12.dp)
+        // Track Number (01, 02, 03...)
+        Text(
+            text = "%02d".format(index),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            ),
+            color = SlateSecondary,
+            modifier = Modifier.width(32.dp)
+        )
+
+        Spacer(Modifier.width(12.dp))
+
+        // Title and Artist • Duration
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = CharcoalPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = "${song.artist} • ${formatDuration(song.durationMs)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = SlateSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    song.artist,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant,
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                // Source badge
-                val isDownloaded = song is PlayableSong.Downloaded
-                Box(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .claySurface(borderRadius = 6.dp, backgroundColor = SurfaceContainerLow)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (isDownloaded) Icons.Filled.CloudDone else Icons.Filled.PhoneAndroid,
-                            null, modifier = Modifier.size(10.dp),
-                            tint = if (isDownloaded) ClayPrimary else OnSurfaceVariant
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            if (isDownloaded) "SAVED" else "LOCAL",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                            color = if (isDownloaded) ClayPrimary else OnSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
+
+        // Options Menu (...)
         Box {
-            ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
-                Icon(Icons.Filled.MoreVert, "More", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+            IconButton(
+                onClick = { showMenu = true },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Filled.MoreHoriz,
+                    contentDescription = "Options",
+                    tint = LightSlateMuted,
+                    modifier = Modifier.size(22.dp)
+                )
             }
-            if (showMenu) {
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
-                    DropdownMenuItem(
-                        text = { Text("Add to Playlist", color = OnSurface) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
-                        onClick = {
-                            showMenu = false
-                            onAddToPlaylist()
-                        }
-                    )
-                    if (song is PlayableSong.Downloaded) {
-                        DropdownMenuItem(
-                            text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
-                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
-                            onClick = {
-                                showMenu = false
-                                onRemoveDownload()
-                            }
-                        )
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(PureWhite)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Add to Playlist", color = CharcoalPrimary) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = CharcoalPrimary) },
+                    onClick = {
+                        showMenu = false
+                        onAddToPlaylist()
                     }
-                }
+                )
+                DropdownMenuItem(
+                    text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                    onClick = {
+                        showMenu = false
+                        onRemoveDownload()
+                    }
+                )
             }
         }
     }
@@ -403,105 +484,157 @@ fun HybridSongItem(
 
 @Composable
 fun PlaylistsTab(
-    playlists: List<com.example.myplayer.data.local.entity.PlaylistEntity>,
+    playlists: List<PlaylistEntity>,
     onCreatePlaylist: () -> Unit,
-    onDeletePlaylist: (com.example.myplayer.data.local.entity.PlaylistEntity) -> Unit,
+    onDeletePlaylist: (PlaylistEntity) -> Unit,
     onPlaylistClick: (Long) -> Unit,
     bottomPadding: Dp
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(bottom = bottomPadding, top = 8.dp),
-        modifier = Modifier.padding(horizontal = 24.dp),
+        contentPadding = PaddingValues(bottom = bottomPadding + 20.dp, top = 8.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${playlists.size} playlist(s)", style = MaterialTheme.typography.labelMedium,
-                    color = OnSurfaceVariant)
-                
-                Box(
-                    modifier = Modifier
-                        .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
-                        .clickable(onClick = onCreatePlaylist)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                Text(
+                    "${playlists.size} Playlist${if (playlists.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = CharcoalPrimary
+                )
+
+                Button(
+                    onClick = onCreatePlaylist,
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CharcoalPrimary,
+                        contentColor = PureWhite
+                    ),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp), tint = ClayPrimary)
-                        Spacer(Modifier.width(6.dp))
-                        Text("New Playlist", style = MaterialTheme.typography.labelMedium, color = ClayPrimary)
-                    }
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("New Playlist", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }
-        
+
         if (playlists.isEmpty()) {
             item {
-                Box(modifier = Modifier.fillMaxWidth().padding(48.dp),
-                    contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(100.dp)
-                                .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFECEFF4)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, modifier = Modifier.size(48.dp), tint = TextMuted)
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, null, modifier = Modifier.size(40.dp), tint = LightSlateMuted)
                         }
-                        Spacer(Modifier.height(24.dp))
-                        Text("No playlists yet", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                        Spacer(Modifier.height(16.dp))
+                        Text("No playlists yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = CharcoalPrimary)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Create a custom playlist to organize your favorite tracks", style = MaterialTheme.typography.bodyMedium, color = SlateSecondary)
                     }
                 }
             }
         } else {
-            items(playlists, key = { it.id }) { playlist -> 
-                PlaylistItem(
-                    name = playlist.name, 
-                    onClick = { onPlaylistClick(playlist.id) },
-                    onDelete = { onDeletePlaylist(playlist) }
-                ) 
+            items(playlists.size, key = { playlists[it].id }) { index ->
+                val playlist = playlists[index]
+                var showDeleteConfirm by remember { mutableStateOf(false) }
+
+                if (showDeleteConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirm = false },
+                        containerColor = PureWhite,
+                        titleContentColor = CharcoalPrimary,
+                        textContentColor = SlateSecondary,
+                        title = { Text("Delete Playlist?", fontWeight = FontWeight.Bold) },
+                        text = { Text("Are you sure you want to delete '${playlist.name}'?") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    onDeletePlaylist(playlist)
+                                    showDeleteConfirm = false
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                            ) { Text("Delete", fontWeight = FontWeight.Bold) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(3.dp, RoundedCornerShape(16.dp), spotColor = Color(0x12000000))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(PureWhite)
+                        .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(16.dp))
+                        .clickable { onPlaylistClick(playlist.id) }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF0F2F6)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = null,
+                            tint = CharcoalPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                            color = CharcoalPrimary
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = "Created ${formatDate(playlist.createdAt)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SlateSecondary
+                        )
+                    }
+
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = LightSlateMuted)
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-fun PlaylistItem(name: String, onClick: () -> Unit, onDelete: () -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clayConcave(borderRadius = 12.dp)
-                .padding(2.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = ClayPrimary, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(16.dp))
-        Text(name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-            color = OnSurface, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Box {
-            ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
-                Icon(Icons.Filled.MoreVert, "More", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
-            }
-            if (showMenu) {
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, modifier = Modifier.background(SurfaceLight)) {
-                    DropdownMenuItem(text = { Text("Delete", color = Color(0xFFBA1A1A)) },
-                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
-                        onClick = { showMenu = false; onDelete() })
-                }
-            }
-        }
-    }
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
+
+private fun formatDate(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }

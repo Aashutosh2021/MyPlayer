@@ -1,20 +1,24 @@
 package com.example.myplayer.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,11 +38,10 @@ data class NavItem(
 )
 
 val bottomNavItems = listOf(
-    NavItem(Screen.Home.route,      "Home",      Icons.Filled.Home),
-    NavItem(Screen.Search.route,    "Search",    Icons.Filled.Search),
-    NavItem(Screen.Library.route,   "Library",   Icons.Filled.LibraryMusic),
-    NavItem(Screen.Downloads.route, "Downloads", Icons.Filled.Download),
-    NavItem(Screen.Settings.route,  "Settings",  Icons.Filled.Settings),
+    NavItem(Screen.Home.route,     "Home",     Icons.Filled.Home),
+    NavItem(Screen.Search.route,   "Search",   Icons.Filled.Search),
+    NavItem(Screen.Library.route,  "Library",  Icons.Filled.LibraryMusic),
+    NavItem(Screen.Trending.route, "Trending", Icons.Filled.LocalFireDepartment),
 )
 
 @Composable
@@ -51,16 +54,21 @@ fun FloatingNavBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(horizontal = 24.dp, vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(elevation = 16.dp, shape = RoundedCornerShape(32.dp), spotColor = Color.Black)
+                .shadow(
+                    elevation = 12.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    spotColor = Color(0x1F000000),
+                    ambientColor = Color(0x0A000000)
+                )
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color(0xFF171E12))
-                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(32.dp))
-                .padding(vertical = 6.dp, horizontal = 8.dp),
+                .background(PureWhite)
+                .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(32.dp))
+                .padding(vertical = 6.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -68,13 +76,13 @@ fun FloatingNavBar(
                 val isSelected = currentRoute == item.route
 
                 val iconTint by animateColorAsState(
-                    targetValue = if (isSelected) OnNeonLime else OnSurfaceVariant,
-                    animationSpec = tween(200),
+                    targetValue = if (isSelected) CharcoalPrimary else LightSlateMuted,
+                    animationSpec = tween(180),
                     label = "navIconColor_${item.route}"
                 )
                 val labelTint by animateColorAsState(
-                    targetValue = if (isSelected) NeonLimePrimary else TextMuted,
-                    animationSpec = tween(200),
+                    targetValue = if (isSelected) CharcoalPrimary else LightSlateMuted,
+                    animationSpec = tween(180),
                     label = "navLabelColor_${item.route}"
                 )
 
@@ -92,12 +100,12 @@ fun FloatingNavBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(width = 44.dp, height = 32.dp)
                             .then(
                                 if (isSelected) {
                                     Modifier
-                                        .clip(CircleShape)
-                                        .background(NeonLimePrimary)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF0F2F6))
                                 } else {
                                     Modifier
                                 }
@@ -114,8 +122,8 @@ fun FloatingNavBar(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = item.label,
-                        fontSize = 10.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = labelTint
                     )
                 }
@@ -123,4 +131,3 @@ fun FloatingNavBar(
         }
     }
 }
-

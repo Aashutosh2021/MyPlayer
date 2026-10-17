@@ -146,11 +146,22 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route) { launchSingleTop = true }
+                    },
                     bottomPadding = 16.dp
                 )
             }
             composable(Screen.Search.route) {
                 SearchScreen(
+                    onNavigateToNowPlaying = {
+                        navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
+                    },
+                    bottomPadding = 16.dp
+                )
+            }
+            composable(Screen.Trending.route) {
+                com.example.myplayer.ui.screens.trending.TrendingScreen(
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
