@@ -1,5 +1,7 @@
 package com.example.myplayer.ui.components
 
+
+import com.example.myplayer.ui.theme.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -17,9 +19,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myplayer.ui.theme.CharcoalPrimary
-import com.example.myplayer.ui.theme.LightSlateMuted
-import com.example.myplayer.ui.theme.SlateSecondary
 import kotlin.math.sin
 
 /**
@@ -97,7 +96,7 @@ fun WaveformAudioSeeker(
                 val y = (totalHeight - barHeight) / 2f
 
                 drawRoundRect(
-                    color = if (isPlayed) CharcoalPrimary else Color(0xFFD6DBE4),
+                    color = if (isPlayed) Primary else Color(0xFFD6DBE4),
                     topLeft = Offset(x, y),
                     size = Size(barWidth, barHeight),
                     cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
@@ -119,7 +118,7 @@ fun WaveformAudioSeeker(
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp
                 ),
-                color = SlateSecondary
+                color = MaterialTheme.colorScheme.secondary
             )
             Text(
                 text = formatDuration(duration),
@@ -127,7 +126,7 @@ fun WaveformAudioSeeker(
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp
                 ),
-                color = SlateSecondary
+                color = MaterialTheme.colorScheme.secondary
             )
         }
     }
@@ -139,3 +138,5 @@ private fun formatDuration(durationMs: Long): String {
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
 }
+
+

@@ -119,19 +119,19 @@ fun RadialAudioController(
             val baseRadius = 38.dp.toPx()
             if (isPlaying) {
                 drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.9f),
+                    color = Primary.copy(alpha = pulseAlpha * 0.9f),
                     radius = (baseRadius + 14.dp.toPx()) * pulseScale,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1.5.dp.toPx())
                 )
                 drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.5f),
+                    color = Primary.copy(alpha = pulseAlpha * 0.5f),
                     radius = (baseRadius + 28.dp.toPx()) * pulseScale,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1.2.dp.toPx())
                 )
                 drawCircle(
-                    color = NeonLimePrimary.copy(alpha = pulseAlpha * 0.25f),
+                    color = Primary.copy(alpha = pulseAlpha * 0.25f),
                     radius = (baseRadius + 42.dp.toPx()) * pulseScale,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1.dp.toPx())
@@ -230,7 +230,7 @@ fun RadialAudioController(
             // 3. Active Progress Arc
             val activeSweep = (currentProgress * 270f).coerceIn(0.1f, 270f)
             drawArc(
-                color = NeonLimePrimary,
+                color = Primary,
                 startAngle = 135f,
                 sweepAngle = activeSweep,
                 useCenter = false,
@@ -246,13 +246,13 @@ fun RadialAudioController(
 
             // Outer glow
             drawCircle(
-                color = NeonLimePrimary.copy(alpha = 0.35f),
+                color = Primary.copy(alpha = 0.35f),
                 radius = thumbRadiusPx * 1.6f,
                 center = Offset(thumbX, thumbY)
             )
             // Solid thumb
             drawCircle(
-                color = NeonLimePrimary,
+                color = Primary,
                 radius = thumbRadiusPx,
                 center = Offset(thumbX, thumbY)
             )
@@ -286,7 +286,7 @@ fun RadialAudioController(
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -299,10 +299,10 @@ fun RadialAudioController(
                 .shadow(
                     elevation = if (isPlaying) 16.dp else 8.dp,
                     shape = CircleShape,
-                    spotColor = NeonLimePrimary
+                    spotColor = MaterialTheme.colorScheme.primary
                 )
                 .clip(CircleShape)
-                .background(NeonLimePrimary)
+                .background(MaterialTheme.colorScheme.primary)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -313,7 +313,7 @@ fun RadialAudioController(
             Icon(
                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                 contentDescription = if (isPlaying) "Pause" else "Play",
-                tint = OnNeonLime,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(38.dp)
             )
         }
@@ -329,14 +329,14 @@ fun RadialAudioController(
             Text(
                 text = formatDuration(displayedPositionMs),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.BottomStart)
             )
 
             Text(
                 text = formatDuration(duration),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
         }
@@ -347,4 +347,6 @@ private fun formatDuration(durationMs: Long): String {
     val s = durationMs / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
+
+
 

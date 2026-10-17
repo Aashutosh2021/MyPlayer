@@ -73,7 +73,29 @@ class LyricsViewModel @Inject constructor(
     private var lastMetadata: LyricsMetadata? = null
 
     fun retryLyrics() {
-        lastMetadata?.let { fetchLyrics(it) }
+        val currentMeta = lastMetadata ?: run {
+            val local = musicController.currentSong.value
+            val online = musicController.currentOnlineSong.value
+            when {
+                local != null -> LyricsMetadata(local.id, local.title, local.artist, local.album, local.duration)
+                online != null -> LyricsMetadata(online.videoId, online.title, online.artist, null, online.durationMs)
+                else -> null
+            }
+        } ?: return
+
+        val latestDuration = if (currentMeta.durationMs > 0L) {
+            currentMeta.durationMs
+        } else {
+            musicController.currentDuration.value
+        }
+        val updatedMeta = currentMeta.copy(durationMs = latestDuration)
+        lastMetadata = updatedMeta
+
+        viewModelScope.launch {
+            _lyricsState.value = LyricsUiState.Loading
+            lyricsRepository.deleteLyrics(updatedMeta.songId)
+            fetchLyrics(updatedMeta)
+        }
     }
 
     fun saveCustomLyrics(lyricsText: String) {
@@ -121,3 +143,5 @@ class LyricsViewModel @Inject constructor(
         }
     }
 }
+
+

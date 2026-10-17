@@ -1,5 +1,7 @@
-package com.example.myplayer.ui.components.recommendation
+﻿package com.example.myplayer.ui.components.recommendation
 
+
+import com.example.myplayer.ui.theme.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -12,9 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.myplayer.ui.theme.clayConcave
 import com.example.myplayer.ui.theme.claySurface
-import com.example.myplayer.ui.theme.OnSurface
-import com.example.myplayer.ui.theme.OnSurfaceVariant
-import com.example.myplayer.ui.theme.SurfaceLight
 import com.example.myplayer.ui.theme.TextMuted
 import com.example.myplayer.ui.components.ClayIconButton
 import androidx.compose.material.icons.filled.Refresh
@@ -32,7 +31,7 @@ fun RecommendationEmptyState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clayConcave(borderRadius = 40.dp, backgroundColor = SurfaceLight),
+                .clayConcave(borderRadius = 40.dp, backgroundColor = MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Filled.LibraryMusic, null, tint = TextMuted, modifier = Modifier.size(36.dp))
@@ -41,17 +40,17 @@ fun RecommendationEmptyState(
         Text(
             text = "No recommendations available",
             style = MaterialTheme.typography.titleMedium,
-            color = OnSurface
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "Continue listening to generate recommendations.",
             style = MaterialTheme.typography.bodySmall,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(16.dp))
         ClayIconButton(onClick = onRefreshClick, size = 48.dp) {
-            Icon(Icons.Filled.Refresh, null, tint = OnSurfaceVariant, modifier = Modifier.size(24.dp))
+            Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -64,7 +63,7 @@ fun RecommendationLoadingCard() {
             .height(260.dp)
             .claySurface(
                 borderRadius = 28.dp,
-                backgroundColor = SurfaceLight
+                backgroundColor = MaterialTheme.colorScheme.surface
             )
     ) {
         // Skeleton state
@@ -95,11 +94,13 @@ fun RecommendationErrorState(
         Text(
             text = "Couldn't load recommendations",
             style = MaterialTheme.typography.titleMedium,
-            color = OnSurface
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(16.dp))
         ClayIconButton(onClick = onRetryClick, size = 48.dp) {
-            Icon(Icons.Filled.Refresh, null, tint = OnSurfaceVariant, modifier = Modifier.size(24.dp))
+            Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
         }
     }
 }
+
+

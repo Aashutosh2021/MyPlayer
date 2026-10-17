@@ -1,5 +1,7 @@
-package com.example.myplayer.ui.components.recommendation
+﻿package com.example.myplayer.ui.components.recommendation
 
+
+import com.example.myplayer.ui.theme.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,11 +24,6 @@ import com.example.myplayer.ui.theme.clayConcave
 import com.example.myplayer.ui.theme.claySurface
 import com.example.myplayer.ui.theme.ClayPrimary
 import com.example.myplayer.ui.theme.OnPrimary
-import com.example.myplayer.ui.theme.OnSurface
-import com.example.myplayer.ui.theme.OnSurfaceVariant
-import com.example.myplayer.ui.theme.SurfaceLight
-import com.example.myplayer.ui.theme.SurfaceContainerLow
-
 @Composable
 fun RecommendedSongCard(
     song: RecommendationSong,
@@ -39,7 +36,7 @@ fun RecommendedSongCard(
             .width(180.dp)
             .claySurface(
                 borderRadius = 28.dp,
-                backgroundColor = SurfaceLight
+                backgroundColor = MaterialTheme.colorScheme.surface
             )
             .clickable(onClick = onPlayClick)
     ) {
@@ -47,7 +44,7 @@ fun RecommendedSongCard(
             Box(
                 modifier = Modifier
                     .size(148.dp)
-                    .clayConcave(borderRadius = 20.dp, backgroundColor = SurfaceContainerLow)
+                    .clayConcave(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -77,7 +74,7 @@ fun RecommendedSongCard(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -86,7 +83,7 @@ fun RecommendedSongCard(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -101,9 +98,11 @@ fun RecommendedSongCard(
             ) {
                 RecommendationReasonChip(reason = song.reason)
                 ClayIconButton(onClick = onMoreClick, size = 32.dp) {
-                    Icon(Icons.Filled.MoreVert, null, tint = OnSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.MoreVert, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }
     }
 }
+
+

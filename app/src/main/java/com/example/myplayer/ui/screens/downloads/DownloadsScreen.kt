@@ -1,4 +1,4 @@
-package com.example.myplayer.ui.screens.downloads
+﻿package com.example.myplayer.ui.screens.downloads
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +25,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
 
@@ -57,12 +61,12 @@ fun DownloadsScreen(
             dismissButton = {
                 TextButton(
                     onClick = { songToDelete = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Cancel") }
             },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -80,31 +84,50 @@ fun DownloadsScreen(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Downloads",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.app_icon_spark),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
                     )
-                    Text(
-                        "${downloads.size} song${if (downloads.size != 1) "s" else ""} saved offline",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnSurfaceVariant
-                    )
+                    Column {
+                        Text(
+                            text = "MYPLAYER",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "Downloads",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
+
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clayConcave(borderRadius = 24.dp, backgroundColor = SurfaceLight),
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFECEFF4)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Filled.CloudDone,
                         contentDescription = null,
-                        tint = ClayPrimary,
-                        modifier = Modifier.size(24.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -129,9 +152,9 @@ fun DownloadsScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = ClayPrimary,
-                    unfocusedBorderColor = SurfaceContainerHigh,
-                    focusedContainerColor = SurfaceLight,
-                    unfocusedContainerColor = SurfaceLight,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     cursorColor = ClayPrimary
                 )
             )
@@ -146,7 +169,7 @@ fun DownloadsScreen(
                     Box(
                         modifier = Modifier
                             .size(120.dp)
-                            .clayConcave(borderRadius = 60.dp, backgroundColor = SurfaceLight),
+                            .clayConcave(borderRadius = 60.dp, backgroundColor = MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -160,14 +183,14 @@ fun DownloadsScreen(
                     Text(
                         if (query.isBlank()) "No downloads yet" else "No results for \"$query\"",
                         style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (query.isBlank()) {
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Search online and tap download to save",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = OnSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -204,7 +227,7 @@ fun DownloadedSongItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .clickable(onClick = onPlayClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -242,14 +265,14 @@ fun DownloadedSongItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Medium,
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     song.artist,
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -259,7 +282,7 @@ fun DownloadedSongItem(
                 Box(
                     modifier = Modifier
                         .padding(start = 8.dp)
-                        .claySurface(borderRadius = 4.dp, backgroundColor = SurfaceContainerLow)
+                        .claySurface(borderRadius = 4.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow)
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -283,16 +306,16 @@ fun DownloadedSongItem(
         // Options
         Box {
             ClayIconButton(onClick = { showMenu = true }, size = 36.dp) {
-                Icon(Icons.Filled.MoreVert, "Options", tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(SurfaceLight)
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Play", color = OnSurface) },
-                    leadingIcon = { Icon(Icons.Filled.PlayArrow, null, tint = OnSurfaceVariant) },
+                    text = { Text("Play", color = MaterialTheme.colorScheme.onSurface) },
+                    leadingIcon = { Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     onClick = { showMenu = false; onPlayClick() }
                 )
                 DropdownMenuItem(
@@ -304,3 +327,5 @@ fun DownloadedSongItem(
         }
     }
 }
+
+

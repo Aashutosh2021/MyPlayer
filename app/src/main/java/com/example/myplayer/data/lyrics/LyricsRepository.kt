@@ -192,44 +192,47 @@ class LyricsRepository @Inject constructor(
     ): LyricsResult? {
         val cleanArtist = cleanArtistName(artistName)
         val cleanTrack = cleanTrackTitle(trackName, cleanArtist)
+        val coreTrack = cleanTrack.split(" - ", " – ", " — ", ":").first().trim().ifBlank { cleanTrack }
         val validAlbum = albumName?.takeIf {
             !it.equals("YouTube Music", ignoreCase = true) &&
+            !it.equals("Online", ignoreCase = true) &&
+            !it.equals("Recommended", ignoreCase = true) &&
             !it.equals("Downloads", ignoreCase = true) &&
             !it.equals("Unknown Album", ignoreCase = true)
         }
 
-        Log.d(TAG, "Fetching lyrics for track='$cleanTrack' (raw='$trackName'), artist='$cleanArtist' (raw='$artistName'), dur=${durationSeconds}s")
+        Log.d(TAG, "Fetching lyrics for track='$cleanTrack' (core='$coreTrack'), artist='$cleanArtist', dur=${durationSeconds}s")
 
         // Tier 1: /api/get with duration (exact lookup)
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank() && durationSeconds > 0) {
-            val getResult = executeGetRequest(cleanTrack, cleanArtist, validAlbum, durationSeconds)
-            if (getResult != null) return getResult
+            executeGetRequest(cleanTrack, cleanArtist, validAlbum, durationSeconds)?.let { return it }
         }
 
         // Tier 2: /api/get without duration constraint
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank()) {
-            val getResult = executeGetRequest(cleanTrack, cleanArtist, validAlbum, 0)
-            if (getResult != null) return getResult
+            executeGetRequest(cleanTrack, cleanArtist, validAlbum, 0)?.let { return it }
         }
 
         // Tier 3: /api/search with specific track_name and artist_name
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank()) {
-            val searchParamResult = executeSearchWithParams(cleanTrack, cleanArtist, durationSeconds)
-            if (searchParamResult != null) return searchParamResult
+            executeSearchWithParams(cleanTrack, cleanArtist, durationSeconds)?.let { return it }
         }
 
         // Tier 4: /api/search with query "artist track"
-        val query = listOf(cleanArtist, cleanTrack).filter { it.isNotBlank() }.joinToString(" ")
+        val query = listOf(cleanArtist, coreTrack).filter { it.isNotBlank() }.joinToString(" ")
         if (query.isNotBlank()) {
-            val searchResult = executeSearchQuery(query, cleanTrack, cleanArtist, durationSeconds)
-            if (searchResult != null) return searchResult
+            executeSearchQuery(query, coreTrack, cleanArtist, durationSeconds)?.let { return it }
         }
 
-        // Tier 5: /api/search with raw trackName as fallback
-        if (trackName.isNotBlank() && trackName != cleanTrack) {
+        // Tier 5: Title-only search (critical when YouTube artist is a label like T-Series / Zee Music)
+        if (coreTrack.isNotBlank()) {
+            executeSearchQuery(coreTrack, coreTrack, "", durationSeconds)?.let { return it }
+        }
+
+        // Tier 6: Raw trackName fallback
+        if (trackName.isNotBlank() && trackName != coreTrack) {
             val rawClean = trackName.replace(BRACKET_NOISE_REGEX, " ").trim()
-            val rawResult = executeSearchQuery(rawClean, cleanTrack.ifBlank { trackName }, cleanArtist, durationSeconds)
-            if (rawResult != null) return rawResult
+            executeSearchQuery(rawClean, coreTrack.ifBlank { trackName }, cleanArtist, durationSeconds)?.let { return it }
         }
 
         Log.d(TAG, "No lyrics found on LRCLIB for '$trackName'")
@@ -422,12 +425,19 @@ class LyricsRepository @Inject constructor(
      */
     fun cleanArtistName(raw: String): String {
         if (raw.isBlank()) return ""
-        return raw
+        val labelRegex = Regex(
+            """(?i)^(t-series|sony music.*|zee music.*|yrf|saregama.*|tips official.*|speed records.*|desi melodies.*|universal music.*|warner music.*|various artists|unknown artist)$"""
+        )
+        val primary = raw
             .replace(Regex("""(?i)\s*-\s*Topic\b"""), "")
             .replace(Regex("""(?i)VEVO\b"""), "")
             .replace(Regex("""(?i)\bOfficial\b"""), "")
-            .replace(WHITESPACE_REGEX, " ")
-            .trim()
+            .split(",", "&", " feat.", " ft.", " x ", " X ")
+            .firstOrNull()
+            ?.replace(WHITESPACE_REGEX, " ")
+            ?.trim() ?: ""
+
+        return if (labelRegex.matches(primary)) "" else primary
     }
 
     /**

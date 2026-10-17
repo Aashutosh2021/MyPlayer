@@ -1,4 +1,4 @@
-package com.example.myplayer.ui.screens.search
+﻿package com.example.myplayer.ui.screens.search
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -67,9 +67,9 @@ fun OnlineSearchScreen(
     if (songToRemoveDownload != null) {
         AlertDialog(
             onDismissRequest = { songToRemoveDownload = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Remove Download?") },
             text = { Text("This will remove the downloaded audio and any associated offline resources from your device. The song will remain available for online streaming.") },
             confirmButton = {
@@ -84,7 +84,7 @@ fun OnlineSearchScreen(
             dismissButton = {
                 TextButton(
                     onClick = { songToRemoveDownload = null },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Cancel") }
             }
         )
@@ -93,9 +93,9 @@ fun OnlineSearchScreen(
     if (songToAddToPlaylist != null) {
         AlertDialog(
             onDismissRequest = { songToAddToPlaylist = null },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Add to Playlist") },
             text = {
                 if (playlists.isEmpty()) {
@@ -106,7 +106,7 @@ fun OnlineSearchScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .claySurface(borderRadius = 12.dp, backgroundColor = SurfaceLight)
+                                    .claySurface(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface)
                                     .clickable {
                                         viewModel.addSongToPlaylist(playlist.id, songToAddToPlaylist!!)
                                         songToAddToPlaylist = null
@@ -119,7 +119,7 @@ fun OnlineSearchScreen(
                                 Text(
                                     text = playlist.name,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = OnSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -140,9 +140,9 @@ fun OnlineSearchScreen(
     if (showAddAllDialog) {
         AlertDialog(
             onDismissRequest = { showAddAllDialog = false },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Add All Results to Playlist") },
             text = {
                 if (playlists.isEmpty()) {
@@ -153,7 +153,7 @@ fun OnlineSearchScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .claySurface(borderRadius = 12.dp, backgroundColor = SurfaceLight)
+                                    .claySurface(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface)
                                     .clickable {
                                         val items = searchResults.itemSnapshotList.items.filterNotNull()
                                         viewModel.addSongsToPlaylist(playlist.id, items)
@@ -167,7 +167,7 @@ fun OnlineSearchScreen(
                                 Text(
                                     text = playlist.name,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = OnSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -235,15 +235,15 @@ fun RecentSearchesSection(
                 Box(
                     modifier = Modifier
                         .size(100.dp)
-                        .clayConcave(borderRadius = 50.dp, backgroundColor = SurfaceLight),
+                        .clayConcave(borderRadius = 50.dp, backgroundColor = MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Filled.Language, null, tint = TextMuted, modifier = Modifier.size(48.dp))
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("Search online", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                Text("Search online", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
-                Text("Try \"Kesariya\" or \"Blinding Lights\"", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceVariant)
+                Text("Try \"Kesariya\" or \"Blinding Lights\"", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         return
@@ -259,7 +259,7 @@ fun RecentSearchesSection(
                 "Recent Searches",
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         items(searches.size, key = { i -> searches[i].query }) { i ->
@@ -267,21 +267,21 @@ fun RecentSearchesSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .claySurface(borderRadius = 16.dp, backgroundColor = SurfaceLight)
+                    .claySurface(borderRadius = 16.dp, backgroundColor = MaterialTheme.colorScheme.surface)
                     .clickable { onSearchClick(s.query) }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.History, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(16.dp))
                 Text(
                     s.query,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { onDeleteClick(s.query) }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "Remove", tint = OnSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -329,7 +329,7 @@ fun OnlineResultsList(
                     Text(
                         "${results.itemCount} online results",
                         style = MaterialTheme.typography.labelMedium,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     TextButton(
                         onClick = onAddAllClick,
@@ -354,13 +354,13 @@ fun OnlineResultsList(
                     Box(
                         modifier = Modifier
                             .size(80.dp)
-                            .clayConcave(borderRadius = 40.dp, backgroundColor = SurfaceLight),
+                            .clayConcave(borderRadius = 40.dp, backgroundColor = MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.WifiOff, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
                     }
                     Spacer(Modifier.height(24.dp))
-                    Text("Couldn't reach server", style = MaterialTheme.typography.titleMedium, color = OnSurface)
+                    Text("Couldn't reach server", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(4.dp))
                     Text(e.message ?: "Unknown error", style = MaterialTheme.typography.bodySmall, color = Color(0xFFBA1A1A))
                     Spacer(Modifier.height(16.dp))
@@ -422,7 +422,7 @@ fun OnlineSongCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .claySurface(borderRadius = 20.dp, backgroundColor = SurfaceLight)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -472,7 +472,7 @@ fun OnlineSongCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = OnSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -482,13 +482,13 @@ fun OnlineSongCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (song.durationText.isNotBlank()) {
                     Text(
                         " • ${song.durationText}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -516,7 +516,7 @@ fun OnlineSongCard(
                             Icons.Filled.Download,
                             contentDescription = "Download",
                             modifier = Modifier.size(18.dp),
-                            tint = OnSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -540,7 +540,7 @@ fun OnlineSongCard(
                     Icon(
                         Icons.Filled.MoreVert,
                         contentDescription = "More",
-                        tint = OnSurfaceVariant,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -548,11 +548,11 @@ fun OnlineSongCard(
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(SurfaceLight)
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Add to Playlist", color = OnSurface) },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = OnSurfaceVariant) },
+                            text = { Text("Add to Playlist", color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                             onClick = {
                                 showMenu = false
                                 onAddToPlaylistClick()
@@ -574,3 +574,5 @@ fun OnlineSongCard(
         }
     }
 }
+
+

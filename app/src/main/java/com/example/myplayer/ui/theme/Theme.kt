@@ -5,37 +5,37 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val CharcoalMinimalColorScheme = lightColorScheme(
-    primary            = CharcoalPrimary,
-    onPrimary          = PureWhite,
+private val StitchColorScheme = lightColorScheme(
+    primary            = Primary,
+    onPrimary          = OnPrimary,
     primaryContainer   = PrimaryContainer,
-    onPrimaryContainer = PureWhite,
+    onPrimaryContainer = OnPrimaryContainer,
 
-    secondary          = SlateSecondary,
-    onSecondary        = PureWhite,
+    secondary          = Secondary,
+    onSecondary        = OnSecondary,
     secondaryContainer = SecondaryContainer,
-    onSecondaryContainer = CharcoalPrimary,
+    onSecondaryContainer = OnSecondaryContainer,
 
-    tertiary           = LightSlateMuted,
-    onTertiary         = PureWhite,
+    tertiary           = Tertiary,
+    onTertiary         = OnTertiary,
     tertiaryContainer  = TertiaryContainer,
-    onTertiaryContainer = CharcoalPrimary,
+    onTertiaryContainer = OnTertiaryContainer,
 
-    background         = CleanBackground,
-    onBackground       = OnSurface,
+    background         = Background,
+    onBackground       = OnBackground,
 
-    surface            = SurfaceLight,
+    surface            = Surface,
     onSurface          = OnSurface,
-    surfaceVariant     = SurfaceContainer,
+    surfaceVariant     = SurfaceVariant,
     onSurfaceVariant   = OnSurfaceVariant,
 
-    outline            = TextMuted,
-    outlineVariant     = BorderSubtle,
+    outline            = Outline,
+    outlineVariant     = OutlineVariant,
 
-    error              = Color(0xFFBA1A1A),
-    onError            = PureWhite,
-    errorContainer     = Color(0xFFFFDAD6),
-    onErrorContainer   = Color(0xFF410002)
+    error              = Error,
+    onError            = OnError,
+    errorContainer     = ErrorContainer,
+    onErrorContainer   = OnErrorContainer
 )
 
 @Composable
@@ -43,8 +43,10 @@ fun MyPlayerTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = CharcoalMinimalColorScheme,
+        colorScheme = StitchColorScheme,
         typography  = Typography,
         content     = content
     )
 }
+
+

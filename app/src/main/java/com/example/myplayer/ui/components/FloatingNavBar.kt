@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -66,8 +67,8 @@ fun FloatingNavBar(
                     ambientColor = Color(0x0A000000)
                 )
                 .clip(RoundedCornerShape(32.dp))
-                .background(PureWhite)
-                .border(BorderStroke(1.dp, BorderSubtle), RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(32.dp))
                 .padding(vertical = 6.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
@@ -76,12 +77,12 @@ fun FloatingNavBar(
                 val isSelected = currentRoute == item.route
 
                 val iconTint by animateColorAsState(
-                    targetValue = if (isSelected) CharcoalPrimary else LightSlateMuted,
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
                     animationSpec = tween(180),
                     label = "navIconColor_${item.route}"
                 )
                 val labelTint by animateColorAsState(
-                    targetValue = if (isSelected) CharcoalPrimary else LightSlateMuted,
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
                     animationSpec = tween(180),
                     label = "navLabelColor_${item.route}"
                 )
@@ -131,3 +132,5 @@ fun FloatingNavBar(
         }
     }
 }
+
+

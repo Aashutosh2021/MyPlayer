@@ -28,9 +28,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.myplayer.R
 import com.example.myplayer.playback.AudioQualityInfo
 import com.example.myplayer.ui.common.AlbumArtImage
+import com.example.myplayer.ui.components.ProfessionalMusicProgressBar
 import com.example.myplayer.ui.components.RadialAudioController
+import com.example.myplayer.ui.components.WaveformAudioSeeker
 import com.example.myplayer.ui.theme.*
 
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -83,12 +88,12 @@ fun NowPlayingScreen(
     if (showQualityDetails) {
         AlertDialog(
             onDismissRequest = { showQualityDetails = false },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = NeonLimePrimary)
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text("Audio Stream Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -110,13 +115,13 @@ fun NowPlayingScreen(
                     Text(
                         "Lossless Fidelity: ${if (audioQuality.isLossless) "Yes (Bit-Perfect)" else "Standard (Compressed)"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (audioQuality.isLossless) NeonLimePrimary else TextMuted
+                        color = if (audioQuality.isLossless) MaterialTheme.colorScheme.primary else TextMuted
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showQualityDetails = false }) {
-                    Text("Close", color = NeonLimePrimary)
+                    Text("Close", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
@@ -148,12 +153,12 @@ fun NowPlayingScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showRemoveConfirm = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Cancel") }
             },
-            containerColor = SurfaceLight,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -181,7 +186,7 @@ fun NowPlayingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepOliveBackground)
+            .background(Background)
     ) {
         val scrollState = androidx.compose.foundation.rememberScrollState()
 
@@ -195,7 +200,7 @@ fun NowPlayingScreen(
         ) {
             Spacer(Modifier.height(12.dp))
 
-            // ── Top Navigation Bar (Image 1 Left) ───────────────────────────
+            // ── Top Navigation Bar (Stitch Screen 5) ─────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -204,26 +209,39 @@ fun NowPlayingScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Back",
-                        tint = CharcoalPrimary,
+                        contentDescription = "Minimize",
+                        tint = OnSurface,
                         modifier = Modifier.size(28.dp)
                     )
                 }
 
-                Text(
-                    text = "Now Playing",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.2.sp
-                    ),
-                    color = CharcoalPrimary
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "PLAYING FROM ALBUM",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = Secondary,
+                        fontSize = 10.sp
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (hasSong) title!! else "MyPlayer",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 IconButton(onClick = { showSleepTimer = true }) {
                     Icon(
                         imageVector = if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = "Timer / Queue",
-                        tint = if (sleepTimerRemaining > 0) CharcoalPrimary else SlateSecondary,
+                        contentDescription = "Queue / Timer",
+                        tint = if (sleepTimerRemaining > 0) Primary else Secondary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -255,7 +273,7 @@ fun NowPlayingScreen(
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = if (isFavorite) "Unlike" else "Like",
-                        tint = if (isFavorite) Color(0xFFE53935) else SlateSecondary,
+                        tint = if (isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -271,7 +289,7 @@ fun NowPlayingScreen(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.3).sp
                         ),
-                        color = CharcoalPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -280,7 +298,7 @@ fun NowPlayingScreen(
                     Text(
                         text = artist ?: "",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SlateSecondary,
+                        color = MaterialTheme.colorScheme.secondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -294,18 +312,18 @@ fun NowPlayingScreen(
                         Icon(
                             imageVector = Icons.Filled.MoreHoriz,
                             contentDescription = "Options",
-                            tint = SlateSecondary,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(26.dp)
                         )
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(PureWhite)
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Stream Details (${audioQuality.displayBadge})", color = CharcoalPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = CharcoalPrimary) },
+                            text = { Text("Studio Engine (${audioQuality.displayBadge})", color = MaterialTheme.colorScheme.primary) },
+                            leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = MaterialTheme.colorScheme.primary) },
                             onClick = {
                                 showMenu = false
                                 showQualityDetails = true
@@ -323,8 +341,8 @@ fun NowPlayingScreen(
                                 )
                             } else if (!isDownloading) {
                                 DropdownMenuItem(
-                                    text = { Text("Download Song", color = CharcoalPrimary) },
-                                    leadingIcon = { Icon(Icons.Filled.Download, null, tint = CharcoalPrimary) },
+                                    text = { Text("Download Song", color = MaterialTheme.colorScheme.primary) },
+                                    leadingIcon = { Icon(Icons.Filled.Download, null, tint = MaterialTheme.colorScheme.primary) },
                                     onClick = {
                                         showMenu = false
                                         onDownloadClick()
@@ -333,8 +351,8 @@ fun NowPlayingScreen(
                             }
                         }
                         DropdownMenuItem(
-                            text = { Text("Settings", color = CharcoalPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.Settings, null, tint = CharcoalPrimary) },
+                            text = { Text("Settings", color = MaterialTheme.colorScheme.primary) },
+                            leadingIcon = { Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.primary) },
                             onClick = {
                                 showMenu = false
                                 onNavigateToSettings()
@@ -370,7 +388,7 @@ fun NowPlayingScreen(
                     Icon(
                         Icons.Filled.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffleOn) CharcoalPrimary else LightSlateMuted,
+                        tint = if (isShuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -380,7 +398,7 @@ fun NowPlayingScreen(
                     Icon(
                         Icons.Filled.SkipPrevious,
                         contentDescription = "Previous",
-                        tint = CharcoalPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -391,7 +409,7 @@ fun NowPlayingScreen(
                         .size(68.dp)
                         .shadow(12.dp, CircleShape, spotColor = Color(0x35000000))
                         .clip(CircleShape)
-                        .background(CharcoalPrimary)
+                        .background(MaterialTheme.colorScheme.primary)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -402,7 +420,7 @@ fun NowPlayingScreen(
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = PureWhite,
+                        tint = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -412,7 +430,7 @@ fun NowPlayingScreen(
                     Icon(
                         Icons.Filled.SkipNext,
                         contentDescription = "Next",
-                        tint = CharcoalPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -420,9 +438,9 @@ fun NowPlayingScreen(
                 // Repeat
                 IconButton(onClick = onCycleRepeatMode) {
                     val (icon, tint, desc) = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, CharcoalPrimary, "Repeat One")
-                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, CharcoalPrimary, "Repeat All")
-                        else -> Triple(Icons.Filled.Repeat, LightSlateMuted, "Repeat Off")
+                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, MaterialTheme.colorScheme.primary, "Repeat One")
+                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, MaterialTheme.colorScheme.primary, "Repeat All")
+                        else -> Triple(Icons.Filled.Repeat, MaterialTheme.colorScheme.onPrimaryContainer, "Repeat Off")
                     }
                     Icon(
                         imageVector = icon,
@@ -433,7 +451,7 @@ fun NowPlayingScreen(
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
 
             // ── Synced Lyrics Section ────────────────────────────────────────
             val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
@@ -443,6 +461,7 @@ fun NowPlayingScreen(
                 positionMs = lyricsPositionState,
                 onSeek = onSeek,
                 onAddCustomLyrics = { showCustomLyricsDialog = true },
+                onRetryLyrics = { lyricsViewModel.retryLyrics() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 180.dp, max = 380.dp)
@@ -464,11 +483,11 @@ private fun IsolatedPlaybackControls(
     onSeek: (Long) -> Unit,
     onPlayPauseClick: () -> Unit
 ) {
-    com.example.myplayer.ui.components.WaveformAudioSeeker(
+    com.example.myplayer.ui.components.ProfessionalMusicProgressBar(
         positionMs = positionState.value,
         durationMs = durationMs,
         onSeek = onSeek,
-        modifier = Modifier.padding(vertical = 4.dp)
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
     )
 }
 
@@ -486,17 +505,17 @@ fun SleepTimerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceLight,
-        titleContentColor = OnSurface,
-        textContentColor = OnSurfaceVariant,
-        icon = { Icon(Icons.Filled.Timer, null, tint = NeonLimePrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        icon = { Icon(Icons.Filled.Timer, null, tint = MaterialTheme.colorScheme.primary) },
         title = { Text(if (isActive) "Sleep Timer Active" else "Set Sleep Timer") },
         text = {
             Column {
                 if (isActive) {
                     Text(
                         text = "Pausing in ${currentRemaining / 60}m ${currentRemaining % 60}s",
-                        color = NeonLimePrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(12.dp))
@@ -514,7 +533,7 @@ fun SleepTimerDialog(
                                     onClick = { onStart(minutes) },
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonLimePrimary),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                                     border = BorderStroke(1.dp, CardBorderOlive)
                                 ) {
                                     Text("${minutes}m", fontWeight = FontWeight.SemiBold)
@@ -533,7 +552,7 @@ fun SleepTimerDialog(
                         Text("Cancel Timer")
                     }
                 }
-                TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)) {
+                TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
                     Text("Close")
                 }
             }
@@ -562,14 +581,14 @@ fun CustomLyricsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SurfaceLight,
-        titleContentColor = OnSurface,
-        textContentColor = OnSurfaceVariant,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         icon = {
             Icon(
                 Icons.Filled.EditNote,
                 contentDescription = null,
-                tint = NeonLimePrimary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
         },
@@ -585,7 +604,7 @@ fun CustomLyricsDialog(
                     Text(
                         text = "$trackTitle ${if (!trackArtist.isNullOrBlank()) "• $trackArtist" else ""}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -597,7 +616,7 @@ fun CustomLyricsDialog(
                 Text(
                     text = "Enter or paste plain text lyrics or synced LRC lines (e.g. [00:15.20] line):",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(10.dp))
 
@@ -616,11 +635,11 @@ fun CustomLyricsDialog(
                         .height(220.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonLimePrimary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = CardBorderOlive,
-                        cursorColor = NeonLimePrimary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
@@ -639,7 +658,7 @@ fun CustomLyricsDialog(
                                 text = clip
                             }
                         },
-                        colors = ButtonDefaults.textButtonColors(contentColor = NeonLimePrimary)
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Icon(Icons.Filled.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
@@ -666,9 +685,9 @@ fun CustomLyricsDialog(
                 },
                 enabled = text.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonLimePrimary,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color.Black,
-                    disabledContainerColor = SurfaceContainerHigh,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     disabledContentColor = TextMuted
                 ),
                 shape = RoundedCornerShape(10.dp)
@@ -691,7 +710,7 @@ fun CustomLyricsDialog(
                 }
                 TextButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {
                     Text("Cancel")
                 }
@@ -777,8 +796,8 @@ fun Interactive3DAlbumArt(
                     shape = RoundedCornerShape(28.dp)
                     clip = true
                 }
-                .background(SurfaceLight)
-                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(28.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(28.dp))
                 .padding(8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -796,7 +815,7 @@ fun Interactive3DAlbumArt(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(22.dp))
-                        .background(SurfaceContainerLow),
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(72.dp))
@@ -805,5 +824,3 @@ fun Interactive3DAlbumArt(
         }
     }
 }
-
-
