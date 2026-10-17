@@ -200,6 +200,9 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         viewModel.playPlaylist(songs, index)
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
+                    },
                     bottomPadding = 16.dp
                 )
             }

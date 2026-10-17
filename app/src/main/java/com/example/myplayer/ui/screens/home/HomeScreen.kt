@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,7 +60,7 @@ fun HomeScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val displayedDownloadedSongs by viewModel.displayedDownloadedSongs.collectAsStateWithLifecycle()
     val categories = remember {
-        listOf("All", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop")
+        listOf("All", "Deep Focus", "Acoustic Chill", "Late Night", "Discoveries", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop")
     }
 
     val greeting = remember {
@@ -176,38 +177,20 @@ fun HomeScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
-                            .clickable(onClick = onNavigateToSettings),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .clickable(onClick = onNavigateToSettings),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onNavigateToSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -404,14 +387,20 @@ fun HomeScreen(
                             title = "Deep Focus",
                             subtitle = "Drone, Lo-Fi & Ambient",
                             modifier = Modifier.weight(1f),
-                            onClick = { viewModel.selectCategory("Chill") }
+                            onClick = { viewModel.selectCategory("Deep Focus") },
+                            onPlayClick = {
+                                viewModel.playCategory("Deep Focus") { onNavigateToNowPlaying() }
+                            }
                         )
                         QuickMixBentoTile(
                             icon = Icons.Filled.MusicNote,
                             title = "Acoustic Chill",
                             subtitle = "Warm strings & vocals",
                             modifier = Modifier.weight(1f),
-                            onClick = { viewModel.selectCategory("Blues") }
+                            onClick = { viewModel.selectCategory("Acoustic Chill") },
+                            onPlayClick = {
+                                viewModel.playCategory("Acoustic Chill") { onNavigateToNowPlaying() }
+                            }
                         )
                     }
                     // Row 2
@@ -424,20 +413,19 @@ fun HomeScreen(
                             title = "Late Night",
                             subtitle = "Synthwave & Electro",
                             modifier = Modifier.weight(1f),
-                            onClick = { viewModel.selectCategory("Party") }
+                            onClick = { viewModel.selectCategory("Late Night") },
+                            onPlayClick = {
+                                viewModel.playCategory("Late Night") { onNavigateToNowPlaying() }
+                            }
                         )
                         QuickMixBentoTile(
                             icon = Icons.Filled.AutoAwesome,
                             title = "Discoveries",
                             subtitle = "Custom picks for you",
                             modifier = Modifier.weight(1f),
-                            onClick = {
-                                if (recommendations.isNotEmpty()) {
-                                    viewModel.playRecommendedSongs(recommendations, 0)
-                                    onNavigateToNowPlaying()
-                                } else {
-                                    viewModel.selectCategory("Pop")
-                                }
+                            onClick = { viewModel.selectCategory("Discoveries") },
+                            onPlayClick = {
+                                viewModel.playCategory("Discoveries") { onNavigateToNowPlaying() }
                             }
                         )
                     }
@@ -518,9 +506,9 @@ fun HomeScreen(
                 }
             }
         } else {
-            // ── Category Specific Mode (Party, Blues, Sad, etc.) ───────────────────
+            // ── Category Specific Mode (Deep Focus, Acoustic Chill, Late Night, etc.) ─
 
-            // 1. Downloaded in Category
+            // 1. Header with back arrow to All, Category Title, and Play Mix button
             item {
                 Row(
                     modifier = Modifier
@@ -529,16 +517,71 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Downloaded in $selectedCategory",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (displayedDownloadedSongs.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceContainerLow)
+                                .clickable { viewModel.selectCategory("All") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to All",
+                                tint = OnSurface,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = selectedCategory,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = OnSurface
+                        )
+                    }
+
+                    if (recommendations.isNotEmpty()) {
+                        Button(
+                            onClick = {
+                                viewModel.playRecommendedSongs(recommendations, 0)
+                                onNavigateToNowPlaying()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                contentColor = PureWhite
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Play Mix", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+
+            // 1b. Downloaded in Category (if any)
+            if (displayedDownloadedSongs.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Downloaded",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = OnSurface
+                        )
                         Text(
                             text = "${displayedDownloadedSongs.size} songs",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
+                            color = Primary
                         )
                     }
                 }
@@ -601,7 +644,31 @@ fun HomeScreen(
                 }
             }
 
-            // 2. Recommendations for Category (Top Carousel)
+            // 2. Loading State or Recommendations for Category
+            if (recommendations.isEmpty() && isLoadingRecommendations) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 36.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                color = Primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                text = "Loading $selectedCategory tracks...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Secondary
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Row(
                     modifier = Modifier
@@ -1271,7 +1338,8 @@ private fun QuickMixBentoTile(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPlayClick: () -> Unit = onClick
 ) {
     Box(
         modifier = modifier
@@ -1309,12 +1377,13 @@ private fun QuickMixBentoTile(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(PureWhite),
+                        .background(PureWhite)
+                        .clickable(onClick = onPlayClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = null,
+                        contentDescription = "Play Mix",
                         tint = OnSurface,
                         modifier = Modifier.size(16.dp)
                     )
