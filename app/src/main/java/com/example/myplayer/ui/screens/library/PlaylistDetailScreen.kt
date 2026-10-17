@@ -267,7 +267,7 @@ fun PlaylistDetailScreen(
                         ) {
                             Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 14.sp,color = Color.White)
                         }
 
                         Button(

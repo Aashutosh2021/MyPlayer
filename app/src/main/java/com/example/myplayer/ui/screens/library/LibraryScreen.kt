@@ -41,6 +41,7 @@ import com.example.myplayer.ui.theme.*
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit,
     onPlaySong: (List<PlayableSong>, Int) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     bottomPadding: Dp = 100.dp,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
@@ -213,37 +214,22 @@ fun LibraryScreen(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(SurfaceContainerLow),
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onNavigateToSettings),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = "Search",
-                        tint = OnSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
-                        contentDescription = "Profile",
-                        tint = OnPrimary,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-        }
 
         // ── Stitch Screen 8: Category Filter Chips ────────────────────────────
         val categoryTabs = remember { listOf("Downloaded", "Playlists") }
@@ -462,7 +448,7 @@ fun DownloadedSongsTab(
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
                 }
 
                 // Shuffle Pill

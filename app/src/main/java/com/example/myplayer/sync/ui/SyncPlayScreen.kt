@@ -259,7 +259,7 @@ fun SyncPlayScreen(
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("CREATE ROOM (HOST)", fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("CREATE ROOM (HOST)", fontWeight = FontWeight.Bold, color = Color.White)
                     }
 
                     Spacer(Modifier.height(12.dp))

@@ -224,7 +224,13 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchGenreRecommendations(category: String): List<RecommendationSong> = withContext(Dispatchers.IO) {
         val collected = mutableListOf<OnlineSong>()
 
-        val primaryQuery = "$category songs"
+        val primaryQuery = when (category.lowercase()) {
+            "deep focus" -> "Deep focus ambient drone study lofi music"
+            "acoustic chill" -> "Acoustic chill guitar warm indie acoustic"
+            "late night" -> "Late night synthwave chill electro songs"
+            "discoveries" -> "Indie gems new music discovery trending songs"
+            else -> "$category songs"
+        }
         val firstPage = innertubeApi.search(primaryQuery)
         collected.addAll(firstPage.songs)
 
@@ -247,6 +253,10 @@ class HomeViewModel @Inject constructor(
                     "chill" -> "Chill lofi beats relax"
                     "workout" -> "Gym workout motivation music"
                     "pop" -> "Top pop hits global"
+                    "deep focus" -> "Study lofi beats deep focus relax ambient"
+                    "acoustic chill" -> "Warm acoustic folk singer songwriter chill"
+                    "late night" -> "Late night drive synthwave cyberpunk electro"
+                    "discoveries" -> "Discover weekly indie alternative new music"
                     else -> "Best $category music hits"
                 }
                 val compPage = innertubeApi.search(complementaryQuery)
@@ -271,6 +281,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun getGenreKeywords(category: String): List<String> = when (category.lowercase()) {
+        "deep focus" -> listOf("focus", "ambient", "drone", "study", "lofi", "lo-fi", "instrumental", "calm", "binaural", "relax")
+        "acoustic chill" -> listOf("acoustic", "guitar", "unplugged", "folk", "indie", "warm", "strings", "chill", "vocal")
+        "late night" -> listOf("night", "synthwave", "electro", "retro", "midnight", "drive", "dark", "neon", "after hours")
+        "discoveries" -> listOf("discover", "indie", "new", "fresh", "rising", "alt", "underground", "gems")
         "party" -> listOf("party", "dance", "club", "dj", "remix", "edm", "disco", "celebration", "fest", "bass", "electro", "house", "groove", "rave")
         "blues" -> listOf("blues", "soul", "jazz", "r&b", "rhythm", "acoustic", "guitar", "swing")
         "sad" -> listOf("sad", "slow", "cry", "broken", "heartbreak", "tear", "alone", "lonely", "dark", "pain", "melancholy", "grief")
@@ -279,6 +293,32 @@ class HomeViewModel @Inject constructor(
         "workout" -> listOf("workout", "gym", "fitness", "run", "running", "energy", "power", "motivation", "hard", "pump", "training", "beast")
         "pop" -> listOf("pop", "hit", "summer", "dance", "upbeat", "mainstream", "billboard", "chart", "star")
         else -> listOf(category.lowercase())
+    }
+
+    fun playCategory(category: String, onStartPlaying: () -> Unit = {}) {
+        selectCategory(category)
+        viewModelScope.launch {
+            val cached = _categoryRecommendations.value[category]
+            val songsToPlay = if (!cached.isNullOrEmpty()) {
+                cached
+            } else {
+                try {
+                    fetchGenreRecommendations(category).also { fetched ->
+                        if (fetched.isNotEmpty()) {
+                            _categoryRecommendations.update { it + (category to fetched) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            if (songsToPlay.isNotEmpty()) {
+                playRecommendedSongs(songsToPlay, 0)
+                withContext(Dispatchers.Main) {
+                    onStartPlaying()
+                }
+            }
+        }
     }
 
     fun setUserName(name: String) {

@@ -94,7 +94,7 @@ fun SearchScreen(
                         .padding(horizontal = 3.dp, vertical = 1.5.dp),
                     placeholder = {
                         Text(
-                            "Search songs, artists, albums…",
+                            "Search....",
                             color = MaterialTheme.colorScheme.secondary
                         )
                     },
