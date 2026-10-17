@@ -130,7 +130,8 @@ fun LyricsTab(
                             Text(
                                 "Retry",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                         }
 

@@ -132,11 +132,8 @@ class PlaybackRouter @Inject constructor(
             delegate.onStreamResolving(currentRequest)
         }
 
-        // Prefetch upcoming songs in queue into InnertubeApi cache
-        val upcomingRequests = requests.drop(clampedIndex + 1).take(3)
-        if (upcomingRequests.isNotEmpty()) {
-            sourceResolver.prefetchSongs(upcomingRequests)
-        }
+        // Cancel any background prefetches so 100% of bandwidth/CPU goes to the clicked song!
+        sourceResolver.cancelPrefetches()
 
         activePlayJob = scope.launch {
             try {
@@ -257,15 +254,12 @@ class PlaybackRouter @Inject constructor(
 
         prefetchJob?.cancel()
         prefetchJob = scope.launch(Dispatchers.IO) {
+            // Wait 3 seconds so current song buffering finishes first at full speed
+            kotlinx.coroutines.delay(3000)
             val nextReq = delegate.getNextPlayRequest()
                 ?: currentRequests.getOrNull(lastIndex + 1)
 
             if (nextReq != null) {
-                val upcoming = currentRequests.drop(lastIndex + 1).take(3).ifEmpty { listOf(nextReq) }
-                sourceResolver.prefetchSongs(upcoming)
-
-                kotlinx.coroutines.delay(2000)
-                // Warm the stream URL in cache so STATE_ENDED transition is 0ms instant
                 sourceResolver.resolve(nextReq) { /* ignore background prefetch error */ }
             }
         }
