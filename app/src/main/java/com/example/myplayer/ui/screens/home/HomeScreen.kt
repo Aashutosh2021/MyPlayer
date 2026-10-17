@@ -34,6 +34,7 @@ import com.example.myplayer.ui.theme.*
 @Composable
 fun HomeScreen(
     onNavigateToNowPlaying: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     bottomPadding: Dp = 100.dp,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -191,6 +192,24 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
+
+                // Dedicated Settings button in top corner
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PureWhite)
+                        .border(BorderStroke(1.dp, BorderSubtle), CircleShape)
+                        .clickable(onClick = onNavigateToSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }

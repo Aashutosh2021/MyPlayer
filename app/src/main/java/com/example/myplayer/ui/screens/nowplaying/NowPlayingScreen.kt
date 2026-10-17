@@ -195,27 +195,18 @@ fun NowPlayingScreen(
         ) {
             Spacer(Modifier.height(12.dp))
 
-            // ── Top Navigation Bar ───────────────────────────────────────────
+            // ── Top Navigation Bar (Image 1 Left) ───────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button (Dark circular pill)
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceLight)
-                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                        .clickable(onClick = onBackClick),
-                    contentAlignment = Alignment.Center
-                ) {
+                IconButton(onClick = onBackClick) {
                     Icon(
-                        Icons.Filled.KeyboardArrowDown,
+                        imageVector = Icons.Filled.KeyboardArrowDown,
                         contentDescription = "Back",
-                        tint = OnSurface,
-                        modifier = Modifier.size(26.dp)
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
@@ -223,53 +214,24 @@ fun NowPlayingScreen(
                     text = "Now Playing",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.2.sp
                     ),
-                    color = OnSurface
+                    color = CharcoalPrimary
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Sleep Timer
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(SurfaceLight)
-                            .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                            .clickable { showSleepTimer = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = "Sleep Timer",
-                            tint = if (sleepTimerRemaining > 0) NeonLimePrimary else OnSurface,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Settings / Options
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(SurfaceLight)
-                            .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                            .clickable(onClick = onNavigateToSettings),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.MoreHoriz,
-                            contentDescription = "More Options",
-                            tint = OnSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                IconButton(onClick = { showSleepTimer = true }) {
+                    Icon(
+                        imageVector = if (sleepTimerRemaining > 0) Icons.Filled.Timer else Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = "Timer / Queue",
+                        tint = if (sleepTimerRemaining > 0) CharcoalPrimary else SlateSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // ── Album Artwork (Interactive 3D Perspective Tilt & Song-Switch Flip) ─
+            // ── Album Artwork (Squircle with 3D Tilt) ─────────────────────────
             Interactive3DAlbumArt(
                 artUri = artUri,
                 title = title,
@@ -278,163 +240,113 @@ fun NowPlayingScreen(
                 hasSong = hasSong
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(28.dp))
 
-            // ── Track Title & Artist ─────────────────────────────────────────
-            Text(
-                text = if (hasSong) title!! else "No song playing",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            )
-
-            Spacer(Modifier.height(6.dp))
-
-            Text(
-                text = artist ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = OnSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            // ── Audio Quality & Download Indicators ──────────────────────────
+            // ── Track Details & Quick Actions Row (Image 1 Left) ─────────────
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Audio Quality Badge
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (audioQuality.isLossless) NeonLimePrimary.copy(alpha = 0.15f) else SurfaceContainerHigh,
-                    border = BorderStroke(1.dp, if (audioQuality.isLossless) NeonLimePrimary.copy(alpha = 0.4f) else CardBorderOlive),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { showQualityDetails = true }
+                // Left: Favorite Heart Button
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Unlike" else "Like",
+                        tint = if (isFavorite) Color(0xFFE53935) else SlateSecondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                // Center: Title & Artist
+                Column(
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (audioQuality.isLossless) {
-                            Icon(
-                                Icons.Filled.HighQuality,
-                                contentDescription = null,
-                                tint = NeonLimePrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Text(
-                            text = audioQuality.displayBadge,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (audioQuality.isLossless) NeonLimePrimary else TextMuted
+                    Text(
+                        text = if (hasSong) title!! else "No song playing",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp
+                        ),
+                        color = CharcoalPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = artist ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SlateSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // Right: Options Menu (...)
+                Box {
+                    var showMenu by remember { mutableStateOf(false) }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreHoriz,
+                            contentDescription = "Options",
+                            tint = SlateSecondary,
+                            modifier = Modifier.size(26.dp)
                         )
                     }
-                }
-
-                // Download Button
-                if (hasSong && canDownload) {
-                    when {
-                        isDownloaded -> {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(SurfaceLight)
-                                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                                    .clickable { showRemoveConfirm = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Filled.CheckCircle,
-                                    contentDescription = "Downloaded",
-                                    tint = NeonLimePrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                        isDownloading -> {
-                            CircularProgressIndicator(
-                                color = NeonLimePrimary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        else -> {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(SurfaceLight)
-                                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                                    .clickable { onDownloadClick() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Filled.Download,
-                                    contentDescription = "Download",
-                                    tint = OnSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Favorite Heart Button (moved to action row to prevent overlapping radial controller)
-                if (hasSong) {
-                    val heartScale by animateFloatAsState(
-                        targetValue = if (isFavorite) 1.15f else 1.0f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                        label = "heartScale"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .graphicsLayer {
-                                scaleX = heartScale
-                                scaleY = heartScale
-                            }
-                            .clip(CircleShape)
-                            .background(if (isFavorite) NeonLimePrimary.copy(alpha = 0.15f) else SurfaceLight)
-                            .border(
-                                BorderStroke(
-                                    1.dp,
-                                    if (isFavorite) NeonLimePrimary.copy(alpha = 0.6f) else CardBorderOlive
-                                ),
-                                CircleShape
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onToggleFavorite
-                            ),
-                        contentAlignment = Alignment.Center
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(PureWhite)
                     ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                            tint = if (isFavorite) NeonLimePrimary else OnSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                        DropdownMenuItem(
+                            text = { Text("Stream Details (${audioQuality.displayBadge})", color = CharcoalPrimary) },
+                            leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = CharcoalPrimary) },
+                            onClick = {
+                                showMenu = false
+                                showQualityDetails = true
+                            }
+                        )
+                        if (hasSong && canDownload) {
+                            if (isDownloaded) {
+                                DropdownMenuItem(
+                                    text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
+                                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                                    onClick = {
+                                        showMenu = false
+                                        showRemoveConfirm = true
+                                    }
+                                )
+                            } else if (!isDownloading) {
+                                DropdownMenuItem(
+                                    text = { Text("Download Song", color = CharcoalPrimary) },
+                                    leadingIcon = { Icon(Icons.Filled.Download, null, tint = CharcoalPrimary) },
+                                    onClick = {
+                                        showMenu = false
+                                        onDownloadClick()
+                                    }
+                                )
+                            }
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Settings", color = CharcoalPrimary) },
+                            leadingIcon = { Icon(Icons.Filled.Settings, null, tint = CharcoalPrimary) },
+                            onClick = {
+                                showMenu = false
+                                onNavigateToSettings()
+                            }
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // ── Hero Radial / Circular Audio Controller ──────────────────────
-            // IsolatedPlaybackControls reads positionState.value internally so only
-            // this subtree recomposes on every position tick (Phase 4).
+            // ── Waveform Audio Seeker (Image 1 Left) ─────────────────────────
             IsolatedPlaybackControls(
                 positionState = positionState,
                 durationMs = duration,
@@ -443,13 +355,13 @@ fun NowPlayingScreen(
                 onPlayPauseClick = onPlayPauseClick
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // ── Bottom Playback Control Row ──────────────────────────────────
+            // ── Bottom Playback Control Row (Image 1 Left) ───────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -458,64 +370,70 @@ fun NowPlayingScreen(
                     Icon(
                         Icons.Filled.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffleOn) NeonLimePrimary else TextMuted,
-                        modifier = Modifier.size(26.dp)
+                        tint = if (isShuffleOn) CharcoalPrimary else LightSlateMuted,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
                 // Previous
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceLight)
-                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                        .clickable(onClick = onPreviousClick),
-                    contentAlignment = Alignment.Center
-                ) {
+                IconButton(onClick = onPreviousClick) {
                     Icon(
                         Icons.Filled.SkipPrevious,
                         contentDescription = "Previous",
-                        tint = OnSurface,
-                        modifier = Modifier.size(30.dp)
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                // Solid Charcoal Play/Pause Circle (Image 1 Left)
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .shadow(12.dp, CircleShape, spotColor = Color(0x35000000))
+                        .clip(CircleShape)
+                        .background(CharcoalPrimary)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPlayPauseClick
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = PureWhite,
+                        modifier = Modifier.size(34.dp)
                     )
                 }
 
                 // Next
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceLight)
-                        .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                        .clickable(onClick = onNextClick),
-                    contentAlignment = Alignment.Center
-                ) {
+                IconButton(onClick = onNextClick) {
                     Icon(
                         Icons.Filled.SkipNext,
                         contentDescription = "Next",
-                        tint = OnSurface,
-                        modifier = Modifier.size(30.dp)
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
 
                 // Repeat
                 IconButton(onClick = onCycleRepeatMode) {
                     val (icon, tint, desc) = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, NeonLimePrimary, "Repeat One")
-                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, NeonLimePrimary, "Repeat All")
-                        else -> Triple(Icons.Filled.Repeat, TextMuted, "Repeat Off")
+                        Player.REPEAT_MODE_ONE -> Triple(Icons.Filled.RepeatOne, CharcoalPrimary, "Repeat One")
+                        Player.REPEAT_MODE_ALL -> Triple(Icons.Filled.Repeat, CharcoalPrimary, "Repeat All")
+                        else -> Triple(Icons.Filled.Repeat, LightSlateMuted, "Repeat Off")
                     }
                     Icon(
                         imageVector = icon,
                         contentDescription = desc,
                         tint = tint,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
 
             // ── Synced Lyrics Section ────────────────────────────────────────
             val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
@@ -546,12 +464,10 @@ private fun IsolatedPlaybackControls(
     onSeek: (Long) -> Unit,
     onPlayPauseClick: () -> Unit
 ) {
-    RadialAudioController(
+    com.example.myplayer.ui.components.WaveformAudioSeeker(
         positionMs = positionState.value,
         durationMs = durationMs,
-        isPlaying = isPlaying,
         onSeek = onSeek,
-        onPlayPauseClick = onPlayPauseClick,
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }

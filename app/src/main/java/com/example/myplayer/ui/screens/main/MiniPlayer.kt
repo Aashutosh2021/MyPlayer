@@ -10,9 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,12 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,20 +56,18 @@ fun MiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 20.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(elevation = 14.dp, shape = RoundedCornerShape(26.dp), spotColor = Color(0x33000000))
+                .clip(RoundedCornerShape(26.dp))
+                .background(CharcoalPrimary)
                 .graphicsLayer {
                     translationX = animatedOffsetX * 0.35f
                     rotationZ = (animatedOffsetX / 60f).coerceIn(-3f, 3f)
-                    shadowElevation = 12.dp.toPx()
-                    shape = RoundedCornerShape(22.dp)
-                    clip = true
                 }
-                .background(SurfaceLight)
-                .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(22.dp))
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onHorizontalDrag = { _, dragAmount ->
@@ -93,14 +89,15 @@ fun MiniPlayer(
                     indication = null,
                     onClick = onPlayerClick
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Squircle Album Art
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceContainerLow),
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF262C38)),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(
@@ -108,13 +105,14 @@ fun MiniPlayer(
                     title = song.title,
                     artist = song.artist,
                     size = 46.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    iconSize = 20.dp
+                    shape = RoundedCornerShape(14.dp),
+                    iconSize = 22.dp
                 )
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
 
+            // Title and Artist
             AnimatedContent(
                 targetState = song.title to song.artist,
                 modifier = Modifier.weight(1f),
@@ -127,8 +125,8 @@ fun MiniPlayer(
                 Column {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = OnSurface,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = PureWhite,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -136,20 +134,21 @@ fun MiniPlayer(
                     Text(
                         text = artist,
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnSurfaceVariant,
+                        color = LightSlateMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
 
+            // Solid White Play/Pause Button with Dark Icon (matches design image 1)
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(NeonLimePrimary)
+                    .background(PureWhite)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -160,31 +159,8 @@ fun MiniPlayer(
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = OnNeonLime,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceContainerHigh)
-                    .border(BorderStroke(1.dp, CardBorderOlive), CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onNextClick
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.SkipNext,
-                    contentDescription = "Next",
-                    tint = OnSurface,
-                    modifier = Modifier.size(20.dp)
+                    tint = CharcoalPrimary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

@@ -22,6 +22,13 @@ class LibraryViewModel @Inject constructor(
     val playlists: StateFlow<List<PlaylistEntity>> = repository.getAllPlaylists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Downloaded songs strictly sorted in alphabetical order (case-insensitive)
+    val downloadedSongs: StateFlow<List<PlayableSong>> = downloadRepository.getAllDownloads()
+        .map { list ->
+            list.sortedBy { it.title.lowercase() }.map { PlayableSong.Downloaded(it) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val hybridLibrary: StateFlow<List<PlayableSong>> = hybridLibraryRepository.getHybridLibrary()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -35,9 +42,6 @@ class LibraryViewModel @Inject constructor(
 
     fun addSongToPlaylist(playlistId: Long, song: PlayableSong) {
         viewModelScope.launch { 
-            // Put it at the end. For simplicity we just use 0 or fetch count. 
-            // MusicRepository could handle max position but we'll just pass 0 for now
-            // or let the DB order by insertion if position is 0
             repository.addSongToPlaylist(playlistId, song, 0)
         }
     }
