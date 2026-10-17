@@ -587,40 +587,106 @@ class InnertubeApi @Inject constructor(
     }
 
     private suspend fun resolveStreamUrlInternal(videoId: String): String? {
-        return kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+        return kotlinx.coroutines.withTimeoutOrNull(25_000L) {
+            // Engine 1: Direct YouTube Innertube /player endpoint (fast, unthrottled, direct pre-signed URLs)
+            val directUrl = resolveStreamViaInnertubePlayer(videoId)
+            if (!directUrl.isNullOrBlank()) {
+                return@withTimeoutOrNull directUrl
+            }
+
+            // Engine 2: NewPipe Extractor fallback
             try {
-                Log.i(TAG, "getStreamUrl: Starting resolution for $videoId")
+                Log.i(TAG, "getStreamUrl: Falling back to NewPipe extractor for $videoId")
                 val url = "https://www.youtube.com/watch?v=$videoId"
-                Log.i(TAG, "getStreamUrl: Creating YouTube stream extractor for $url")
                 val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getStreamExtractor(url)
-                Log.i(TAG, "getStreamUrl: Calling extractor.fetchPage()...")
                 extractor.fetchPage()
-                Log.i(TAG, "getStreamUrl: extractor.fetchPage() completed successfully")
 
                 val audioStreams = extractor.audioStreams
-                Log.i(TAG, "getStreamUrl: Found ${audioStreams.size} audio streams")
-                if (audioStreams.isEmpty()) {
-                    throw YouTubeStreamBlockedException("YouTube stream extraction failed: No audio streams found.")
+                if (audioStreams.isNotEmpty()) {
+                    val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
+                    val contentUrl = bestStream?.getContent()
+                    if (!contentUrl.isNullOrBlank()) {
+                        Log.i(TAG, "getStreamUrl: NewPipe extractor resolved $videoId")
+                        cacheStreamUrl(videoId, contentUrl)
+                        return@withTimeoutOrNull contentUrl
+                    }
                 }
-
-                // Prefer highest bitrate
-                val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
-                val contentUrl = bestStream?.getContent()
-                Log.i(TAG, "getStreamUrl: Selected stream URL: ${contentUrl?.take(80)}...")
-                if (!contentUrl.isNullOrBlank()) {
-                    cacheStreamUrl(videoId, contentUrl)
-                }
-                contentUrl
-            } catch (e: org.schabi.newpipe.extractor.exceptions.ExtractionException) {
-                Log.e(TAG, "NewPipe Extraction failed", e)
-                throw YouTubeStreamBlockedException("YouTube blocked this stream: ${e.message}")
-            } catch (e: YouTubeStreamBlockedException) {
-                throw e
             } catch (e: Exception) {
-                Log.e(TAG, "getStreamUrl failed for $videoId", e)
-                null
+                Log.w(TAG, "NewPipe extractor fallback failed for $videoId", e)
             }
+
+            null
         }
+    }
+
+    private fun resolveStreamViaInnertubePlayer(videoId: String): String? {
+        try {
+            Log.i(TAG, "getStreamUrl: Attempting direct Innertube player endpoint for $videoId")
+            val bodyJson = JSONObject(PLAY_CLIENT_CONTEXT).apply {
+                put("videoId", videoId)
+                put("playbackContext", JSONObject().apply {
+                    put("contentPlaybackContext", JSONObject().apply {
+                        put("html5Preference", "HTML5_PREF_WANTS")
+                    })
+                })
+            }
+
+            val request = Request.Builder()
+                .url("$BASE_URL/player?key=$API_KEY&prettyPrint=false")
+                .post(bodyJson.toString().toRequestBody(MEDIA_TYPE_JSON))
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Log.w(TAG, "Innertube player endpoint HTTP ${response.code} for $videoId")
+                return null
+            }
+
+            val body = response.body?.string() ?: return null
+            val root = JSONObject(body)
+
+            val playability = root.optJSONObject("playabilityStatus")
+            val status = playability?.optString("status")
+            if (status != "OK") {
+                val reason = playability?.optString("reason") ?: "Playability status: $status"
+                Log.w(TAG, "Innertube player playability not OK for $videoId: $reason")
+                return null
+            }
+
+            val streamingData = root.optJSONObject("streamingData") ?: return null
+            val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats") ?: return null
+
+            var bestUrl: String? = null
+            var highestBitrate = 0
+
+            for (i in 0 until adaptiveFormats.length()) {
+                val format = adaptiveFormats.optJSONObject(i) ?: continue
+                val mimeType = format.optString("mimeType")
+                if (!mimeType.startsWith("audio/")) continue
+
+                val url = format.optString("url")
+                if (url.isBlank()) continue
+
+                val bitrate = format.optInt("bitrate", 0)
+                if (bitrate > highestBitrate) {
+                    highestBitrate = bitrate
+                    bestUrl = url
+                }
+            }
+
+            if (!bestUrl.isNullOrBlank()) {
+                Log.i(TAG, "getStreamUrl: Direct Innertube player resolved $videoId (bitrate=$highestBitrate)")
+                cacheStreamUrl(videoId, bestUrl)
+                return bestUrl
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Innertube player endpoint resolution failed for $videoId", e)
+        }
+        return null
     }
 
     private fun parseDurationToMs(durationText: String): Long {

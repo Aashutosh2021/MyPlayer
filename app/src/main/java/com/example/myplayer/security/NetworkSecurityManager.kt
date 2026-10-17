@@ -99,11 +99,6 @@ class NetworkSecurityManager @Inject constructor() {
                 .add("www.youtube.com", GOOGLE_GTS_ROOT_R2)
                 .add("www.youtube.com", ISRG_ROOT_X1)
 
-                // YouTube stream CDN hosts
-                .add("*.googlevideo.com", GOOGLE_GTS_ROOT_R1)
-                .add("*.googlevideo.com", GOOGLE_GTS_ROOT_R2)
-                .add("*.googlevideo.com", ISRG_ROOT_X1)
-
                 .build()
                 .also { Log.d(TAG, "Certificate pinner configured") }
         } catch (e: Exception) {
