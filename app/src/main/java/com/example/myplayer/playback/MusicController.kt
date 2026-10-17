@@ -365,12 +365,7 @@ class MusicController @Inject constructor(
                     Log.i("MusicController", "[ONLINE_RECOVERY_RESOLVE] videoId=$videoId attempt=$retryAttempt/$MAX_ONLINE_RETRIES expired=$isStreamExpired")
                     val freshUrl = withContext(Dispatchers.IO) {
                         try {
-                            if (isStreamExpired || retryAttempt > 1) {
-                                playbackSourceResolver.resolveFreshStreamUrl(videoId)
-                            } else {
-                                playbackSourceResolver.resolveOnlineStream(videoId, forceRefresh = false)
-                                    ?: uriStr?.takeIf { it.startsWith("http") }
-                            }
+                            playbackSourceResolver.resolveFreshStreamUrl(videoId)
                         } catch (e: Exception) {
                             Log.e("MusicController", "Exception while resolving stream URL for $videoId", e)
                             null

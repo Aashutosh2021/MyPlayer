@@ -130,7 +130,7 @@ class PlaybackSourceResolver @Inject constructor(
         } else if (request.songId.startsWith("online://")) {
             request.songId.removePrefix("online://")
         } else {
-            request.songId
+            rawVideoId ?: request.songId
         }
 
         return resolveOnlineStream(videoId, setCustomError)
