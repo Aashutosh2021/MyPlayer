@@ -2,74 +2,70 @@ package com.example.myplayer.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// -- Stitch Design Tokens (MyPlayer Android UI Redesign) --------------------------
+// ── Exact Reference Palette (171C26, 6C7689, A4AAB7, FFFFFF) ──────────────
+val CharcoalPrimary      = Color(0xFF171C26) // Primary dark charcoal ink
+val SlateSecondary       = Color(0xFF6C7689) // Secondary text / artist
+val SilverMuted          = Color(0xFFA4AAB7) // Muted icons / numbers / inactive wave
+val PureWhite            = Color(0xFFFFFFFF) // Main background & cards
+val SoftGraySurface      = Color(0xFFF3F5F8) // Secondary button / active row pill
 
-// Primary
-val Primary = Color(0xFF000103)
-val OnPrimary = Color(0xFFFFFFFF)
-val PrimaryContainer = Color(0xFF171C26)
-val OnPrimaryContainer = Color(0xFF7F8491)
+// Mapped to existing theme tokens so all screens work seamlessly
+val Primary              = CharcoalPrimary
+val OnPrimary            = PureWhite
+val PrimaryContainer     = SoftGraySurface
+val OnPrimaryContainer   = CharcoalPrimary
 
-// Secondary
-val Secondary = Color(0xFF555F71)
-val OnSecondary = Color(0xFFFFFFFF)
-val SecondaryContainer = Color(0xFFD9E3F9)
-val OnSecondaryContainer = Color(0xFF5B6577)
+val Secondary            = SlateSecondary
+val OnSecondary          = PureWhite
+val SecondaryContainer   = SoftGraySurface
+val OnSecondaryContainer = CharcoalPrimary
 
-// Tertiary
-val Tertiary = Color(0xFF000002)
-val OnTertiary = Color(0xFFFFFFFF)
-val TertiaryContainer = Color(0xFF161C26)
-val OnTertiaryContainer = Color(0xFF7E8491)
+val Tertiary             = SilverMuted
+val OnTertiary           = PureWhite
+val TertiaryContainer    = SoftGraySurface
+val OnTertiaryContainer  = CharcoalPrimary
 
-// Surface & Background
-val Background = Color(0xFFF9F9F9)
-val OnBackground = Color(0xFF1A1C1C)
-val Surface = Color(0xFFF9F9F9)
-val OnSurface = Color(0xFF1A1C1C)
-val SurfaceVariant = Color(0xFFEEEEEE)
-val OnSurfaceVariant = Color(0xFF45474B)
+val Background           = PureWhite
+val OnBackground         = CharcoalPrimary
+val Surface              = PureWhite
+val SurfaceVariant       = SoftGraySurface
+val Outline              = SilverMuted
+val CardBorderOlive      = Color(0xFFEBEEF3)
+val OutlineVariant       = CardBorderOlive
+val Error                = Color(0xFFD32F2F)
+val OnError              = PureWhite
+val ErrorContainer       = Color(0xFFFFDAD6)
+val OnErrorContainer     = Color(0xFF93000A)
+val PureBlack            = Color(0xFF000000)
 
-// Surface Container Levels (Stitch Neutral Slate Palette)
-val SurfaceContainerLowest = Color(0xFFFFFFFF)
-val SurfaceContainerLow = Color(0xFFF3F3F4)
-val SurfaceContainer = Color(0xFFEEEEEE)
-val SurfaceContainerHigh = Color(0xFFE8E8E8)
-val SurfaceContainerHighest = Color(0xFFE2E2E2)
+val NeonLimePrimary      = CharcoalPrimary
+val OnNeonLime           = PureWhite
+val ClayPrimary          = CharcoalPrimary
+val ClaySecondary        = SlateSecondary
+val ClayTertiary         = SilverMuted
 
-// Outlines
-val Outline = Color(0xFF76777C)
-val OutlineVariant = Color(0xFFC6C6CC)
+// ── Backgrounds & Surfaces ────────────────────────────────────────────────
+val DeepOliveBackground    = PureWhite
+val CloudBlueBackground    = PureWhite
+val SurfaceLight           = PureWhite
+val SurfaceContainerLowest = PureWhite
+val SurfaceContainerLow    = Color(0xFFF7F8FA)
+val SurfaceContainer       = SoftGraySurface
+val SurfaceContainerHigh   = Color(0xFFECEFF4)
+val SurfaceContainerHighest= Color(0xFFE2E6ED)
 
-// Error
-val Error = Color(0xFFBA1A1A)
-val OnError = Color(0xFFFFFFFF)
-val ErrorContainer = Color(0xFFFFDAD6)
-val OnErrorContainer = Color(0xFF93000A)
+// ── Text & Content ────────────────────────────────────────────────────────
+val OnSurface        = CharcoalPrimary // #171C26
+val OnSurfaceVariant = SlateSecondary  // #6C7689
+val TextMuted        = SilverMuted     // #A4AAB7
 
-// Pure White & Black
-val PureWhite = Color(0xFFFFFFFF)
-val PureBlack = Color(0xFF000000)
+// ── Borders & Shadows ─────────────────────────────────────────────────────
+val NeonLimeGlow     = CharcoalPrimary
 
-// Backward-compatible Aliases
-val ClayPrimary = Primary
-val ClaySecondary = Secondary
-val ClayTertiary = OnPrimaryContainer
-val DeepOliveBackground = Background
-val CloudBlueBackground = Background
-val TextMuted = OnPrimaryContainer
-val CardBorderOlive = OutlineVariant
-val NeonLimeGlow = OnPrimaryContainer
-val NeonLimePrimary = Primary
-val OnNeonLime = OnPrimary
-val SurfaceLight = Surface
+val ClayShadowOuter      = Color(0xFF171C26).copy(alpha = 0.06f)
+val ClayShadowInnerLight = Color(0xFFFFFFFF).copy(alpha = 0.80f)
+val ClayShadowInnerDark  = Color(0xFF171C26).copy(alpha = 0.05f)
 
-// Clay Shadows & Highlights
-val ClayShadowOuter = Color(0xFF000000).copy(alpha = 0.08f)
-val ClayShadowInnerLight = Color(0xFFFFFFFF).copy(alpha = 0.90f)
-val ClayShadowInnerDark = Color(0xFF000000).copy(alpha = 0.04f)
-
-// Gradients
-val GradientPrimarySecondary = listOf(Primary, Secondary)
-val GradientPrimaryTertiary = listOf(Primary, OnPrimaryContainer)
-val GradientBannerCard = listOf(Color(0xFF202634), PrimaryContainer)
+val GradientPrimarySecondary = listOf(CharcoalPrimary, SlateSecondary)
+val GradientPrimaryTertiary  = listOf(CharcoalPrimary, SilverMuted)
+val GradientBannerCard       = listOf(SoftGraySurface, PureWhite)

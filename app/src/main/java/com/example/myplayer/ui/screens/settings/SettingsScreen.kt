@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.ui.screens.settings
+package com.example.myplayer.ui.screens.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -366,14 +366,7 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ClayIconButton(onClick = onBack, size = 44.dp) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+ 
                 Spacer(Modifier.width(14.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -563,6 +556,7 @@ private fun SettingsToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .clickable { onCheckedChange(!checked) }
@@ -607,9 +601,10 @@ private fun SettingsNavigationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
+            .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -640,6 +635,7 @@ private fun SettingsInfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp, vertical = 14.dp),

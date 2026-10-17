@@ -3,6 +3,9 @@ package com.example.myplayer.ui.theme
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
@@ -10,8 +13,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -169,6 +175,106 @@ fun Modifier.carousel3DItem(
         cameraDistance = 12f * density
         alpha = 1f - (absOffset * 0.22f)
     }
+}
+
+/**
+ * 5. SLIDE + POP-UP ENTRANCE ANIMATION (Scroll karte waqt cards pop-up hokar aate hain)
+ */
+fun Modifier.slidePopIn(
+    index: Int = 0
+): Modifier = composed {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val staggerDelay = (index % 6) * 35L
+        if (staggerDelay > 0L) delay(staggerDelay)
+        isVisible = true
+    }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.86f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "popScale"
+    )
+    val translationY by animateFloatAsState(
+        targetValue = if (isVisible) 0f else 60f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "popSlideY"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(220),
+        label = "popAlpha"
+    )
+
+    this.graphicsLayer {
+        this.scaleX = scale
+        this.scaleY = scale
+        this.translationY = translationY
+        this.alpha = alpha
+    }
+}
+
+/**
+ * 6. HORIZONTAL CAROUSEL SLIDE POP-UP (LazyRow slide karte waqt center card pop-up hota hai)
+ */
+fun Modifier.carouselSlidePop(
+    listState: LazyListState,
+    index: Int
+): Modifier = this.graphicsLayer {
+    val layoutInfo = listState.layoutInfo
+    val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+    if (itemInfo != null && layoutInfo.viewportEndOffset > 0) {
+        val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
+        val itemCenter = itemInfo.offset + (itemInfo.size / 2f)
+        val normalized = ((itemCenter - viewportCenter) / viewportCenter.coerceAtLeast(1f)).coerceIn(-1f, 1f)
+        val absNorm = abs(normalized)
+
+        // Center card pops up (1.0f), side cards shrink (0.88f) and tilt in 3D
+        val scale = 1f - (absNorm * 0.12f)
+        scaleX = scale
+        scaleY = scale
+        translationY = absNorm * 18f
+        rotationY = -normalized * 14f
+        cameraDistance = 14f * density
+        alpha = 1f - (absNorm * 0.2f)
+    }
+}
+
+/**
+ * 7. BOUNCY POP CLICK (Touch karne par card/button spring ke saath pop karta hai)
+ */
+fun Modifier.bouncyPopClick(
+    scaleDown: Float = 0.93f,
+    onClick: () -> Unit
+): Modifier = composed {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) scaleDown else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "bouncyPopClick"
+    )
+
+    this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        )
 }
 
 
