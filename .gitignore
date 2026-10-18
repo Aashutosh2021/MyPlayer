@@ -67,3 +67,9 @@ Thumbs.db
 brain/
 scratch/
 graphify-out/
+
+# Stitch assets
+stitch_assets/
+stitch_myplayer_android*/
+*stitch_assets*
+*stitch_myplayer_android*

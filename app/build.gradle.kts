@@ -61,6 +61,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
@@ -118,7 +119,15 @@ kotlin {
     }
 }
 
+composeCompiler {
+    enableStrongSkippingMode = true
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose_stability.conf"))
+}
+
 dependencies {
+    // Baseline Profile installer for runtime ahead-of-time DEX optimization
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+
     // Core library desugaring — backports Java APIs (e.g. URLDecoder.decode(String, Charset))
     // to pre-API 33 devices. Required by NewPipeExtractor v0.26+ which calls that API.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")

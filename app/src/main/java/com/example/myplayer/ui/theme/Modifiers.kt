@@ -1,7 +1,11 @@
 package com.example.myplayer.ui.theme
 
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import kotlinx.coroutines.delay
@@ -248,21 +252,21 @@ fun Modifier.carouselSlidePop(
 }
 
 /**
- * 7. BOUNCY POP CLICK (Touch karne par card/button spring ke saath pop karta hai)
+ * 7. BOUNCE CLICK (Touch feedback with zero state-holding leaks & GPU RenderThread scaling)
  */
-fun Modifier.bouncyPopClick(
-    scaleDown: Float = 0.93f,
-    onClick: () -> Unit
+fun Modifier.bounceClick(
+    scaleDown: Float = 0.94f,
+    onClick: () -> Unit = {}
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
+            dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium
         ),
-        label = "bouncyPopClick"
+        label = "bounceScale"
     )
 
     this
@@ -276,5 +280,33 @@ fun Modifier.bouncyPopClick(
             onClick = onClick
         )
 }
+
+/**
+ * 8. SHIMMER EFFECT (Zero allocation per frame — operates on graphicsLayer alpha)
+ */
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.65f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmerAlpha"
+    )
+    // Use graphicsLayer alpha instead of reallocating Modifier.background every frame!
+    this
+        .graphicsLayer { this.alpha = alpha }
+        .background(Color.Gray.copy(alpha = 0.35f))
+}
+
+/**
+ * 9. BOUNCY POP CLICK (Aliases to optimized bounceClick for backward compatibility)
+ */
+fun Modifier.bouncyPopClick(
+    scaleDown: Float = 0.93f,
+    onClick: () -> Unit
+): Modifier = bounceClick(scaleDown = scaleDown, onClick = onClick)
 
 

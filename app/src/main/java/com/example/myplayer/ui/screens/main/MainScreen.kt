@@ -51,6 +51,9 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val currentOnlineSong by viewModel.currentOnlineSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    // NOTE: currentPosition is intentionally NOT collected here at the top of MainScreen!
+    // Keeping currentPosition isolated prevents 500ms whole-screen recomposition passes
+    // (Scaffold, NavHost, HomeScreen, FloatingNavBar).
 
     // Surface one-shot playback errors (e.g. a downloaded file that is no longer on disk).
     val context = LocalContext.current
@@ -106,7 +109,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                     ) {
                         // Memoize synthetic SongEntity: only rebuild when the online song reference
-                        // changes, not on every isPlaying / position / any-state recomposition.
+                        // changes, not on every isPlaying / any-state recomposition.
                         val miniSong = currentSong?.let {
                             if (it.albumArt.isNullOrBlank() && !displayArt.isNullOrBlank()) {
                                 it.copy(albumArt = displayArt)
@@ -128,11 +131,13 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         MiniPlayer(
                             song = miniSong,
                             isPlaying = isPlaying,
-                            onPlayPauseClick = { viewModel.playPause() },
-                            onNextClick = { viewModel.skipToNext() },
-                            onPreviousClick = { viewModel.skipToPrevious() },
-                            onPlayerClick = {
-                                navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
+                            onPlayPauseClick = remember(viewModel) { { viewModel.playPause() } },
+                            onNextClick = remember(viewModel) { { viewModel.skipToNext() } },
+                            onPreviousClick = remember(viewModel) { { viewModel.skipToPrevious() } },
+                            onPlayerClick = remember(navController) {
+                                {
+                                    navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
+                                }
                             }
                         )
                     }

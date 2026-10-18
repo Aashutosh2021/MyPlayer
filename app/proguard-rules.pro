@@ -12,13 +12,10 @@
 # Uncomment the next line if you use Crashlytics and want readable stack traces:
 # -keepattributes SourceFile,LineNumberTable
 
-# ── Aggressive optimisation passes ────────────────────────────────────────────
-# WHY: More passes = smaller + harder to read bytecode.
+# ── Standard R8 optimisation passes ──────────────────────────────────────────
+# Kept safe for reflection, dynamic class generators, and ServiceLoader libraries.
 -optimizationpasses 5
 -allowaccessmodification
--repackageclasses ''           # Moves all classes into the root package, hiding structure
--mergeinterfacesaggressively
--overloadaggressively          # Overloads methods with same signature to confuse decompilers
 
 # ── Remove all Log calls from release builds ──────────────────────────────────
 # WHY: Log.d/i/e/w leak internal class names, stack paths, and sensitive data.
@@ -117,12 +114,36 @@
 -keep class kotlinx.serialization.** { *; }
 
 # =============================================================================
-# ── NEWPIPE EXTRACTOR ────────────────────────────────────────────────────────
+# ── NEWPIPE EXTRACTOR & RHINO JAVASCRIPT ENGINE ─────────────────────────────
 # =============================================================================
 -keep class org.schabi.newpipe.** { *; }
 -keep interface org.schabi.newpipe.** { *; }
+-keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
 -dontwarn org.schabi.newpipe.**
+
+# Mozilla Rhino (Required to deobfuscate YouTube signatures & n-parameter)
+-keep class org.mozilla.javascript.** { *; }
+-keep class org.mozilla.javascript.engine.** { *; }
+-keep class org.mozilla.classfile.** { *; }
+-keep class javax.script.** { *; }
 -dontwarn org.mozilla.javascript.**
+-dontwarn org.mozilla.classfile.**
+-dontwarn javax.script.**
+-dontwarn jdk.dynalink.**
+
+# NanoJSON (Used by NewPipe to parse YouTube JSON data)
+-keep class com.grack.nanojson.** { *; }
+-keep class com.github.TeamNewPipe.nanojson.** { *; }
+-dontwarn com.grack.nanojson.**
+-dontwarn com.github.TeamNewPipe.nanojson.**
+
+# Jsoup (HTML parser used by NewPipe)
+-keep class org.jsoup.** { *; }
+-dontwarn org.jsoup.**
+
+# App Online Data & Downloader classes
+-keep class com.example.myplayer.data.online.** { *; }
+-keep class com.example.myplayer.data.online.model.** { *; }
 -dontwarn org.apache.**
 
 # =============================================================================

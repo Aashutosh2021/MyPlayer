@@ -81,9 +81,9 @@ class NetworkSecurityManager @Inject constructor() {
      * NOTE: If pinning causes SSL handshake failures in testing, set
      * [enabled] to false for the debug build type and true only for release.
      */
-    fun buildCertificatePinner(enabled: Boolean = true): CertificatePinner? {
+    fun buildCertificatePinner(enabled: Boolean = false): CertificatePinner? {
         if (!enabled) {
-            Log.d(TAG, "Certificate pinning disabled (debug build)")
+            Log.d(TAG, "Certificate pinning disabled (avoids dynamic CDN rotation breakage)")
             return null
         }
 

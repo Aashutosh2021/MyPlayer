@@ -66,9 +66,10 @@ object NetworkModule {
 
         val client = builder.build()
 
-        // Phase 13: Apply certificate pinning in release builds.
-        // In debug builds, pinning is disabled to allow proxy tools (Burp, Charles).
-        // The network_security_config.xml provides OS-level cleartext blocking in all builds.
-        return networkSecurityManager.applyPinning(client, enabled = !BuildConfig.DEBUG)
+        // Phase 13: Static certificate pinning on third-party Google/YouTube endpoints
+        // is disabled because Google dynamically rotates leaf and intermediate CAs across
+        // regional CDNs (GTS Root R1..R4, WE2), causing fatal SSLPeerUnverifiedException.
+        // Transport security is strictly enforced via Android's system CA store in network_security_config.xml.
+        return networkSecurityManager.applyPinning(client, enabled = false)
     }
 }

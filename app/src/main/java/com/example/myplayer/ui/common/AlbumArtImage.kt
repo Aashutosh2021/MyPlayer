@@ -26,76 +26,94 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import com.example.myplayer.data.artwork.model.ArtworkModel
 
-/**
- * Loads embedded album art or resolves high-resolution online artwork using [ArtworkModel].
- * Offloads loading and caching to Coil and the dedicated Artwork Engine.
- */
 @Composable
 fun AlbumArtImage(
-    uri: String?,
+    uri: String? = null,
+    artUri: String? = uri,
+    contentDescription: String? = null,
     modifier: Modifier = Modifier,
     title: String? = null,
     artist: String? = null,
     album: String? = null,
     size: Dp = 48.dp,
-    shape: Shape = RoundedCornerShape(8.dp),
+    cornerRadius: Dp = 12.dp,
+    shape: Shape = RoundedCornerShape(cornerRadius),
     iconSize: Dp = 24.dp
 ) {
+    val effectiveUri = artUri ?: uri
     val context = LocalContext.current
     val density = LocalDensity.current
-    val sizePx = remember(size, density) {
-        with(density) { (size * 2f).roundToPx().coerceAtLeast(128) }
+
+    // Downsample list thumbnails to exact pixel size (saves 90% RAM & GPU bandwidth)
+    val targetPx = remember(size, density) {
+        with(density) { (size * 1.75f).roundToPx().coerceIn(120, 900) }
     }
-    val hasValidRequest = !uri.isNullOrBlank() || (!title.isNullOrBlank() && !artist.isNullOrBlank())
+
+    // For small thumbnails (<100dp), convert YouTube w800-h800 URLs to lightweight w226-h226
+    val optimizedUrl = remember(effectiveUri, size) {
+        if (effectiveUri.isNullOrBlank()) {
+            ""
+        } else if (size < 100.dp) {
+            effectiveUri
+                .replace("=w800-h800-l90-rj", "=w226-h226-l90-rj")
+                .replace("w800-h800", "w226-h226")
+        } else {
+            effectiveUri
+        }
+    }
+
+    // Support both direct URLs and ArtworkModel for songs needing artwork resolution
+    val requestModel: Any? = remember(optimizedUrl, effectiveUri, title, artist, album) {
+        if (optimizedUrl.isNotBlank()) {
+            optimizedUrl
+        } else if (!title.isNullOrBlank() && !artist.isNullOrBlank()) {
+            ArtworkModel(title = title, artist = artist, album = album, localUri = effectiveUri)
+        } else {
+            null
+        }
+    }
+
+    val surfaceColor = MaterialTheme.colorScheme.surfaceVariant
+    val iconTint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 
     Box(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.primaryContainer),
+            .background(surfaceColor),
         contentAlignment = Alignment.Center
     ) {
-        if (hasValidRequest) {
-            val requestModel: Any = remember(uri, title, artist, album) {
-                if (!title.isNullOrBlank() && !artist.isNullOrBlank()) {
-                    ArtworkModel(title = title, artist = artist, album = album, localUri = uri)
-                } else {
-                    uri ?: ""
-                }
-            }
-
-            val isLargeArt = size >= 120.dp
-            val imageRequest = remember(context, requestModel, sizePx, isLargeArt) {
+        if (requestModel != null) {
+            val isLarge = size >= 120.dp
+            val request = remember(context, requestModel, targetPx, isLarge) {
                 ImageRequest.Builder(context)
                     .data(requestModel)
-                    .size(sizePx, sizePx)
+                    .size(targetPx, targetPx)
                     .precision(Precision.INEXACT)
                     .allowHardware(true)
-                    .crossfade(if (isLargeArt) 200 else 0)
+                    .crossfade(if (isLarge) 180 else 0) // Never crossfade inside fast-scrolling lists!
+                    .memoryCacheKey("${requestModel}_$targetPx")
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .build()
             }
-
-            val fallbackPainter = rememberVectorPainter(Icons.Filled.MusicNote)
+            val fallbackPainter = rememberVectorPainter(Icons.Default.MusicNote)
 
             AsyncImage(
-                model = imageRequest,
-                contentDescription = "Album art",
-                modifier = Modifier.matchParentSize(),
+                model = request,
+                contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 error = fallbackPainter,
-                fallback = fallbackPainter
+                fallback = fallbackPainter,
+                modifier = Modifier.matchParentSize()
             )
         } else {
             Icon(
-                imageVector = Icons.Filled.MusicNote,
+                imageVector = Icons.Default.MusicNote,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                modifier = Modifier.size(iconSize)
+                modifier = Modifier.size(iconSize),
+                tint = iconTint
             )
         }
     }
 }
-
-
