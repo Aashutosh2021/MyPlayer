@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -315,18 +316,71 @@ fun NowPlayingScreen(
 
         Spacer(Modifier.height(28.dp))
 
-        // ── Vertical Bar Waveform Seekbar + Timestamps (Exact Image 2 Match!) ──
-        EditorialWaveformSeekBar(
+        // ── Beat-Reactive Music Bar & Transport Controls ─────────────────────
+        IsolatedPlaybackControls(
             positionState = positionState,
             durationMs = duration,
-            songKey = title ?: "",
             isPlaying = isPlaying,
-            onSeek = onSeek
+            onSeek = onSeek,
+            onPlayPauseClick = onPlayPauseClick,
+            isShuffleOn = isShuffleOn,
+            repeatMode = repeatMode,
+            onPreviousClick = onPreviousClick,
+            onNextClick = onNextClick,
+            onToggleShuffle = onToggleShuffle,
+            onCycleRepeatMode = onCycleRepeatMode
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(32.dp))
 
-        // ── Minimalist 5-Button Transport Controls Row ───────────────────────
+        // ── Synced Lyrics Section ────────────────────────────────────────────
+        val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+        val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+        LyricsTab(
+            lyricsState = lyricsState,
+            positionMs = lyricsPositionState,
+            onSeek = onSeek,
+            onAddCustomLyrics = { showCustomLyricsDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 180.dp, max = 360.dp)
+        )
+
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun IsolatedPlaybackControls(
+    positionState: State<Long>,
+    durationMs: Long,
+    isPlaying: Boolean,
+    onSeek: (Long) -> Unit,
+    onPlayPauseClick: () -> Unit,
+    isShuffleOn: Boolean = false,
+    repeatMode: Int = Player.REPEAT_MODE_OFF,
+    onPreviousClick: () -> Unit = {},
+    onNextClick: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
+    onCycleRepeatMode: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        BeatReactiveMusicBar(
+            positionMs = positionState.value,
+            durationMs = durationMs,
+            isPlaying = isPlaying,
+            onSeek = onSeek,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        // Central Play/Pause Hero Button surrounded by Shuffle, Previous, Next, Repeat
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -350,17 +404,17 @@ fun NowPlayingScreen(
                 )
             }
 
-            // Hero Solid #171C26 Play/Pause Circle Button
+            // Central Play/Pause Hero Button
             Box(
                 modifier = Modifier
                     .size(72.dp)
                     .shadow(
-                        elevation = 14.dp,
+                        elevation = if (isPlaying) 16.dp else 8.dp,
                         shape = CircleShape,
-                        spotColor = CharcoalPrimary.copy(alpha = 0.35f)
+                        spotColor = NeonLimePrimary
                     )
                     .clip(CircleShape)
-                    .background(CharcoalPrimary)
+                    .background(NeonLimePrimary)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -371,8 +425,8 @@ fun NowPlayingScreen(
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = PureWhite,
-                    modifier = Modifier.size(34.dp)
+                    tint = OnNeonLime,
+                    modifier = Modifier.size(36.dp)
                 )
             }
 
@@ -399,35 +453,18 @@ fun NowPlayingScreen(
                 )
             }
         }
-
-        Spacer(Modifier.height(32.dp))
-
-        // ── Synced Lyrics Section ────────────────────────────────────────────
-        val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
-        val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
-        LyricsTab(
-            lyricsState = lyricsState,
-            positionMs = lyricsPositionState,
-            onSeek = onSeek,
-            onAddCustomLyrics = { showCustomLyricsDialog = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 180.dp, max = 360.dp)
-        )
-
-        Spacer(Modifier.height(32.dp))
     }
 }
 
 @Composable
-private fun EditorialWaveformSeekBar(
-    positionState: State<Long>,
+fun BeatReactiveMusicBar(
+    positionMs: Long,
     durationMs: Long,
-    songKey: String,
     isPlaying: Boolean,
-    onSeek: (Long) -> Unit
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    barCount: Int = 48
 ) {
-    val positionMs = positionState.value
     val duration = durationMs.coerceAtLeast(1L)
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
@@ -435,48 +472,151 @@ private fun EditorialWaveformSeekBar(
     val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
     val currentProgress = if (isDragging) dragProgress else actualProgress
 
-    val infiniteTransition = rememberInfiniteTransition(label = "waveformBeat")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "waveformPhase"
-    )
-    val beatPulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 450, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "beatPulse"
-    )
-    val isPlayingFactor by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0f,
-        animationSpec = tween(durationMillis = 350),
-        label = "isPlayingFactor"
-    )
+    // Current heights & peak-hold heights for each bar (physics state)
+    val barHeights = remember { FloatArray(barCount) { 0.15f } }
+    val barVelocities = remember { FloatArray(barCount) { 0f } }
+    val fftMagnitudes = remember { FloatArray(barCount) { 0f } }
+    var hasLiveVisualizer by remember { mutableStateOf(false) }
 
-    // Deterministic organic waveform bar heights like "Unsayable" in reference image
-    val barHeights = remember(songKey) {
-        val barCount = 54
-        val seed = songKey.hashCode()
-        FloatArray(barCount) { i ->
-            val env = sin((i.toFloat() / barCount) * Math.PI).toFloat()
-            val wave1 = abs(sin((i * 0.65f) + seed * 0.1f))
-            val wave2 = abs(sin((i * 1.35f) - seed * 0.05f))
-            (0.14f + (0.86f * env * (0.55f * wave1 + 0.45f * wave2))).coerceIn(0.12f, 1f)
+    // 1. Try attaching Android's real hardware Audio Visualizer (works if RECORD_AUDIO is granted)
+    DisposableEffect(isPlaying) {
+        var visualizer: android.media.audiofx.Visualizer? = null
+        if (isPlaying) {
+            try {
+                visualizer = android.media.audiofx.Visualizer(0).apply {
+                    captureSize = android.media.audiofx.Visualizer.getCaptureSizeRange()[0].coerceAtLeast(128)
+                    setDataCaptureListener(
+                        object : android.media.audiofx.Visualizer.OnDataCaptureListener {
+                            override fun onWaveFormDataCapture(
+                                v: android.media.audiofx.Visualizer?,
+                                waveform: ByteArray?,
+                                samplingRate: Int
+                            ) {}
+
+                            override fun onFftDataCapture(
+                                v: android.media.audiofx.Visualizer?,
+                                fft: ByteArray?,
+                                samplingRate: Int
+                            ) {
+                                if (fft == null || fft.size < 16) return
+                                var nonZeroSum = 0f
+                                val maxBins = (fft.size / 2).coerceAtLeast(1)
+                                for (i in 0 until barCount) {
+                                    val binIdx = ((i.toFloat() / barCount) * (maxBins * 0.65f)).toInt().coerceIn(1, maxBins - 1)
+                                    val re = fft[binIdx * 2].toInt()
+                                    val im = fft[binIdx * 2 + 1].toInt()
+                                    val mag = kotlin.math.sqrt((re * re + im * im).toFloat())
+                                    val normalized = (mag / 72f).coerceIn(0f, 1f)
+                                    fftMagnitudes[i] = normalized
+                                    nonZeroSum += normalized
+                                }
+                                hasLiveVisualizer = nonZeroSum > 0.08f
+                            }
+                        },
+                        android.media.audiofx.Visualizer.getMaxCaptureRate() / 2,
+                        false,
+                        true
+                    )
+                    enabled = true
+                }
+            } catch (_: Exception) {
+                hasLiveVisualizer = false
+            }
+        }
+        onDispose {
+            try {
+                visualizer?.enabled = false
+                visualizer?.release()
+            } catch (_: Exception) {}
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    // 2. 60/120 FPS Beat Physics Engine (Fast Attack + Gravity Decay + Multi-Band Kick/Snare/Vocal Simulation)
+    var frameTick by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(isPlaying) {
+        var lastNanos = 0L
+        var beatPhase = 0f
+        var kickImpulse = 0f
+        var snareImpulse = 0f
+        var subBassWave = 0f
+        var nextBeatInterval = 0.42f // Dynamic BPM interval so pattern never feels robotic
+
+        while (isPlaying) {
+            withFrameNanos { nanos ->
+                val dt = if (lastNanos == 0L) 0.016f else ((nanos - lastNanos) / 1_000_000_000f).coerceIn(0.004f, 0.05f)
+                lastNanos = nanos
+                beatPhase += dt
+                subBassWave += dt * 4.3f
+
+                // Trigger dynamic Kick & Snare impulses with organic syncopation
+                if (beatPhase >= nextBeatInterval) {
+                    beatPhase = 0f
+                    val rand = kotlin.random.Random.nextFloat()
+                    kickImpulse = 0.75f + rand * 0.25f
+                    if (rand > 0.45f) snareImpulse = 0.65f + (rand * 0.35f)
+                    // Vary interval between double-kick, groove, and drop beats
+                    nextBeatInterval = when {
+                        rand < 0.22f -> 0.21f // Fast double-kick beat!
+                        rand < 0.75f -> 0.43f // Main groove beat
+                        else -> 0.62f         // Syncopated drop
+                    }
+                } else {
+                    // Exponential decay of kick and snare energy
+                    kickImpulse *= kotlin.math.exp(-dt * 11f)
+                    snareImpulse *= kotlin.math.exp(-dt * 16f)
+                }
+
+                val playheadBar = (currentProgress * barCount).toInt().coerceIn(0, barCount - 1)
+
+                for (i in 0 until barCount) {
+                    val normPos = i.toFloat() / barCount
+                    val targetHeight = if (hasLiveVisualizer) {
+                        // Real hardware FFT frequency energy
+                        (0.14f + fftMagnitudes[i] * 0.86f).coerceIn(0.12f, 1f)
+                    } else {
+                        // Multi-band acoustic beat synthesis:
+                        // Center & left bars react strongly to Bass Kick; mid bars to Vocals; outer bars to Hi-Hats/Snare
+                        val centerDist = 1f - kotlin.math.abs(normPos - 0.5f) * 1.6f
+                        val playheadBoost = (1f - (kotlin.math.abs(i - playheadBar) / 6f).coerceIn(0f, 1f)) * 0.32f
+
+                        val bassBand = kickImpulse * centerDist.coerceIn(0.2f, 1f) *
+                            (0.6f + 0.4f * kotlin.math.abs(kotlin.math.sin(i * 0.9f + subBassWave)))
+                        val vocalMidBand = 0.35f * kotlin.math.abs(
+                            kotlin.math.sin(subBassWave * 1.7f + i * 0.55f) *
+                                kotlin.math.cos(subBassWave * 0.8f - i * 0.3f)
+                        )
+                        val hiHatBand = snareImpulse * (0.3f + 0.7f * kotlin.random.Random.nextFloat()) *
+                            (if (i % 2 == 0) 0.85f else 0.45f)
+
+                        (0.12f + bassBand * 0.55f + vocalMidBand + hiHatBand * 0.45f + playheadBoost)
+                            .coerceIn(0.12f, 1f)
+                    }
+
+                    // Fast attack when beat hits, smooth gravity fall when beat drops
+                    val current = barHeights[i]
+                    if (targetHeight > current) {
+                        barHeights[i] = current + (targetHeight - current) * (dt * 28f).coerceAtMost(0.85f)
+                        barVelocities[i] = 0f
+                    } else {
+                        barVelocities[i] += 2.8f * dt // gravity acceleration
+                        barHeights[i] = (current - barVelocities[i] * dt).coerceAtLeast(0.12f)
+                    }
+                }
+                frameTick = nanos
+            }
+        }
+        // Smoothly settle bars when paused
+        for (i in 0 until barCount) {
+            barHeights[i] = 0.16f
+        }
+        frameTick++
+    }
+
+    Column(modifier = modifier) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(58.dp)
                 .pointerInput(duration) {
                     detectTapGestures { offset ->
                         val p = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
@@ -500,33 +640,31 @@ private fun EditorialWaveformSeekBar(
                     )
                 }
         ) {
-            val totalBars = barHeights.size
-            val barWidth = 2.5.dp.toPx()
-            val totalSpacing = size.width - (totalBars * barWidth)
-            val gap = (totalSpacing / (totalBars - 1).coerceAtLeast(1)).coerceAtLeast(1f)
+            // Read frameTick inside Canvas draw scope so only Canvas redraws at 120 FPS
+            val unusedTick = frameTick
+            val barWidth = 3.2.dp.toPx()
+            val totalBarsWidth = barCount * barWidth
+            val gap = ((size.width - totalBarsWidth) / (barCount - 1).coerceAtLeast(1)).coerceAtLeast(1.5f)
             val centerY = size.height / 2f
             val activeX = currentProgress * size.width
 
-            for (i in 0 until totalBars) {
+            for (i in 0 until barCount) {
                 val x = i * (barWidth + gap)
-                val baseH = barHeights[i]
+                val amplitude = barHeights[i]
+                val barH = (amplitude * size.height).coerceAtLeast(5.dp.toPx())
+                val top = centerY - barH / 2f
                 val isPlayed = x <= activeX
+                val isNearPlayhead = kotlin.math.abs(x - activeX) < (barWidth + gap) * 2f
 
-                // Rhythmic up-and-down beat bounce when playing
-                val animFactor = if (isPlayingFactor > 0f) {
-                    val wave = sin(phase + i * 0.28f).toFloat()
-                    val secondary = sin(phase * 1.6f + i * 0.48f).toFloat()
-                    val modulation = (wave * 0.35f + secondary * 0.18f) * beatPulse
-                    (1f + modulation * isPlayingFactor).coerceAtLeast(0.2f)
-                } else {
-                    1f
+                // Played bars glow brighter when they jump high on a beat!
+                val barColor = when {
+                    isNearPlayhead -> if (NeonLimePrimary == PureWhite || NeonLimePrimary == CharcoalPrimary) CharcoalPrimary else Color.White
+                    isPlayed -> if (amplitude > 0.72f) NeonLimePrimary else NeonLimePrimary.copy(alpha = 0.85f)
+                    else -> OnSurfaceVariant.copy(alpha = 0.30f)
                 }
 
-                val barH = (baseH * size.height * animFactor).coerceIn(4.dp.toPx(), size.height)
-                val top = centerY - barH / 2f
-
                 drawRoundRect(
-                    color = if (isPlayed) CharcoalPrimary else SilverMuted.copy(alpha = 0.45f),
+                    color = barColor,
                     topLeft = Offset(x, top),
                     size = Size(barWidth, barH),
                     cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
@@ -540,22 +678,16 @@ private fun EditorialWaveformSeekBar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val displayedPos = if (isDragging) (dragProgress * duration).toLong() else positionMs
+            val displayedPositionMs = if (isDragging) (dragProgress * duration).toLong() else positionMs
             Text(
-                text = formatDuration(displayedPos),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                ),
-                color = CharcoalPrimary
+                text = formatDuration(displayedPositionMs),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurfaceVariant
             )
             Text(
                 text = formatDuration(duration),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp
-                ),
-                color = SilverMuted
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurfaceVariant
             )
         }
     }
