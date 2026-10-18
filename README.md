@@ -40,7 +40,7 @@
 <div align="center">
   <h3>✨ Design Overview & Hero Radial Controller</h3>
    <b>Home Screen</b><br/>
-  <img height ="600" width="260" alt="Home Screen" src="https://github.com/user-attachments/assets/d496d16d-b6a1-44d8-b49c-9c182e518a78" />
+  <img height ="600" width="260" alt="Home Screen" src="docs/screenshots/home_screen.jpg" />
 </div>
 
 <br/>
@@ -58,16 +58,20 @@
         <img src="docs/screenshots/downloads_screen.jpg" alt="Downloads Screen" width="100%" />
       </td>
       <td align="center" width="20%">
-        <b>Library (All Songs)</b><br/>
-        <img src="docs/screenshots/library_songs_screen.jpg" alt="Library All Songs" width="100%" />
+        <b>Playlist</b><br/>
+        <img src="docs/screenshots/playlist_screen.jpg" alt="Library All Songs" width="100%" />
       </td>
       <td align="center" width="20%">
         <b>Library (Playlists)</b><br/>
-        <img src="docs/screenshots/library_playlists_screen.jpg" alt="Library Playlists" width="100%" />
+        <img src="docs/screenshots/library_playlist_screen.jpg" alt="Library Playlists" width="100%" />
       </td>
       <td align="center" width="20%">
         <b>Online Search</b><br/>
         <img src="docs/screenshots/search_screen.jpg" alt="Online Search" width="100%" />
+      </td>
+      <td align="center" width="20%">
+        <b>Hotlist</b><br/>
+        <img src="docs/screenshots/hotlist_screen.jpg" alt="Hotlist" width="100%" />
       </td>
     </tr>
   </table>

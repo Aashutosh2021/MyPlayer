@@ -44,14 +44,15 @@ object NetworkModule {
             maxRequests = 128
             maxRequestsPerHost = 20
         }
-        val connectionPool = okhttp3.ConnectionPool(16, 5, TimeUnit.MINUTES)
+        val connectionPool = okhttp3.ConnectionPool(10, 5, TimeUnit.MINUTES)
 
         val builder = OkHttpClient.Builder()
             .dispatcher(dispatcher)
             .connectionPool(connectionPool)
             .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
 
         // Phase 13: Only log network traffic in debug builds.
         // In release, logging is COMPLETELY disabled.

@@ -123,6 +123,7 @@
 
 # Mozilla Rhino (Required to deobfuscate YouTube signatures & n-parameter)
 -keep class org.mozilla.javascript.** { *; }
+-keep interface org.mozilla.javascript.** { *; }
 -keep class org.mozilla.javascript.engine.** { *; }
 -keep class org.mozilla.classfile.** { *; }
 -keep class javax.script.** { *; }
@@ -130,6 +131,7 @@
 -dontwarn org.mozilla.classfile.**
 -dontwarn javax.script.**
 -dontwarn jdk.dynalink.**
+-dontwarn org.apache.**
 
 # NanoJSON (Used by NewPipe to parse YouTube JSON data)
 -keep class com.grack.nanojson.** { *; }

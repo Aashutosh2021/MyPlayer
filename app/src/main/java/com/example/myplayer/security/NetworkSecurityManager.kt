@@ -109,13 +109,10 @@ class NetworkSecurityManager @Inject constructor() {
 
     /**
      * Applies the certificate pinner to an existing [OkHttpClient].
-     * If pinning fails to configure, returns the original client unmodified
-     * (fail-open for availability).
+     * Returns the original client unmodified: System TrustManager and network_security_config.xml
+     * safely validate Google/YouTube CAs without breaking when Google rotates GTS root/intermediate certificates.
      */
     fun applyPinning(client: OkHttpClient, enabled: Boolean): OkHttpClient {
-        val pinner = buildCertificatePinner(enabled) ?: return client
-        return client.newBuilder()
-            .certificatePinner(pinner)
-            .build()
+        return client
     }
 }
