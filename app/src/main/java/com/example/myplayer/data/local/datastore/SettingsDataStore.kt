@@ -27,6 +27,7 @@ open class SettingsDataStore internal constructor(
     companion object {
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val USER_NAME = stringPreferencesKey("user_display_name")
+        val DARK_MODE = booleanPreferencesKey("dark_mode_enabled")
     }
 
     open val isAutoplayEnabled: Flow<Boolean> = dataStore?.data?.map { preferences ->
@@ -46,6 +47,16 @@ open class SettingsDataStore internal constructor(
     suspend fun setUserName(name: String) {
         dataStore?.edit { preferences ->
             preferences[USER_NAME] = name.trim().ifBlank { "User" }
+        }
+    }
+
+    open val isDarkMode: Flow<Boolean> = dataStore?.data?.map { preferences ->
+        preferences[DARK_MODE] ?: false
+    } ?: kotlinx.coroutines.flow.flowOf(false)
+
+    suspend fun setDarkMode(enabled: Boolean) {
+        dataStore?.edit { preferences ->
+            preferences[DARK_MODE] = enabled
         }
     }
 }

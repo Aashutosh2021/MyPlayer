@@ -2,6 +2,7 @@ package com.example.myplayer.ui.theme
 
 import android.app.Activity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -32,21 +33,48 @@ private val EditorialLightColorScheme = lightColorScheme(
     onError            = PureWhite
 )
 
+private val EditorialDarkColorScheme = darkColorScheme(
+    primary            = PureWhite,
+    onPrimary          = CharcoalPrimary,
+    primaryContainer   = Color(0xFF263346),
+    onPrimaryContainer = PureWhite,
+    secondary          = SilverMuted,
+    onSecondary        = CharcoalPrimary,
+    secondaryContainer = Color(0xFF1C2330),
+    onSecondaryContainer = PureWhite,
+    tertiary           = SlateSecondary,
+    onTertiary         = PureWhite,
+    background         = CharcoalPrimary,
+    onBackground       = PureWhite,
+    surface            = CharcoalPrimary,
+    onSurface          = PureWhite,
+    surfaceVariant     = Color(0xFF1F2633),
+    onSurfaceVariant   = SilverMuted,
+    outline            = Color(0xFF384355),
+    outlineVariant     = Color(0xFF263040),
+    error              = Color(0xFFFF5252),
+    onError            = PureWhite
+)
+
 @Composable
 fun MyPlayerTheme(
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
+    val colorScheme = if (darkTheme) EditorialDarkColorScheme else EditorialLightColorScheme
+
     MaterialTheme(
-        colorScheme = EditorialLightColorScheme,
+        colorScheme = colorScheme,
         typography  = Typography,
         content     = content
     )

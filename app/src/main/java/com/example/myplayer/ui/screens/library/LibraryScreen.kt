@@ -337,11 +337,11 @@ fun HybridSongsTab(
     if (songs.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.LibraryMusic, null, modifier = Modifier.size(48.dp), tint = SilverMuted)
+                Icon(Icons.Filled.LibraryMusic, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(16.dp))
-                Text("No songs yet", style = MaterialTheme.typography.titleMedium, color = CharcoalPrimary)
+                Text("No songs yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(6.dp))
-                Text("Download songs online or search to add music", style = MaterialTheme.typography.bodyMedium, color = SlateSecondary)
+                Text("Download songs online or search to add music", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         return
@@ -366,9 +366,9 @@ fun HybridSongsTab(
                 Box(
                     modifier = Modifier
                         .size(112.dp)
-                        .shadow(12.dp, RoundedCornerShape(22.dp), spotColor = CharcoalPrimary.copy(alpha = 0.2f))
+                        .shadow(12.dp, RoundedCornerShape(22.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                         .clip(RoundedCornerShape(22.dp))
-                        .background(SoftGraySurface)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     AlbumArtImage(
                         uri = heroSong.thumbnailUrl,
@@ -386,7 +386,7 @@ fun HybridSongsTab(
                     Text(
                         text = "Collection • ${songs.size} songs",
                         style = MaterialTheme.typography.labelSmall,
-                        color = SilverMuted
+                        color = MaterialTheme.colorScheme.outline
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -395,7 +395,7 @@ fun HybridSongsTab(
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 26.sp
                         ),
-                        color = CharcoalPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -403,7 +403,7 @@ fun HybridSongsTab(
                     Text(
                         text = heroSong.artist,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SlateSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -424,14 +424,14 @@ fun HybridSongsTab(
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CharcoalPrimary,
-                        contentColor = PureWhite
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                 ) {
                     Icon(Icons.Filled.PlayCircleOutline, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    Text("Play", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onPrimary)
                 }
 
                 Button(
@@ -444,14 +444,14 @@ fun HybridSongsTab(
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SoftGraySurface,
-                        contentColor = CharcoalPrimary
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                 ) {
-                    Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
-                    Text("Shuffle", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("Shuffle", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
 
@@ -500,7 +500,7 @@ fun HybridSongItem(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             ),
-            color = SlateSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(34.dp)
         )
 
@@ -511,7 +511,7 @@ fun HybridSongItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = CharcoalPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -519,7 +519,7 @@ fun HybridSongItem(
             Text(
                 text = "${song.artist}$durationFormatted",
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                color = SlateSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -530,7 +530,7 @@ fun HybridSongItem(
                 Icon(
                     Icons.Filled.MoreHoriz,
                     contentDescription = "More",
-                    tint = SilverMuted,
+                    tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -538,11 +538,11 @@ fun HybridSongItem(
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
-                    modifier = Modifier.background(PureWhite)
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Add to Playlist", color = CharcoalPrimary) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = SlateSecondary) },
+                        text = { Text("Add to Playlist", color = MaterialTheme.colorScheme.onSurface) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         onClick = { showMenu = false; onAddToPlaylist() }
                     )
                     if (song is PlayableSong.Downloaded) {

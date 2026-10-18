@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.myplayer.data.local.entity.SongEntity
+import com.example.myplayer.ui.theme.CharcoalPrimary
+import com.example.myplayer.ui.theme.PureWhite
+import com.example.myplayer.ui.theme.SlateSecondary
+import com.example.myplayer.ui.theme.SilverMuted
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -99,6 +103,20 @@ fun NowPlayingVisual(
         label = "radialProgress"
     )
 
+    val isDark = MaterialTheme.colorScheme.background == CharcoalPrimary
+
+    val bgMain = if (isDark) PlayerBlack else PureWhite
+    val textPrimary = if (isDark) PlayerWhite else CharcoalPrimary
+    val textMuted = if (isDark) PlayerMuted else SlateSecondary
+    val controlPrimary = if (isDark) PlayerWhite else CharcoalPrimary
+    val trackInactive = if (isDark) PlayerGrey.copy(alpha = 0.35f) else Color(0xFFD6DBE4)
+    val playBtnBg = if (isDark) PlayerWhite else CharcoalPrimary
+    val playBtnIcon = if (isDark) PlayerBlack else PureWhite
+    val pillBtnBg = if (isDark) PlayerSurface else Color(0xFFEEF2F6)
+    val topBtnBg = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.85f)
+    val topBtnBorder = if (isDark) PlayerWhite.copy(alpha = 0.22f) else CharcoalPrimary.copy(alpha = 0.15f)
+    val topBtnTint = if (isDark) PlayerWhite else CharcoalPrimary
+
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val scrollState = rememberScrollState()
@@ -107,7 +125,7 @@ fun NowPlayingVisual(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(PlayerBlack)
+            .background(bgMain)
             .verticalScroll(scrollState)
     ) {
         // ── 1. Hero Player Viewport (Fills initial screen height) ─────────────
@@ -135,7 +153,11 @@ fun NowPlayingVisual(
                         .align(Alignment.TopCenter)
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(Color(0xFF2B374A), PlayerDarkNavy, PlayerBlack),
+                                colors = if (isDark) {
+                                    listOf(Color(0xFF2B374A), PlayerDarkNavy, PlayerBlack)
+                                } else {
+                                    listOf(Color(0xFFDCE2EC), Color(0xFFEEF2F6), PureWhite)
+                                },
                                 radius = 600f
                             )
                         ),
@@ -144,13 +166,13 @@ fun NowPlayingVisual(
                     Icon(
                         imageVector = Icons.Filled.MusicNote,
                         contentDescription = null,
-                        tint = PlayerMuted.copy(alpha = 0.35f),
+                        tint = textMuted.copy(alpha = 0.35f),
                         modifier = Modifier.size(96.dp)
                     )
                 }
             }
 
-            // Cinematic Dark Gradient Overlay (blends artwork smoothly into background)
+            // Cinematic Gradient Overlay (blends artwork smoothly into background)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,11 +181,11 @@ fun NowPlayingVisual(
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0f to PlayerBlack.copy(alpha = 0.40f),
+                                0f to bgMain.copy(alpha = 0.40f),
                                 0.22f to Color.Transparent,
-                                0.50f to PlayerBlack.copy(alpha = 0.45f),
-                                0.78f to PlayerBlack.copy(alpha = 0.88f),
-                                1f to PlayerBlack
+                                0.50f to bgMain.copy(alpha = 0.45f),
+                                0.78f to bgMain.copy(alpha = 0.88f),
+                                1f to bgMain
                             )
                         )
                     )
@@ -184,11 +206,11 @@ fun NowPlayingVisual(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .border(BorderStroke(1.dp, PlayerWhite.copy(alpha = 0.22f)), CircleShape)
+                        .background(topBtnBg)
+                        .border(BorderStroke(1.dp, topBtnBorder), CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = PlayerWhite),
+                            indication = ripple(color = controlPrimary),
                             onClick = onBack
                         ),
                     contentAlignment = Alignment.Center
@@ -196,7 +218,7 @@ fun NowPlayingVisual(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "Back",
-                        tint = PlayerWhite,
+                        tint = topBtnTint,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -206,11 +228,11 @@ fun NowPlayingVisual(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .border(BorderStroke(1.dp, PlayerWhite.copy(alpha = 0.22f)), CircleShape)
+                        .background(topBtnBg)
+                        .border(BorderStroke(1.dp, topBtnBorder), CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = PlayerWhite),
+                            indication = ripple(color = controlPrimary),
                             onClick = onOptions
                         ),
                     contentAlignment = Alignment.Center
@@ -218,7 +240,7 @@ fun NowPlayingVisual(
                     Icon(
                         imageVector = Icons.Filled.MoreHoriz,
                         contentDescription = "Options",
-                        tint = PlayerWhite,
+                        tint = topBtnTint,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -235,7 +257,7 @@ fun NowPlayingVisual(
             ) {
                 Text(
                     text = title?.ifBlank { "No song playing" } ?: "No song playing",
-                    color = PlayerWhite,
+                    color = textPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -245,7 +267,7 @@ fun NowPlayingVisual(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = artist?.ifBlank { "Unknown Artist" } ?: "Unknown Artist",
-                    color = PlayerMuted,
+                    color = textMuted,
                     fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -360,15 +382,23 @@ fun NowPlayingVisual(
                         close()
                     }
 
-                    // Fill dome with deep dark radial gradient
+                    // Fill dome with radial gradient
                     drawPath(
                         path = domePath,
                         brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF263346),
-                                PlayerDarkNavy,
-                                PlayerBlack
-                            ),
+                            colors = if (isDark) {
+                                listOf(
+                                    Color(0xFF263346),
+                                    PlayerDarkNavy,
+                                    PlayerBlack
+                                )
+                            } else {
+                                listOf(
+                                    Color(0xFFDCE2EC),
+                                    Color(0xFFEEF2F6),
+                                    PureWhite
+                                )
+                            },
                             center = Offset(cx, cy * 0.75f),
                             radius = radius * 1.3f
                         )
@@ -376,7 +406,7 @@ fun NowPlayingVisual(
 
                     // B. Subtle outer edge rim on the dome boundary
                     drawArc(
-                        color = PlayerWhite.copy(alpha = 0.08f),
+                        color = if (isDark) PlayerWhite.copy(alpha = 0.08f) else CharcoalPrimary.copy(alpha = 0.08f),
                         startAngle = edgeAngleLeft,
                         sweepAngle = edgeSweep,
                         useCenter = false,
@@ -387,7 +417,7 @@ fun NowPlayingVisual(
 
                     // C. Inactive Music Bar Track on the Dome Circle Border
                     drawArc(
-                        color = PlayerGrey.copy(alpha = 0.35f),
+                        color = trackInactive,
                         startAngle = startAngle,
                         sweepAngle = sweepAngle,
                         useCenter = false,
@@ -398,7 +428,7 @@ fun NowPlayingVisual(
 
                     // D. Active Played Arc Track on the Dome Circle Border
                     drawArc(
-                        color = PlayerWhite,
+                        color = controlPrimary,
                         startAngle = startAngle,
                         sweepAngle = sweepAngle * animatedProgress,
                         useCenter = false,
@@ -407,7 +437,7 @@ fun NowPlayingVisual(
                         style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
-                    // E. Glowing White Circular Thumb Knob on the Circle Border
+                    // E. Circular Thumb Knob on the Circle Border
                     val currentAngleDeg = startAngle + (sweepAngle * animatedProgress)
                     val rad = Math.toRadians(currentAngleDeg.toDouble())
                     val thumbX = cx + radius * cos(rad).toFloat()
@@ -415,13 +445,13 @@ fun NowPlayingVisual(
 
                     // Thumb outer ambient halo
                     drawCircle(
-                        color = GlowCyan.copy(alpha = 0.45f),
+                        color = if (isDark) GlowCyan.copy(alpha = 0.45f) else CharcoalPrimary.copy(alpha = 0.25f),
                         radius = 12.dp.toPx(),
                         center = Offset(thumbX, thumbY)
                     )
-                    // Thumb solid white core
+                    // Thumb solid core
                     drawCircle(
-                        color = PlayerWhite,
+                        color = if (isDark) PlayerWhite else CharcoalPrimary,
                         radius = 7.dp.toPx(),
                         center = Offset(thumbX, thumbY)
                     )
@@ -438,7 +468,7 @@ fun NowPlayingVisual(
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) Color(0xFFFF5252) else PlayerWhite.copy(alpha = 0.70f),
+                        tint = if (isFavorite) Color(0xFFFF5252) else controlPrimary.copy(alpha = 0.70f),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -458,17 +488,17 @@ fun NowPlayingVisual(
                         modifier = Modifier
                             .size(46.dp)
                             .clip(CircleShape)
-                            .background(PlayerSurface)
+                            .background(pillBtnBg)
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    if (isShuffleEnabled) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
+                                    if (isShuffleEnabled) controlPrimary.copy(alpha = 0.45f) else controlPrimary.copy(alpha = 0.12f)
                                 ),
                                 CircleShape
                             )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = PlayerWhite),
+                                indication = ripple(color = controlPrimary),
                                 onClick = onShuffle
                             ),
                         contentAlignment = Alignment.Center
@@ -476,7 +506,7 @@ fun NowPlayingVisual(
                         Icon(
                             imageVector = Icons.Filled.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = if (isShuffleEnabled) PlayerWhite else PlayerMuted,
+                            tint = if (isShuffleEnabled) controlPrimary else textMuted,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -487,7 +517,7 @@ fun NowPlayingVisual(
                             .width(46.dp)
                             .height(7.dp)
                             .clip(RoundedCornerShape(3.5.dp))
-                            .background(AccentPillColor.copy(alpha = 0.70f))
+                            .background(if (isDark) AccentPillColor.copy(alpha = 0.70f) else Color(0xFF88B8E6).copy(alpha = 0.50f))
                     )
 
                     // Circular Repeat Button
@@ -495,17 +525,17 @@ fun NowPlayingVisual(
                         modifier = Modifier
                             .size(46.dp)
                             .clip(CircleShape)
-                            .background(PlayerSurface)
+                            .background(pillBtnBg)
                             .border(
                                 BorderStroke(
                                     1.dp,
-                                    if (repeatMode > 0) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
+                                    if (repeatMode > 0) controlPrimary.copy(alpha = 0.45f) else controlPrimary.copy(alpha = 0.12f)
                                 ),
                                 CircleShape
                             )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = PlayerWhite),
+                                indication = ripple(color = controlPrimary),
                                 onClick = onRepeat
                             ),
                         contentAlignment = Alignment.Center
@@ -514,7 +544,7 @@ fun NowPlayingVisual(
                         Icon(
                             imageVector = repeatIcon,
                             contentDescription = "Repeat",
-                            tint = if (repeatMode > 0) PlayerWhite else PlayerMuted,
+                            tint = if (repeatMode > 0) controlPrimary else textMuted,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -538,7 +568,7 @@ fun NowPlayingVisual(
                         Icon(
                             imageVector = Icons.Filled.SkipPrevious,
                             contentDescription = "Previous",
-                            tint = PlayerWhite,
+                            tint = controlPrimary,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -551,40 +581,48 @@ fun NowPlayingVisual(
                         Canvas(Modifier.fillMaxSize()) {
                             drawCircle(
                                 brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        GlowCyan.copy(alpha = 0.38f),
-                                        Color(0xFF263346).copy(alpha = 0.22f),
-                                        Color.Transparent
-                                    )
+                                    colors = if (isDark) {
+                                        listOf(
+                                            GlowCyan.copy(alpha = 0.38f),
+                                            Color(0xFF263346).copy(alpha = 0.22f),
+                                            Color.Transparent
+                                        )
+                                    } else {
+                                        listOf(
+                                            Color(0xFFB0C4DE).copy(alpha = 0.40f),
+                                            Color(0xFFD6DBE4).copy(alpha = 0.22f),
+                                            Color.Transparent
+                                        )
+                                    }
                                 )
                             )
                             drawCircle(
-                                color = GlowCyan.copy(alpha = 0.45f),
+                                color = if (isDark) GlowCyan.copy(alpha = 0.45f) else CharcoalPrimary.copy(alpha = 0.20f),
                                 style = Stroke(1.5.dp.toPx()),
                                 radius = size.minDimension * 0.46f
                             )
                             drawCircle(
-                                color = PlayerWhite.copy(alpha = 0.25f),
+                                color = if (isDark) PlayerWhite.copy(alpha = 0.25f) else CharcoalPrimary.copy(alpha = 0.10f),
                                 style = Stroke(1.dp.toPx()),
                                 radius = size.minDimension * 0.41f
                             )
                         }
 
-                        // Inner Solid White Circle Button
+                        // Inner Solid Circle Button
                         Box(
                             modifier = Modifier
                                 .size(78.dp)
                                 .shadow(
                                     elevation = 22.dp,
                                     shape = CircleShape,
-                                    spotColor = GlowCyan,
-                                    ambientColor = PlayerWhite.copy(alpha = 0.5f)
+                                    spotColor = if (isDark) GlowCyan else Color(0x33000000),
+                                    ambientColor = if (isDark) PlayerWhite.copy(alpha = 0.5f) else Color(0x1A000000)
                                 )
                                 .clip(CircleShape)
-                                .background(PlayerWhite)
+                                .background(playBtnBg)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(color = PlayerBlack),
+                                    indication = ripple(color = playBtnIcon),
                                     onClick = onPlayPause
                                 ),
                             contentAlignment = Alignment.Center
@@ -592,7 +630,7 @@ fun NowPlayingVisual(
                             Icon(
                                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = PlayerBlack,
+                                tint = playBtnIcon,
                                 modifier = Modifier.size(38.dp)
                             )
                         }
@@ -606,7 +644,7 @@ fun NowPlayingVisual(
                         Icon(
                             imageVector = Icons.Filled.SkipNext,
                             contentDescription = "Next",
-                            tint = PlayerWhite,
+                            tint = controlPrimary,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -624,13 +662,13 @@ fun NowPlayingVisual(
                     val currentPos = if (isDraggingProgress) (dragFraction * duration).toLong() else positionMs
                     Text(
                         text = formatTime(currentPos),
-                        color = PlayerWhite,
+                        color = textPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = formatTime(duration),
-                        color = PlayerMuted,
+                        color = textMuted,
                         fontSize = 12.sp
                     )
                 }
@@ -655,13 +693,13 @@ fun NowPlayingVisual(
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowUp,
                         contentDescription = "Swipe up for lyrics",
-                        tint = PlayerMuted.copy(alpha = 0.85f),
+                        tint = textMuted.copy(alpha = 0.85f),
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "SWIPE UP FOR LYRICS",
-                        color = PlayerMuted,
+                        color = textMuted,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 2.sp
@@ -686,13 +724,13 @@ fun NowPlayingVisual(
                 Icon(
                     imageVector = Icons.Filled.Lyrics,
                     contentDescription = null,
-                    tint = PlayerWhite,
+                    tint = textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Lyrics",
-                    color = PlayerWhite,
+                    color = textPrimary,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold
                 )

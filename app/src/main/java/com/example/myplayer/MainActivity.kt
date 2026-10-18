@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.myplayer.data.local.datastore.SettingsDataStore
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.data.update.UpdateInfo
 import com.example.myplayer.data.update.UpdateNotifier
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var updateChecker: UpdateChecker
     @Inject lateinit var updateNotifier: UpdateNotifier
+    @Inject lateinit var settingsDataStore: SettingsDataStore
 
     private var launchUpdateAvailable by mutableStateOf<UpdateInfo?>(null)
 
@@ -66,7 +69,8 @@ class MainActivity : ComponentActivity() {
         checkForUpdatesOnLaunch()
 
         setContent {
-            MyPlayerTheme {
+            val isDarkMode by settingsDataStore.isDarkMode.collectAsStateWithLifecycle(initialValue = false)
+            MyPlayerTheme(darkTheme = isDarkMode) {
                 MainScreen()
 
                 launchUpdateAvailable?.let { update ->

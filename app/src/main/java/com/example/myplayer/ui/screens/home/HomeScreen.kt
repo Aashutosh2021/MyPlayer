@@ -90,13 +90,13 @@ fun HomeScreen(
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = CardBorderOlive,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Your Name", color = TextMuted) }
+                        placeholder = { Text("Your Name", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     )
                 }
             },
@@ -135,7 +135,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
         contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
     ) {
@@ -175,17 +175,18 @@ fun HomeScreen(
                     }
                 }
 
+                val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
-                        .clickable(onClick = onNavigateToSettings),
+                        .clickable { viewModel.toggleDarkMode() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Settings",
+                        imageVector = if (isDarkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                        contentDescription = if (isDarkMode) "Switch to Day Mode" else "Switch to Night Mode",
                         tint = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.size(20.dp)
                     )
@@ -252,7 +253,7 @@ fun HomeScreen(
                             .clip(RoundedCornerShape(24.dp))
                             .background(pillBg)
                             .then(
-                                if (!isSelected) Modifier.border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(24.dp))
+                                if (!isSelected) Modifier.border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(24.dp))
                                 else Modifier
                             )
                             .clickable { viewModel.selectCategory(category) }
@@ -285,7 +286,7 @@ fun HomeScreen(
                         Text(
                             text = "Jump Back In",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -326,12 +327,12 @@ fun HomeScreen(
                     Text(
                         text = "Your Quick Mixes",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Updated today",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Secondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -409,7 +410,7 @@ fun HomeScreen(
                     Text(
                         text = "Recommended For You",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Button(
                         onClick = {
@@ -422,14 +423,14 @@ fun HomeScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryContainer,
-                            contentColor = PureWhite
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         modifier = Modifier.height(34.dp)
                     ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(4.dp))
                         Text("Play all", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -488,14 +489,14 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(CircleShape)
-                                .background(SurfaceContainerLow)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { viewModel.selectCategory("All") },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back to All",
-                                tint = OnSurface,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -503,7 +504,7 @@ fun HomeScreen(
                         Text(
                             text = selectedCategory,
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -514,8 +515,8 @@ fun HomeScreen(
                                 onNavigateToNowPlaying()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Primary,
-                                contentColor = PureWhite
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             shape = RoundedCornerShape(20.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
@@ -542,12 +543,12 @@ fun HomeScreen(
                         Text(
                             text = "Downloaded",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = OnSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "${displayedDownloadedSongs.size} songs",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = Primary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -584,7 +585,7 @@ fun HomeScreen(
                             .padding(horizontal = 24.dp, vertical = 8.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(MaterialTheme.colorScheme.surface)
-                            .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(16.dp))
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(16.dp))
                             .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -624,14 +625,14 @@ fun HomeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
-                                color = Primary,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(Modifier.height(10.dp))
                             Text(
                                 text = "Loading $selectedCategory tracks...",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Secondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -740,7 +741,7 @@ private fun RecommendationPlaceholderCard() {
             .width(156.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(BorderStroke(1.dp, CardBorderOlive), RoundedCornerShape(20.dp))
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(20.dp))
             .padding(12.dp)
     ) {
         Column {
@@ -785,7 +786,7 @@ private fun RecommendedSongCard(
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
                 ),
                 RoundedCornerShape(20.dp)
             )
@@ -863,7 +864,7 @@ private fun DarkRecommendationListItem(
             .slidePopIn(index)
             .padding(horizontal = 20.dp, vertical = 3.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isPlaying) SoftGraySurface else Color.Transparent)
+            .background(if (isPlaying) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
             .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -876,14 +877,14 @@ private fun DarkRecommendationListItem(
                 Icon(
                     Icons.Filled.Equalizer,
                     contentDescription = "Playing",
-                    tint = CharcoalPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             } else {
                 Text(
                     text = "%02d".format(index + 1),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = SlateSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -895,7 +896,7 @@ private fun DarkRecommendationListItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = CharcoalPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -903,7 +904,7 @@ private fun DarkRecommendationListItem(
             Text(
                 text = "${song.artist}$durText",
                 style = MaterialTheme.typography.bodySmall,
-                color = SlateSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -912,7 +913,7 @@ private fun DarkRecommendationListItem(
         Icon(
             Icons.Filled.MoreHoriz,
             contentDescription = null,
-            tint = SilverMuted,
+            tint = MaterialTheme.colorScheme.outline,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -935,7 +936,7 @@ private fun PopularSongCard(
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
                 ),
                 RoundedCornerShape(20.dp)
             )
@@ -1013,7 +1014,7 @@ private fun FavoriteSongCard(
             .border(
                 BorderStroke(
                     1.dp,
-                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else CardBorderOlive
+                    if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
                 ),
                 RoundedCornerShape(18.dp)
             )
@@ -1078,7 +1079,7 @@ private fun DarkSongListItem(
             .slidePopIn(index)
             .padding(horizontal = 20.dp, vertical = 3.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isPlaying) SoftGraySurface else Color.Transparent)
+            .background(if (isPlaying) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
             .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1091,14 +1092,14 @@ private fun DarkSongListItem(
                 Icon(
                     Icons.Filled.Equalizer,
                     contentDescription = "Playing",
-                    tint = CharcoalPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             } else {
                 Text(
                     text = "%02d".format(index + 1),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = SlateSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1110,7 +1111,7 @@ private fun DarkSongListItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = CharcoalPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1118,7 +1119,7 @@ private fun DarkSongListItem(
             Text(
                 text = "${song.artist}$durText",
                 style = MaterialTheme.typography.bodySmall,
-                color = SlateSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1127,7 +1128,7 @@ private fun DarkSongListItem(
         Icon(
             Icons.Filled.MoreHoriz,
             contentDescription = null,
-            tint = SilverMuted,
+            tint = MaterialTheme.colorScheme.outline,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -1148,7 +1149,7 @@ private fun DarkEmptyState() {
                 .size(80.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface)
-                .border(BorderStroke(1.dp, CardBorderOlive), CircleShape),
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1248,13 +1249,13 @@ private fun JumpBackInCard(
                     .size(40.dp)
                     .shadow(6.dp, CircleShape, spotColor = Color(0x33000000))
                     .clip(CircleShape)
-                    .background(PureWhite),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = null,
-                    tint = Primary,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -1265,7 +1266,7 @@ private fun JumpBackInCard(
                     .align(Alignment.TopStart)
                     .padding(8.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(PrimaryContainer.copy(alpha = 0.85f))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f))
                     .padding(horizontal = 7.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1280,7 +1281,7 @@ private fun JumpBackInCard(
                     text = "Recent",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    color = PureWhite
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
@@ -1290,14 +1291,14 @@ private fun JumpBackInCard(
         Text(
             text = song.title,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = OnSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
             text = song.artist,
             style = MaterialTheme.typography.bodySmall,
-            color = Secondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1317,7 +1318,7 @@ private fun QuickMixBentoTile(
         modifier = modifier
             .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
             .clip(RoundedCornerShape(16.dp))
-            .background(SurfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .bouncyPopClick(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -1335,13 +1336,13 @@ private fun QuickMixBentoTile(
                         .size(38.dp)
                         .shadow(2.dp, RoundedCornerShape(10.dp), spotColor = Color(0x0C000000))
                         .clip(RoundedCornerShape(10.dp))
-                        .background(PureWhite),
+                        .background(MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Primary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1349,14 +1350,14 @@ private fun QuickMixBentoTile(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(PureWhite)
+                        .background(MaterialTheme.colorScheme.surface)
                         .clickable(onClick = onPlayClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = "Play Mix",
-                        tint = OnSurface,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -1367,7 +1368,7 @@ private fun QuickMixBentoTile(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = OnSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1375,7 +1376,7 @@ private fun QuickMixBentoTile(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Secondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1398,7 +1399,7 @@ private fun StitchTrackRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isPlaying) SurfaceContainerLow else Color.Transparent)
+            .background(if (isPlaying) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
             .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1407,7 +1408,7 @@ private fun StitchTrackRow(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(SurfaceContainerHigh),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             AlbumArtImage(
@@ -1424,10 +1425,10 @@ private fun StitchTrackRow(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(Primary.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    AnimatedEqualizerBars(modifier = Modifier.size(18.dp), color = PureWhite)
+                    AnimatedEqualizerBars(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
@@ -1441,7 +1442,7 @@ private fun StitchTrackRow(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold
                     ),
-                    color = OnSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1451,7 +1452,7 @@ private fun StitchTrackRow(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Primary)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }
@@ -1459,7 +1460,7 @@ private fun StitchTrackRow(
             Text(
                 text = "$artist${if (!album.isNullOrBlank()) " • $album" else ""}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Secondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1471,7 +1472,7 @@ private fun StitchTrackRow(
             Text(
                 text = String.format("%d:%02d", minutes, seconds),
                 style = MaterialTheme.typography.labelSmall,
-                color = Secondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 6.dp)
             )
         }
@@ -1483,7 +1484,7 @@ private fun StitchTrackRow(
             Icon(
                 imageVector = Icons.Filled.MoreVert,
                 contentDescription = "More",
-                tint = Secondary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp)
             )
         }

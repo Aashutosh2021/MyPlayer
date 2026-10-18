@@ -86,7 +86,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = CloudBlueBackground,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showNav) {

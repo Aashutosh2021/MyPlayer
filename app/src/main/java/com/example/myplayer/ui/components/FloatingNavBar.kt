@@ -50,9 +50,9 @@ fun FloatingNavBar(
         modifier = modifier
             .fillMaxWidth()
             .offset(y = (-14).dp)
-            .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), spotColor = CharcoalPrimary.copy(alpha = 0.12f))
+            .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), spotColor = androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
             .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-            .background(PureWhite)
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
             .navigationBarsPadding()
             .padding(top = 12.dp, bottom = 10.dp, start = 12.dp, end = 12.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -61,7 +61,7 @@ fun FloatingNavBar(
         bottomNavItems.forEach { item ->
             val isSelected = currentRoute == item.route
             val tint by animateColorAsState(
-                targetValue = if (isSelected) CharcoalPrimary else SilverMuted,
+                targetValue = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.secondary,
                 animationSpec = tween(180),
                 label = "navTint_${item.route}"
             )

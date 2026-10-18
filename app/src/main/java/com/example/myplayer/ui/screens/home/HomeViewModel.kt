@@ -156,6 +156,15 @@ class HomeViewModel @Inject constructor(
     val userName: StateFlow<String> = settingsDataStore.userName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
 
+    val isDarkMode: StateFlow<Boolean> = settingsDataStore.isDarkMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun toggleDarkMode() {
+        viewModelScope.launch {
+            settingsDataStore.setDarkMode(!isDarkMode.value)
+        }
+    }
+
     private val downloadedEntities: Flow<List<SongEntity>> = downloadRepository.getAllDownloads()
         .map { list ->
             list.map { d ->
