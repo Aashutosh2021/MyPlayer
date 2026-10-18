@@ -1,4 +1,4 @@
-﻿package com.example.myplayer.ui.screens.nowplaying
+package com.example.myplayer.ui.screens.nowplaying
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -53,7 +54,7 @@ fun LyricsTab(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(CloudBlueBackground),
+            .background(Color.Transparent),
         contentAlignment = Alignment.TopCenter
     ) {
         when (lyricsState) {
@@ -65,20 +66,21 @@ fun LyricsTab(
                     verticalArrangement = Arrangement.Center
                 ) {
                     if (lyricsState is LyricsUiState.Loading) {
-                        CircularProgressIndicator(color = ClayPrimary, modifier = Modifier.size(40.dp))
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.height(16.dp))
-                        Text("Fetching lyrics...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Fetching lyrics...", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.7f))
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
-                                .clayConcave(borderRadius = 40.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.08f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Filled.MusicNote, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(32.dp))
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text("Play a song to see lyrics", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Play a song to see lyrics", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.7f))
                     }
                 }
             }
@@ -93,20 +95,22 @@ fun LyricsTab(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
-                            .clayConcave(borderRadius = 36.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.MusicNote, null, tint = TextMuted, modifier = Modifier.size(32.dp))
+                        Icon(Icons.Filled.MusicNote, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(32.dp))
                     }
                     Spacer(Modifier.height(14.dp))
-                    Text("No lyrics found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text("No lyrics found", style = MaterialTheme.typography.titleMedium, color = Color.White)
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "Lyrics not available online for this song",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.White.copy(alpha = 0.6f)
                     )
+                    Spacer(Modifier.height(16.dp))
                     // Retry + Add Custom Lyrics Buttons Row
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -115,8 +119,8 @@ fun LyricsTab(
                         Button(
                             onClick = onRetryLyrics,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.surface
+                                containerColor = Color.White.copy(alpha = 0.15f),
+                                contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
@@ -138,9 +142,9 @@ fun LyricsTab(
                         OutlinedButton(
                             onClick = onAddCustomLyrics,
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary
+                                contentColor = Color.White
                             ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                         ) {
@@ -153,7 +157,8 @@ fun LyricsTab(
                             Text(
                                 "Add Custom",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                         }
                     }
@@ -181,7 +186,7 @@ fun LyricsTab(
                     Icon(
                         Icons.Filled.Edit,
                         contentDescription = "Edit Lyrics",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        tint = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -243,9 +248,9 @@ private fun SyncedLyricsView(
             )
             val color by animateColorAsState(
                 targetValue = when {
-                    isActive -> ClayPrimary
-                    isPast -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                    isActive -> Color.White
+                    isPast -> Color.White.copy(alpha = 0.55f)
+                    else -> Color.White.copy(alpha = 0.35f)
                 },
                 animationSpec = tween(300),
                 label = "lyricColor"
@@ -289,8 +294,8 @@ private fun PlainLyricsView(text: String) {
         items(linesOfText.size, key = { "plain_$it" }) { i ->
             Text(
                 text = linesOfText[i],
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 26.sp),
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
