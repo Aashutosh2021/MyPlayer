@@ -1,37 +1,38 @@
 package com.example.myplayer.ui.screens.nowplaying
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,11 +40,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.myplayer.data.local.entity.SongEntity
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
-// ── Cinematic Dark Radial Palette ────────────────────────────────────────────
+// ── Exact Reference Color Palette ────────────────────────────────────────────
 private val PlayerBlack     = Color(0xFF171C26)
 private val PlayerDarkNavy  = Color(0xFF0F141D)
 private val PlayerSurface   = Color(0xFF1C2330)
@@ -54,9 +57,11 @@ private val GlowCyan        = Color(0xFF88B8E6)
 private val AccentPillColor = Color(0xFFC4E0FA)
 
 /**
- * High-end Dark Radial Player UI inspired by modern cinematic audio controllers.
- * Features a full-bleed atmospheric album background, upper curved progress arc with thumb seek,
- * apex favorite heart, concentric vortex soundwave rings, and a bottom sheet lyrics drawer.
+ * Premium Dark Radial Player UI.
+ * 1. Progress arc is locked directly on the circle border of the spherical dome.
+ * 2. Like button is aligned directly below the top apex of the arc.
+ * 3. Integrated vertical scroll: Swiping up scrolls the entire screen upward to show
+ *    the synced lyrics directly below the transport controls (no separate sliding drawer).
  */
 @Composable
 fun NowPlayingVisual(
@@ -81,9 +86,6 @@ fun NowPlayingVisual(
     modifier: Modifier = Modifier,
     lyricsContent: @Composable () -> Unit = {}
 ) {
-    var lyricsVisible by remember { mutableStateOf(false) }
-    var verticalDrag by remember { mutableFloatStateOf(0f) }
-
     val duration = durationMs.coerceAtLeast(1L)
     var isDraggingProgress by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
@@ -93,127 +95,91 @@ fun NowPlayingVisual(
 
     val animatedProgress by animateFloatAsState(
         targetValue = displayProgress,
-        animationSpec = spring(stiffness = 240f),
-        label = "animatedProgress"
+        animationSpec = spring(stiffness = 260f),
+        label = "radialProgress"
     )
 
-    Box(
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(PlayerBlack)
-            .pointerInput(lyricsVisible) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, amount ->
-                        verticalDrag += amount
-                    },
-                    onDragEnd = {
-                        if (verticalDrag < -45f) {
-                            lyricsVisible = true
-                        } else if (verticalDrag > 45f) {
-                            lyricsVisible = false
-                        }
-                        verticalDrag = 0f
-                    },
-                    onDragCancel = {
-                        verticalDrag = 0f
-                    }
-                )
-            }
+            .verticalScroll(scrollState)
     ) {
-        // ── 1. Top Atmospheric Album Art Background (62% of Screen) ───────────
-        if (!artUri.isNullOrBlank()) {
-            AsyncImage(
-                model = artUri,
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.64f)
-                    .align(Alignment.TopCenter)
-            )
-        } else {
+        // ── 1. Hero Player Viewport (Fills initial screen height) ─────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight)
+        ) {
+            // Album Art Background (Fills top ~62% of initial viewport)
+            if (!artUri.isNullOrBlank()) {
+                AsyncImage(
+                    model = artUri,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.64f)
+                        .align(Alignment.TopCenter)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.64f)
+                        .align(Alignment.TopCenter)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(Color(0xFF2B374A), PlayerDarkNavy, PlayerBlack),
+                                radius = 600f
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = PlayerMuted.copy(alpha = 0.35f),
+                        modifier = Modifier.size(96.dp)
+                    )
+                }
+            }
+
+            // Cinematic Dark Gradient Overlay (blends artwork smoothly into background)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.64f)
+                    .fillMaxHeight(0.70f)
                     .align(Alignment.TopCenter)
                     .background(
-                        Brush.radialGradient(
-                            colors = listOf(Color(0xFF2B374A), PlayerDarkNavy, PlayerBlack),
-                            radius = 600f
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = PlayerMuted.copy(alpha = 0.35f),
-                    modifier = Modifier.size(96.dp)
-                )
-            }
-        }
-
-        // ── 2. Cinematic Dark Fog & Vignette Overlays ─────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.72f)
-                .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to PlayerBlack.copy(alpha = 0.40f),
-                            0.25f to Color.Transparent,
-                            0.50f to PlayerBlack.copy(alpha = 0.45f),
-                            0.80f to PlayerBlack.copy(alpha = 0.88f),
-                            1f to PlayerBlack
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to PlayerBlack.copy(alpha = 0.40f),
+                                0.22f to Color.Transparent,
+                                0.50f to PlayerBlack.copy(alpha = 0.45f),
+                                0.78f to PlayerBlack.copy(alpha = 0.88f),
+                                1f to PlayerBlack
+                            )
                         )
                     )
-                )
-        )
+            )
 
-        // ── 3. Bottom Radial Spherical Dome Console ───────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.56f)
-                .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(topStart = 200.dp, topEnd = 200.dp))
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF263244),
-                            PlayerDarkNavy,
-                            PlayerBlack
-                        ),
-                        radius = 850f,
-                        center = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                    )
-                )
-                .border(
-                    BorderStroke(1.dp, Brush.verticalGradient(listOf(PlayerWhite.copy(alpha = 0.20f), Color.Transparent))),
-                    RoundedCornerShape(topStart = 200.dp, topEnd = 200.dp)
-                )
-        )
-
-        // ── 4. Main Player Controls & Content ─────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // ── Top Action Bar (Glass Circular Buttons) ───────────────────────
+            // Top Bar: Back (<) and Options (...)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 14.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 22.dp, vertical = 14.dp)
+                    .align(Alignment.TopCenter),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button (<)
+                // Circular Back Button
                 Box(
                     modifier = Modifier
                         .size(46.dp)
@@ -235,7 +201,7 @@ fun NowPlayingVisual(
                     )
                 }
 
-                // More Options Button (...)
+                // Circular Options Button
                 Box(
                     modifier = Modifier
                         .size(46.dp)
@@ -258,13 +224,13 @@ fun NowPlayingVisual(
                 }
             }
 
-            Spacer(Modifier.weight(0.9f))
-
-            // ── Song Title & Artist Info ──────────────────────────────────────
+            // Song Title & Artist (Centered in upper area over artwork)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
+                    .padding(horizontal = 32.dp)
+                    .align(Alignment.TopCenter)
+                    .padding(top = screenHeight * 0.30f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -287,66 +253,75 @@ fun NowPlayingVisual(
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
+            // ── 2. The Spherical Dome Console (Locked Arc on Circle Border) ──
+            val domeHeight = screenHeight * 0.54f
 
-            // ── Curved Radial Progress Arc & Apex Favorite Heart ──────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(115.dp),
-                contentAlignment = Alignment.TopCenter
+                    .height(domeHeight)
+                    .align(Alignment.BottomCenter)
             ) {
-                val startAngle = 145f
-                val sweepAngle = 250f
+                val yApexDp = 28.dp
+                val startAngle = 216f
+                val sweepAngle = 108f
 
+                // Canvas draws Dome background & Music Bar directly on the circle border
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(duration) {
                             detectTapGestures { offset ->
-                                val arcW = size.width * 0.88f
-                                val arcH = size.height * 2.2f
                                 val cx = size.width / 2f
-                                val cy = arcH / 2f + 10.dp.toPx()
+                                val yApexPx = yApexDp.toPx()
+                                val radius = size.width * 0.58f
+                                val cy = yApexPx + radius
                                 val dx = offset.x - cx
                                 val dy = offset.y - cy
-                                var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                                if (angle < 0) angle += 360f
-                                if (angle < 90f) angle += 360f
-                                val p = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
-                                onSeek((p * duration).toLong())
+                                val dist = sqrt(dx * dx + dy * dy)
+                                if (dy < 0 && abs(dist - radius) <= 36.dp.toPx()) {
+                                    var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                                    if (angle < 0) angle += 360f
+                                    val p = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                    onSeek((p * duration).toLong())
+                                }
                             }
                         }
                         .pointerInput(duration) {
-                            detectDragGestures(
+                            detectHorizontalDragGestures(
                                 onDragStart = { offset ->
-                                    isDraggingProgress = true
-                                    val arcW = size.width * 0.88f
-                                    val arcH = size.height * 2.2f
                                     val cx = size.width / 2f
-                                    val cy = arcH / 2f + 10.dp.toPx()
+                                    val yApexPx = yApexDp.toPx()
+                                    val radius = size.width * 0.58f
+                                    val cy = yApexPx + radius
                                     val dx = offset.x - cx
                                     val dy = offset.y - cy
-                                    var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                                    if (angle < 0) angle += 360f
-                                    if (angle < 90f) angle += 360f
-                                    dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                    val dist = sqrt(dx * dx + dy * dy)
+                                    if (dy < 0 && abs(dist - radius) <= 40.dp.toPx()) {
+                                        isDraggingProgress = true
+                                        var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                                        if (angle < 0) angle += 360f
+                                        dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                    }
                                 },
-                                onDrag = { change, _ ->
-                                    val arcW = size.width * 0.88f
-                                    val arcH = size.height * 2.2f
-                                    val cx = size.width / 2f
-                                    val cy = arcH / 2f + 10.dp.toPx()
-                                    val dx = change.position.x - cx
-                                    val dy = change.position.y - cy
-                                    var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                                    if (angle < 0) angle += 360f
-                                    if (angle < 90f) angle += 360f
-                                    dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                onHorizontalDrag = { change, _ ->
+                                    if (isDraggingProgress) {
+                                        val cx = size.width / 2f
+                                        val yApexPx = yApexDp.toPx()
+                                        val radius = size.width * 0.58f
+                                        val cy = yApexPx + radius
+                                        val dx = change.position.x - cx
+                                        val dy = change.position.y - cy
+                                        var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                                        if (angle < 0) angle += 360f
+                                        dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                    }
                                 },
                                 onDragEnd = {
-                                    onSeek((dragFraction * duration).toLong())
-                                    isDraggingProgress = false
+                                    if (isDraggingProgress) {
+                                        onSeek((dragFraction * duration).toLong())
+                                        isDraggingProgress = false
+                                    }
                                 },
                                 onDragCancel = {
                                     isDraggingProgress = false
@@ -354,47 +329,93 @@ fun NowPlayingVisual(
                             )
                         }
                 ) {
-                    val strokeW = 3.2.dp.toPx()
-                    val arcW = size.width * 0.88f
-                    val arcH = size.height * 2.2f
-                    val left = (size.width - arcW) / 2f
-                    val top = 10.dp.toPx()
+                    val cx = size.width / 2f
+                    val yApexPx = yApexDp.toPx()
+                    val radius = size.width * 0.58f
+                    val cy = yApexPx + radius
+                    val strokeW = 4.dp.toPx()
 
-                    // Background Inactive Arc Track
+                    val dxEdge = -cx
+                    val dyEdge = -sqrt((radius * radius - dxEdge * dxEdge).coerceAtLeast(0f))
+                    val yEdge = cy + dyEdge
+                    val edgeAngleLeft = 210.5f
+                    val edgeSweep = 119f
+
+                    // A. Spherical Dome Path: top boundary matches the exact circular arc
+                    val domePath = Path().apply {
+                        moveTo(0f, size.height)
+                        lineTo(0f, yEdge)
+                        arcTo(
+                            rect = Rect(
+                                left = cx - radius,
+                                top = cy - radius,
+                                right = cx + radius,
+                                bottom = cy + radius
+                            ),
+                            startAngleDegrees = edgeAngleLeft,
+                            sweepAngleDegrees = edgeSweep,
+                            forceMoveTo = false
+                        )
+                        lineTo(size.width, size.height)
+                        close()
+                    }
+
+                    // Fill dome with deep dark radial gradient
+                    drawPath(
+                        path = domePath,
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF263346),
+                                PlayerDarkNavy,
+                                PlayerBlack
+                            ),
+                            center = Offset(cx, cy * 0.75f),
+                            radius = radius * 1.3f
+                        )
+                    )
+
+                    // B. Subtle outer edge rim on the dome boundary
                     drawArc(
-                        color = PlayerGrey.copy(alpha = 0.38f),
+                        color = PlayerWhite.copy(alpha = 0.08f),
+                        startAngle = edgeAngleLeft,
+                        sweepAngle = edgeSweep,
+                        useCenter = false,
+                        topLeft = Offset(cx - radius, cy - radius),
+                        size = Size(radius * 2f, radius * 2f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+
+                    // C. Inactive Music Bar Track on the Dome Circle Border
+                    drawArc(
+                        color = PlayerGrey.copy(alpha = 0.35f),
                         startAngle = startAngle,
                         sweepAngle = sweepAngle,
                         useCenter = false,
-                        topLeft = Offset(left, top),
-                        size = Size(arcW, arcH),
-                        style = Stroke(strokeW, cap = StrokeCap.Round)
+                        topLeft = Offset(cx - radius, cy - radius),
+                        size = Size(radius * 2f, radius * 2f),
+                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
-                    // Active Played Glow Arc
+                    // D. Active Played Arc Track on the Dome Circle Border
                     drawArc(
                         color = PlayerWhite,
                         startAngle = startAngle,
                         sweepAngle = sweepAngle * animatedProgress,
                         useCenter = false,
-                        topLeft = Offset(left, top),
-                        size = Size(arcW, arcH),
-                        style = Stroke(strokeW, cap = StrokeCap.Round)
+                        topLeft = Offset(cx - radius, cy - radius),
+                        size = Size(radius * 2f, radius * 2f),
+                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
-                    // Position of White Circular Thumb on the Arc
+                    // E. Glowing White Circular Thumb Knob on the Circle Border
                     val currentAngleDeg = startAngle + (sweepAngle * animatedProgress)
                     val rad = Math.toRadians(currentAngleDeg.toDouble())
-                    val cx = size.width / 2f
-                    val cy = top + arcH / 2f
-                    val rx = arcW / 2f
-                    val ry = arcH / 2f
-                    val thumbX = cx + rx * cos(rad).toFloat()
-                    val thumbY = cy + ry * sin(rad).toFloat()
+                    val thumbX = cx + radius * cos(rad).toFloat()
+                    val thumbY = cy + radius * sin(rad).toFloat()
 
                     // Thumb outer ambient halo
                     drawCircle(
-                        color = GlowCyan.copy(alpha = 0.35f),
+                        color = GlowCyan.copy(alpha = 0.45f),
                         radius = 12.dp.toPx(),
                         center = Offset(thumbX, thumbY)
                     )
@@ -406,227 +427,229 @@ fun NowPlayingVisual(
                     )
                 }
 
-                // Heart Icon Centered Directly Below Apex
+                // ── Like (Heart) Button: Aligned directly below the arc apex ──
                 IconButton(
                     onClick = onFavorite,
                     modifier = Modifier
-                        .padding(top = 18.dp)
-                        .size(36.dp)
+                        .align(Alignment.TopCenter)
+                        .padding(top = yApexDp + 14.dp)
+                        .size(38.dp)
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) Color(0xFFFF5252) else PlayerWhite.copy(alpha = 0.60f),
-                        modifier = Modifier.size(22.dp)
+                        tint = if (isFavorite) Color(0xFFFF5252) else PlayerWhite.copy(alpha = 0.70f),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-            }
 
-            // ── Shuffle, Segmented Accent Pill, Repeat Row ───────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 42.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Shuffle Button (Circular dark pill)
-                Box(
+                // ── Shuffle, Curved Accent Pill, Repeat ───────────────────────
+                Row(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(PlayerSurface)
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                if (isShuffleEnabled) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
-                            ),
-                            CircleShape
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = PlayerWhite),
-                            onClick = onShuffle
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(top = 92.dp)
+                        .padding(horizontal = 46.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Shuffle,
-                        contentDescription = "Shuffle",
-                        tint = if (isShuffleEnabled) PlayerWhite else PlayerMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Segmented Curved Highlight Pill Above Central Wheel
-                Box(
-                    modifier = Modifier
-                        .width(48.dp)
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(AccentPillColor.copy(alpha = 0.65f))
-                )
-
-                // Repeat Button (Circular dark pill)
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(PlayerSurface)
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                if (repeatMode > 0) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
-                            ),
-                            CircleShape
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = PlayerWhite),
-                            onClick = onRepeat
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val repeatIcon = if (repeatMode == 1) Icons.Filled.RepeatOne else Icons.Filled.Repeat
-                    Icon(
-                        imageVector = repeatIcon,
-                        contentDescription = "Repeat",
-                        tint = if (repeatMode > 0) PlayerWhite else PlayerMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            // ── Central Transport Pod: [|◀]  (  [▶ / ⏸]  )  [▶|] ─────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 36.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Skip Previous
-                IconButton(
-                    onClick = onPrevious,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = PlayerWhite,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                // Central Hero Glowing Play/Pause Button in Concentric Soundwave Aura
-                Box(
-                    modifier = Modifier.size(118.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Outer Vortex / Concentric Wave Glow
-                    Canvas(Modifier.fillMaxSize()) {
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    GlowCyan.copy(alpha = 0.38f),
-                                    Color(0xFF263346).copy(alpha = 0.22f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                        // Concentric Soundwave Rings
-                        drawCircle(
-                            color = GlowCyan.copy(alpha = 0.45f),
-                            style = Stroke(1.5.dp.toPx()),
-                            radius = size.minDimension * 0.46f
-                        )
-                        drawCircle(
-                            color = PlayerWhite.copy(alpha = 0.25f),
-                            style = Stroke(1.dp.toPx()),
-                            radius = size.minDimension * 0.41f
-                        )
-                    }
-
-                    // Solid White Inner Button
+                    // Circular Shuffle Button
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
-                            .shadow(
-                                elevation = 22.dp,
-                                shape = CircleShape,
-                                spotColor = GlowCyan,
-                                ambientColor = PlayerWhite.copy(alpha = 0.5f)
-                            )
+                            .size(46.dp)
                             .clip(CircleShape)
-                            .background(PlayerWhite)
+                            .background(PlayerSurface)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (isShuffleEnabled) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
+                                ),
+                                CircleShape
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = PlayerBlack),
-                                onClick = onPlayPause
+                                indication = ripple(color = PlayerWhite),
+                                onClick = onShuffle
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = PlayerBlack,
-                            modifier = Modifier.size(38.dp)
+                            imageVector = Icons.Filled.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffleEnabled) PlayerWhite else PlayerMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Accent Pill
+                    Box(
+                        modifier = Modifier
+                            .width(46.dp)
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(3.5.dp))
+                            .background(AccentPillColor.copy(alpha = 0.70f))
+                    )
+
+                    // Circular Repeat Button
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(PlayerSurface)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (repeatMode > 0) PlayerWhite.copy(alpha = 0.45f) else PlayerWhite.copy(alpha = 0.12f)
+                                ),
+                                CircleShape
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(color = PlayerWhite),
+                                onClick = onRepeat
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val repeatIcon = if (repeatMode == 1) Icons.Filled.RepeatOne else Icons.Filled.Repeat
+                        Icon(
+                            imageVector = repeatIcon,
+                            contentDescription = "Repeat",
+                            tint = if (repeatMode > 0) PlayerWhite else PlayerMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Skip Next
-                IconButton(
-                    onClick = onNext,
-                    modifier = Modifier.size(48.dp)
+                // ── Central Transport Pod: [|◀]  (  [▶ / ⏸]  )  [▶|] ─────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(top = 156.dp)
+                        .padding(horizontal = 38.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipNext,
-                        contentDescription = "Next",
-                        tint = PlayerWhite,
-                        modifier = Modifier.size(36.dp)
+                    // Skip Previous
+                    IconButton(
+                        onClick = onPrevious,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = PlayerWhite,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    // Central Hero Play/Pause with Concentric Vortex Rings
+                    Box(
+                        modifier = Modifier.size(118.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(Modifier.fillMaxSize()) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        GlowCyan.copy(alpha = 0.38f),
+                                        Color(0xFF263346).copy(alpha = 0.22f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                            drawCircle(
+                                color = GlowCyan.copy(alpha = 0.45f),
+                                style = Stroke(1.5.dp.toPx()),
+                                radius = size.minDimension * 0.46f
+                            )
+                            drawCircle(
+                                color = PlayerWhite.copy(alpha = 0.25f),
+                                style = Stroke(1.dp.toPx()),
+                                radius = size.minDimension * 0.41f
+                            )
+                        }
+
+                        // Inner Solid White Circle Button
+                        Box(
+                            modifier = Modifier
+                                .size(78.dp)
+                                .shadow(
+                                    elevation = 22.dp,
+                                    shape = CircleShape,
+                                    spotColor = GlowCyan,
+                                    ambientColor = PlayerWhite.copy(alpha = 0.5f)
+                                )
+                                .clip(CircleShape)
+                                .background(PlayerWhite)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(color = PlayerBlack),
+                                    onClick = onPlayPause
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = PlayerBlack,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
+                    }
+
+                    // Skip Next
+                    IconButton(
+                        onClick = onNext,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipNext,
+                            contentDescription = "Next",
+                            tint = PlayerWhite,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+
+                // ── Timestamps (Current Position & Duration) ──────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(top = 282.dp)
+                        .padding(horizontal = 50.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val currentPos = if (isDraggingProgress) (dragFraction * duration).toLong() else positionMs
+                    Text(
+                        text = formatTime(currentPos),
+                        color = PlayerWhite,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = formatTime(duration),
+                        color = PlayerMuted,
+                        fontSize = 12.sp
                     )
                 }
-            }
 
-            Spacer(Modifier.height(10.dp))
-
-            // ── Timestamps (Current Position & Duration) ──────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 48.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val currentPos = if (isDraggingProgress) (dragFraction * duration).toLong() else positionMs
-                Text(
-                    text = formatTime(currentPos),
-                    color = PlayerWhite,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = formatTime(duration),
-                    color = PlayerMuted,
-                    fontSize = 12.sp
-                )
-            }
-
-            Spacer(Modifier.weight(0.7f))
-
-            // ── Swipe-Up Hint for Lyrics ──────────────────────────────────────
-            if (!lyricsVisible) {
+                // ── Swipe Up for Lyrics Prompt ────────────────────────────────
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { lyricsVisible = true }
+                            onClick = {
+                                coroutineScope.launch {
+                                    scrollState.animateScrollTo(scrollState.maxValue)
+                                }
+                            }
                         )
-                        .padding(bottom = 12.dp),
+                        .padding(bottom = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -647,66 +670,35 @@ fun NowPlayingVisual(
             }
         }
 
-        // ── 5. Sliding Lyrics Overlay Sheet (Revealed on Swipe Up) ────────────
-        AnimatedVisibility(
-            visible = lyricsVisible,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
+        // ── 2. Synced Lyrics Section (Revealed smoothly on swipe up / scroll) ─
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 48.dp)
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.68f)
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                PlayerSurface.copy(alpha = 0.98f),
-                                PlayerDarkNavy.copy(alpha = 0.99f),
-                                PlayerBlack
-                            )
-                        )
-                    )
-                    .border(
-                        BorderStroke(1.dp, PlayerWhite.copy(alpha = 0.15f)),
-                        RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-                    )
-                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Lyrics",
-                        color = PlayerWhite,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(onClick = { lyricsVisible = false }) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = "Hide lyrics",
-                            tint = PlayerWhite
-                        )
-                    }
-                }
-
-                HorizontalDivider(color = PlayerMuted.copy(alpha = 0.25f))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp)
-                ) {
-                    lyricsContent()
-                }
+                Icon(
+                    imageVector = Icons.Filled.Lyrics,
+                    contentDescription = null,
+                    tint = PlayerWhite,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Lyrics",
+                    color = PlayerWhite,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
+
+            lyricsContent()
         }
     }
 }

@@ -182,7 +182,9 @@ fun NowPlayingScreen(
                     positionMs = lyricsPositionState,
                     onSeek = onSeek,
                     onAddCustomLyrics = { showCustomLyricsDialog = true },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(450.dp)
                 )
             }
         )
