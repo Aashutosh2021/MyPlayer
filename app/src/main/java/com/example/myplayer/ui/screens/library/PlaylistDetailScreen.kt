@@ -119,7 +119,7 @@ fun PlaylistDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -564,7 +564,7 @@ fun AddSongsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = CloudBlueBackground
+        containerColor = MaterialTheme.colorScheme.background
     ) {
         Column(modifier = Modifier.fillMaxHeight(0.88f)) {
             // Header
@@ -790,7 +790,7 @@ fun AddSongsSheet(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(CloudBlueBackground)
+                            .background(MaterialTheme.colorScheme.background)
                             .padding(horizontal = 24.dp, vertical = 16.dp)
                     ) {
                         Row(

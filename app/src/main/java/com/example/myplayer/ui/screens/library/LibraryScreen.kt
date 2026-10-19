@@ -216,14 +216,15 @@ fun LibraryScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
                         .clickable(onClick = onNavigateToSettings),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
                         contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.surface,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -239,10 +240,16 @@ fun LibraryScreen(
         ) {
             categoryTabs.forEachIndexed { index, title ->
                 val isSelected = selectedTab == index
+                val pillBg = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                val textTint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) PrimaryContainer else SurfaceContainer)
+                        .background(pillBg)
+                        .then(
+                            if (!isSelected) Modifier.border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(20.dp))
+                            else Modifier
+                        )
                         .clickable { selectedTab = index }
                         .padding(horizontal = 14.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center
@@ -252,7 +259,7 @@ fun LibraryScreen(
                             Icon(
                                 imageVector = Icons.Filled.DownloadDone,
                                 contentDescription = null,
-                                tint = if (isSelected) Color.Black else Secondary,
+                                tint = textTint,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(Modifier.width(4.dp))
@@ -261,7 +268,7 @@ fun LibraryScreen(
                             text = title,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (isSelected) Color.Black else Secondary
+                            color = textTint
                         )
                     }
                 }
@@ -280,27 +287,27 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable { /* Toggle sort */ }
             ) {
-                Icon(Icons.Filled.SwapVert, contentDescription = null, tint = Secondary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = if (selectedTab == 0) "Alphabetical" else "Recently Added",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    color = OnSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Outline, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .shadow(2.dp, CircleShape, spotColor = Color(0x0C000000))
                         .clip(CircleShape)
-                        .background(SurfaceContainer)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
                         .clickable { showCreatePlaylistDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "New Playlist", tint = OnSurface, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Add, contentDescription = "New Playlist", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 }
             }
         }

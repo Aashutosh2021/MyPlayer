@@ -235,10 +235,10 @@ fun RecentSearchesSection(
                 Box(
                     modifier = Modifier
                         .size(100.dp)
-                        .clayConcave(borderRadius = 50.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                        .clayConcave(borderRadius = 50.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Language, null, tint = TextMuted, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Filled.Language, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(48.dp))
                 }
                 Spacer(Modifier.height(24.dp))
                 Text("Search online", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)

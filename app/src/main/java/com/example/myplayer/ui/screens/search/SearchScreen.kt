@@ -38,7 +38,7 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // ── Header ────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .shadow(4.dp, RoundedCornerShape(24.dp), spotColor = Color(0x12000000))
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(24.dp))
             ) {
                 TextField(

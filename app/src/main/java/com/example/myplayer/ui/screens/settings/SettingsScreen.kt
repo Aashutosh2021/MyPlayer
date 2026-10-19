@@ -354,7 +354,7 @@ fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
         contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
     ) {
@@ -397,6 +397,21 @@ fun SettingsScreen(
                 onClick = {
                     editNameInput = userName
                     showNameDialog = true
+                }
+            )
+        }
+
+        // Section: Appearance
+        item { SettingsSectionHeader(title = "Appearance") }
+
+        item {
+            SettingsToggleRow(
+                icon = if (ThemeState.isDarkMode) Icons.Filled.DarkMode else Icons.Filled.LightMode,
+                title = "Dark Mode",
+                subtitle = if (ThemeState.isDarkMode) "Dark theme enabled" else "Light theme enabled",
+                checked = ThemeState.isDarkMode,
+                onCheckedChange = { enabled ->
+                    ThemeState.setDark(enabled)
                 }
             )
         }
@@ -535,7 +550,7 @@ private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        color = ClayPrimary,
+        color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -556,7 +571,7 @@ private fun SettingsToggleRow(
             .fillMaxWidth()
             .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -564,10 +579,10 @@ private fun SettingsToggleRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = ClayPrimary, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -580,8 +595,8 @@ private fun SettingsToggleRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = OnPrimary,
-                checkedTrackColor = ClayPrimary,
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
@@ -601,7 +616,7 @@ private fun SettingsNavigationRow(
             .fillMaxWidth()
             .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
             .bouncyPopClick(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -609,10 +624,10 @@ private fun SettingsNavigationRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = ClayPrimary, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -635,14 +650,14 @@ private fun SettingsInfoRow(
             .fillMaxWidth()
             .slidePopIn()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surface)
+            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))

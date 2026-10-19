@@ -73,7 +73,7 @@ fun DownloadsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CloudBlueBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // Header

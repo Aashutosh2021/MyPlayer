@@ -175,19 +175,19 @@ fun HomeScreen(
                     }
                 }
 
-                val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable { viewModel.toggleDarkMode() },
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
+                        .clickable { ThemeState.toggle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isDarkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                        contentDescription = if (isDarkMode) "Switch to Day Mode" else "Switch to Night Mode",
-                        tint = MaterialTheme.colorScheme.surface,
+                        imageVector = if (ThemeState.isDarkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                        contentDescription = if (ThemeState.isDarkMode) "Switch to Day Mode" else "Switch to Night Mode",
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
