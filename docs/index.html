@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#12160E" />
+  <meta name="theme-color" content="#171C26" />
   <meta name="description"
-    content="MyPlayer - Next-gen Android music player with multi-device Sync Play, Dual Bud mode, 270° radial audio controls, lossless streaming, and real-time synced lyrics." />
+    content="MyPlayer - Next-gen Android music player with multi-device Sync Play, Dual Bud mode, 15-Day Played History, curved radial controls, Day/Night themes, lossless streaming, and real-time synced lyrics." />
   <title>MyPlayer - Your Music, Your Way</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +39,26 @@
         </svg>
         GitHub
       </a>
-      <a class="nav-download" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6" target="_blank" rel="noopener">DOWNLOAD APK</a>
+      <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle Day/Night Theme">
+        <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <a class="nav-download" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/v4.3" target="_blank"
+        rel="noopener">DOWNLOAD APK</a>
     </nav>
 
     <button class="menu-btn" aria-label="Open menu" aria-expanded="false">
@@ -56,18 +75,21 @@
     <!-- Hero Section -->
     <section class="hero">
       <div class="hero-copy">
-        <div class="pill-tag"><span class="pulse-dot"></span> NOW WITH SYNC PLAY & DUAL BUD</div>
+        <div class="pill-tag"><span class="pulse-dot"></span> NOW WITH 15-DAY PLAYED HISTORY &amp; DAY/NIGHT THEMES
+        </div>
         <h1>Your Music.<br><span class="glow-text">Your Way.</span></h1>
         <p class="hero-description">
           A high-performance Android music player built with Kotlin and Jetpack Compose.
           Experience multi-device synchronized <strong>Sync Play</strong>, dual-channel <strong>Dual Bud</strong> audio
           splitting,
-          an iconic <strong>270° radial controller</strong>, studio 1000×1000 HD artwork, and synced lyrics — wrapped in
-          a striking Dark Olive & Neon Lime aesthetic.
+          an iconic <strong>curved radial controller</strong>, seamless <strong>15-day Played History</strong>, and a
+          dynamic <strong>Day/Night theme system</strong> — wrapped in a sleek Charcoal (#171C26) &amp; Slate (#6C7689)
+          aesthetic.
         </p>
 
         <div class="hero-buttons">
-          <a id="heroDownload" class="primary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6" target="_blank" rel="noopener">
+          <a id="heroDownload" class="primary-btn" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/v4.3"
+            target="_blank" rel="noopener">
             <span>DOWNLOAD LATEST APK</span>
             <svg class="btn-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -141,7 +163,8 @@
 
               <!-- Apex Favorite Button -->
               <button class="apex-heart-btn" aria-label="Favorite" title="Favorite track">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#D2F83A" stroke="#D2F83A" stroke-width="1.5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--text)" stroke="var(--text)"
+                  stroke-width="1.5">
                   <path
                     d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
                   </path>
@@ -495,19 +518,19 @@
           </div>
         </article>
 
-        <!-- Feature 8: Universal Fast Search -->
+        <!-- Feature 8: Universal Fast Search & 15-Day History -->
         <article class="feature-card">
           <div class="card-top">
             <span class="feature-number">08</span>
-            <span class="feature-badge">SEARCH</span>
+            <span class="feature-badge">SEARCH &amp; HISTORY</span>
           </div>
-          <h3>Universal Online & Offline Search</h3>
+          <h3>Universal Search &amp; 15-Day Played History</h3>
           <p>
-            Search everything simultaneously. Instantly queries your on-device local storage and millions of online
-            YouTube Music tracks with live auto-complete suggestions and instant track launching.
+            Search everything simultaneously across local storage and YouTube Music with live suggestions. Features a
+            dedicated 15-day played songs history directly below the search bar with 1-tap instant replay.
           </p>
           <div class="card-tag-row">
-            <span>Auto-complete</span><span>Live Suggestions</span><span>Unified Results</span>
+            <span>15-Day History</span><span>Room DB 6</span><span>Unified Search</span>
           </div>
         </article>
 
@@ -527,21 +550,21 @@
           </div>
         </article>
 
-        <!-- Feature 10: Claymorphic Dark Olive UI -->
+        <!-- Feature 10: Charcoal & Slate Day/Night Theme -->
         <article class="feature-card">
           <div class="card-top">
             <span class="feature-number">10</span>
             <span class="feature-badge">DESIGN</span>
           </div>
-          <h3>Claymorphic Dark Olive & Lime Theme</h3>
+          <h3>Charcoal &amp; Slate Day/Night Theme</h3>
           <p>
-            A bespoke aesthetic built with dark olive tones (<code style="color:var(--accent)">#12160E</code>, <code
-              style="color:var(--accent)">#1A2216</code>) and energetic electric neon lime highlights (<code
-              style="color:var(--accent)">#D2F83A</code>). Floating capsule navigation, tactile cards, and buttery
-            120fps Jetpack Compose transitions.
+            A bespoke aesthetic built with deep charcoal tones (<code style="color:var(--accent)">#171C26</code>, <code
+              style="color:var(--accent)">#1F2633</code>), slate accents (<code
+              style="color:var(--accent)">#6C7689</code>), and clean white highlights. Complete high-contrast Day and
+            Night Mode inversion with persistent system-wide synchronization.
           </p>
           <div class="card-tag-row">
-            <span>Jetpack Compose</span><span>120 FPS</span><span>Docked Mini Player</span>
+            <span>Jetpack Compose</span><span>Day / Night</span><span>DataStore Sync</span>
           </div>
         </article>
 
@@ -590,24 +613,15 @@
 
       <div class="screenshots-grid">
         <figure class="screen-card">
-          <img src="screenshots/ui_design_overview.webp" alt="MyPlayer Home & Radial Controller Overview"
-            loading="lazy" />
+          <img src="screenshots/home_screen.jpg" alt="MyPlayer Home & Radial Controller Overview" loading="lazy" />
           <figcaption>
             <strong>Hero Home & Radial Controller</strong>
-            <span>Dark Olive theme, 270° radial seek arc & mood pills</span>
+            <span>Charcoal &amp; Slate aesthetic, curved radial seek arc & mood pills</span>
           </figcaption>
         </figure>
 
         <figure class="screen-card">
-          <img src="screenshots/library_songs_screen.jpg" alt="Library All Songs Screen" loading="lazy" />
-          <figcaption>
-            <strong>Library & Song Management</strong>
-            <span>Clean list view, high-res thumbnails & instant playback</span>
-          </figcaption>
-        </figure>
-
-        <figure class="screen-card">
-          <img src="screenshots/library_playlists_screen.jpg" alt="Playlists Screen" loading="lazy" />
+          <img src="screenshots/playlist_screen.jpg" alt="Playlists Screen" loading="lazy" />
           <figcaption>
             <strong>Playlists & Collections</strong>
             <span>Create, edit, and organize custom offline/online playlists</span>
@@ -615,10 +629,10 @@
         </figure>
 
         <figure class="screen-card">
-          <img src="screenshots/search_screen.jpg" alt="Universal Online Search Screen" loading="lazy" />
+          <img src="screenshots/nowplaying.jpg" alt="Radial NowPlaying Screen" loading="lazy" />
           <figcaption>
-            <strong>Universal Online Search</strong>
-            <span>Live auto-complete across the full YouTube Music catalog</span>
+            <strong>Radial NowPlaying</strong>
+            <span>Morden Attractive Smooth</span>
           </figcaption>
         </figure>
 
@@ -669,8 +683,9 @@
             <tr>
               <td><strong>User Interface</strong></td>
               <td><span class="tech-pill">Jetpack Compose</span> <span class="tech-pill">Material 3</span></td>
-              <td>Declarative modern UI with custom Dark Olive & Neon Lime design tokens, 120fps fluid scrolling, and
-                claymorphic surfaces.</td>
+              <td>Declarative modern UI with custom Charcoal &amp; Slate Day/Night design tokens, 120fps fluid
+                scrolling, and
+                tactile surfaces.</td>
             </tr>
             <tr>
               <td><strong>Audio Pipeline</strong></td>
@@ -728,7 +743,8 @@
       </div>
 
       <div class="download-actions">
-        <a id="downloadBtn" class="primary-btn large" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6" target="_blank" rel="noopener">
+        <a id="downloadBtn" class="primary-btn large" href="https://github.com/Aashutosh2021/MyPlayer/releases/tag/v4.3"
+          target="_blank" rel="noopener">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -858,7 +874,7 @@
     <div class="footer-column">
       <h4>Releases & Project</h4>
       <a href="releases.html">All Version Releases</a>
-      <a href="releases.html#v3.6">Latest Release (v3.6)</a>
+      <a href="releases.html#v4.3">Latest Release (v4.3)</a>
       <a href="index.html#screenshots">App Screenshots</a>
       <a href="index.html#architecture">Architecture & Tech</a>
       <a href="https://github.com/Aashutosh2021/MyPlayer/releases" target="_blank" rel="noopener">GitHub Releases</a>

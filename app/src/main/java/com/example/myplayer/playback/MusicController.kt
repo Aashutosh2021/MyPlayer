@@ -15,6 +15,8 @@ import androidx.media3.common.C
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.example.myplayer.data.local.dao.DownloadedSongDao
+import com.example.myplayer.data.local.dao.PlayedSongHistoryDao
+import com.example.myplayer.data.local.entity.PlayedSongHistoryEntity
 import com.example.myplayer.playback.PlaybackCompletionGuard
 import com.example.myplayer.data.local.entity.DownloadedSongEntity
 import com.example.myplayer.data.local.entity.SongEntity
@@ -54,6 +56,7 @@ class MusicController @Inject constructor(
     private val playbackRouter: PlaybackRouter,
     private val playbackEventBus: PlaybackEventBus,
     private val downloadedSongDao: DownloadedSongDao,
+    private val playedSongHistoryDao: PlayedSongHistoryDao,
     private val playbackSourceResolver: PlaybackSourceResolver,
     private val mediaItemFactory: MediaItemFactory
 ) : PlaybackRouterDelegate {
@@ -275,14 +278,49 @@ class MusicController @Inject constructor(
                         onlineRetryCount.remove(vId)
                     }
                     val isOnline = isOnlineTrack(item.mediaId, item.localConfiguration?.uri?.toString())
+                    val songId = item.mediaId
+                    val queueEntity = _songQueue.firstOrNull { it.id == songId || it.videoId == songId }
+                    val title = item.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() }
+                        ?: queueEntity?.title
+                        ?: ""
+                    val artist = item.mediaMetadata.artist?.toString()?.takeIf { it.isNotBlank() }
+                        ?: queueEntity?.artist
+                        ?: ""
+                    val art = item.mediaMetadata.artworkUri?.toString()
+                        ?: queueEntity?.albumArt
+                        ?: if (isOnline && !songId.isNullOrBlank()) "https://img.youtube.com/vi/$songId/hqdefault.jpg" else null
+                    val dur = queueEntity?.duration?.takeIf { it > 0L }
+                        ?: controller?.duration?.coerceAtLeast(0L)
+                        ?: 0L
+
                     playbackEventBus.emit(
                         PlaybackEvent.SongStarted(
-                            songId = item.mediaId,
-                            title = item.mediaMetadata.title?.toString() ?: "",
-                            artist = item.mediaMetadata.artist?.toString() ?: "",
+                            songId = songId,
+                            title = title,
+                            artist = artist,
                             isOnline = isOnline
                         )
                     )
+
+                    if (!songId.isNullOrBlank() && title.isNotBlank()) {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                playedSongHistoryDao.insertOrUpdate(
+                                    PlayedSongHistoryEntity(
+                                        id = songId,
+                                        title = title,
+                                        artist = artist,
+                                        thumbnailUrl = art,
+                                        durationMs = dur,
+                                        isOnline = isOnline,
+                                        playedAt = System.currentTimeMillis()
+                                    )
+                                )
+                            } catch (e: Exception) {
+                                Log.e("MusicController", "Failed to record played history for $songId", e)
+                            }
+                        }
+                    }
                 }
             }
 

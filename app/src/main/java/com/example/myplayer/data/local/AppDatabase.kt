@@ -18,9 +18,10 @@ import com.example.myplayer.data.local.entity.*
         DownloadedSongEntity::class,
         RecentSearchEntity::class,
         CachedLyricsEntity::class,
-        CachedRecommendationEntity::class
+        CachedRecommendationEntity::class,
+        PlayedSongHistoryEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun recentSearchDao(): RecentSearchDao
     abstract fun cachedLyricsDao(): CachedLyricsDao
     abstract fun cachedRecommendationDao(): CachedRecommendationDao
+    abstract fun playedSongHistoryDao(): PlayedSongHistoryDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -102,6 +104,23 @@ abstract class AppDatabase : RoomDatabase() {
                         cachedAt INTEGER NOT NULL
                     )
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS played_songs_history (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        artist TEXT NOT NULL,
+                        thumbnailUrl TEXT,
+                        durationMs INTEGER NOT NULL,
+                        isOnline INTEGER NOT NULL,
+                        playedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_played_songs_history_playedAt ON played_songs_history (playedAt)")
             }
         }
     }

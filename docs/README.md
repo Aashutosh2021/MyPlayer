@@ -6,16 +6,14 @@ Premium responsive static landing page for MyPlayer.
 
 The visual system follows the actual MyPlayer Android implementation:
 
-- Primary Neon Lime: `#D2F83A`
-- Secondary Olive Sage: `#8BA62B`
-- Tertiary Muted Olive: `#556942`
-- Background: `#12160E`
-- Surface: `#1A2216`
-- Surface containers: `#0E130B`, `#151C12`, `#1E2618`, `#26311F`, `#324029`
-- Primary text: `#F5F8F0`
-- Secondary text: `#9AA592`
-- Muted text: `#6E7A66`
-- Effects use dark outer shadows and subtle white inner highlights to match the app's claymorphic character.
+- Night Background: `#171C26`
+- Night Surface: `#1F2633`
+- Night High Surface: `#2D3A4F`
+- Day Background: `#FFFFFF`
+- Day Surface: `#F3F5F8`
+- Primary Slate: `#6C7689`
+- Muted Silver: `#A4AAB7`
+- High-contrast inversion with client-side Day/Night toggle matching the app.
 
 ## Automatic latest APK
 

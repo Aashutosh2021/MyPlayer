@@ -1,6 +1,6 @@
 const OWNER = "Aashutosh2021";
 const REPO = "MyPlayer";
-const LATEST_RELEASE_URL = "https://github.com/Aashutosh2021/MyPlayer/releases/tag/version3.6";
+const LATEST_RELEASE_URL = "https://github.com/Aashutosh2021/MyPlayer/releases/tag/v4.3";
 const RELEASE_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`;
 const ALL_RELEASES_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases`;
 
@@ -73,7 +73,7 @@ async function loadLatestRelease() {
       asset.name.toLowerCase().endsWith(".apk")
     );
 
-    const version = release.tag_name || release.name || "v3.6";
+    const version = release.tag_name || release.name || "v4.3";
     const date = formatDate(release.published_at);
 
     if (!apkAssets.length) {
@@ -113,14 +113,14 @@ async function loadLatestRelease() {
   } catch (error) {
     console.error(error);
     if (releaseText) {
-      releaseText.textContent = "v3.6 • Available on GitHub";
+      releaseText.textContent = "v4.3 • Available on GitHub";
     }
     if (releaseMeta) {
-      releaseMeta.textContent = "Download the latest official v3.6 APK directly from GitHub Releases.";
+      releaseMeta.textContent = "Download the latest official v4.3 APK directly from GitHub Releases.";
     }
     const versionTitle = $("#versionTitle");
     if (versionTitle) {
-      versionTitle.textContent = "MyPlayer v3.6";
+      versionTitle.textContent = "MyPlayer v4.3";
     }
     const heroDownload = $("#heroDownload");
     if (heroDownload) {
@@ -189,6 +189,33 @@ function initReleasesFilter() {
   }
 }
 
+// Theme Toggle (Day & Night Mode matching app)
+function initThemeToggle() {
+  const toggleBtn = $("#themeToggleBtn");
+  const storedTheme = localStorage.getItem("myplayer_theme");
+
+  if (storedTheme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener("click", () => {
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    if (isLight) {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("myplayer_theme", "dark");
+      showToast("Switched to Night Theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", "light");
+      localStorage.setItem("myplayer_theme", "light");
+      showToast("Switched to Day Theme");
+    }
+  });
+}
+
 // Mobile navigation toggle
 const menuBtn = $(".menu-btn");
 const nav = $(".nav");
@@ -204,5 +231,6 @@ if (menuBtn && nav) {
   });
 }
 
+initThemeToggle();
 loadLatestRelease();
 initReleasesFilter();

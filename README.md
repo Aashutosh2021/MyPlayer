@@ -38,9 +38,14 @@
 ## 📸 Screenshots
 
 <div align="center">
-  <h3>✨ Design Overview & Hero Radial Controller</h3>
+  <h3>✨ Design Overview</h3>
   <b>Home Screen</b><br/>
   <img height="600" width="260" alt="Home Screen" src="docs/screenshots/home_screen.jpg" />
+</div>
+<div align="center">
+  <h3>✨ Hero Radial Controller</h3>
+  <b>NowPlaying Screen</b><br/>
+  <img height="600" width="260" src="docs/screenshots/nowplaying.jpg" alt="Nowplaying" />
 </div>
 
 <br/>
@@ -64,10 +69,6 @@
       <td align="center" width="16%">
         <b>Library</b><br/>
         <img src="docs/screenshots/library_playlist_screen.jpg" alt="Library Playlists" width="100%" />
-      </td>
-      <td align="center" width="16%">
-        <b>Online Search</b><br/>
-        <img src="docs/screenshots/search_screen.jpg" alt="Online Search" width="100%" />
       </td>
       <td align="center" width="16%">
         <b>Hotlist</b><br/>

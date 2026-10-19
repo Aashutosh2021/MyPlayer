@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.example.myplayer.data.local.dao.DownloadedSongDao
+import com.example.myplayer.data.local.dao.PlayedSongHistoryDao
+import com.example.myplayer.data.local.entity.PlayedSongHistoryEntity
 import com.example.myplayer.data.online.InnertubeApi
 import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.DownloadRepository
@@ -13,10 +16,12 @@ import com.example.myplayer.data.repository.OnlineSearchRepository
 import com.example.myplayer.data.repository.PlayableSong
 import com.example.myplayer.playback.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,11 +30,19 @@ class OnlineSearchViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val innertubeApi: InnertubeApi,
     private val musicController: MusicController,
-    private val musicRepository: MusicRepository
+    private val musicRepository: MusicRepository,
+    private val playedSongHistoryDao: PlayedSongHistoryDao,
+    private val downloadedSongDao: DownloadedSongDao
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
+
+    private val fifteenDaysCutoff = System.currentTimeMillis() - 15L * 24 * 60 * 60 * 1000L
+
+    val playedHistory: StateFlow<List<PlayedSongHistoryEntity>> = playedSongHistoryDao
+        .getPlayedHistory(fifteenDaysCutoff)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoadingStream = MutableStateFlow<String?>(null) // videoId currently loading
     val isLoadingStream: StateFlow<String?> = _isLoadingStream.asStateFlow()
@@ -90,6 +103,28 @@ class OnlineSearchViewModel @Inject constructor(
                 _downloadedIds.value = downloads.map { it.id }.toSet()
             }
         }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                playedSongHistoryDao.pruneOldHistory(fifteenDaysCutoff)
+                val downloads = downloadedSongDao.getAllDownloadsSync()
+                downloads.filter { it.downloadedAt >= fifteenDaysCutoff }.forEach { dl ->
+                    playedSongHistoryDao.insertOrUpdate(
+                        PlayedSongHistoryEntity(
+                            id = dl.id,
+                            title = dl.title,
+                            artist = dl.artist,
+                            thumbnailUrl = dl.thumbnailUrl,
+                            durationMs = dl.durationMs,
+                            isOnline = false,
+                            playedAt = dl.downloadedAt
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("OnlineSearchViewModel", "Failed to sync initial played history", e)
+            }
+        }
     }
 
     fun onQueryChange(q: String) {
@@ -110,6 +145,46 @@ class OnlineSearchViewModel @Inject constructor(
         }
     }
 
+    fun deletePlayedHistoryItem(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            playedSongHistoryDao.deleteById(id)
+        }
+    }
+
+    fun clearPlayedHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playedSongHistoryDao.clearHistory()
+        }
+    }
+
+    fun playHistorySong(song: PlayedSongHistoryEntity) {
+        viewModelScope.launch {
+            val downloaded = withContext(Dispatchers.IO) { downloadedSongDao.getById(song.id) }
+            if (downloaded != null && java.io.File(downloaded.localPath).exists()) {
+                musicController.playDownloadedSong(downloaded)
+                withContext(Dispatchers.IO) {
+                    playedSongHistoryDao.insertOrUpdate(
+                        song.copy(playedAt = System.currentTimeMillis(), isOnline = false)
+                    )
+                }
+            } else {
+                val onlineSong = OnlineSong(
+                    videoId = song.id,
+                    title = song.title,
+                    artist = song.artist,
+                    thumbnailUrl = song.thumbnailUrl ?: "https://img.youtube.com/vi/${song.id}/hqdefault.jpg",
+                    durationMs = song.durationMs
+                )
+                playSongFromSearch(onlineSong)
+                withContext(Dispatchers.IO) {
+                    playedSongHistoryDao.insertOrUpdate(
+                        song.copy(playedAt = System.currentTimeMillis(), isOnline = true)
+                    )
+                }
+            }
+        }
+    }
+
     /**
      * Resolves the stream URL and plays the song immediately,
      * queueing remaining search results so playback advances continuously.
@@ -118,6 +193,21 @@ class OnlineSearchViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingStream.value = song.videoId
             try {
+                // Record in played history
+                withContext(Dispatchers.IO) {
+                    playedSongHistoryDao.insertOrUpdate(
+                        PlayedSongHistoryEntity(
+                            id = song.videoId,
+                            title = song.title,
+                            artist = song.artist,
+                            thumbnailUrl = song.thumbnailUrl,
+                            durationMs = song.durationMs,
+                            isOnline = true,
+                            playedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+
                 val url = innertubeApi.getStreamUrl(song.videoId)
                 if (url != null) {
                     val playableSong = song.copy(streamUrl = url)
