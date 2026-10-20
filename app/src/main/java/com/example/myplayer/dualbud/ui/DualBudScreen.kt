@@ -57,6 +57,7 @@ fun DualBudScreen(
 
     var pickingChannel by remember { mutableStateOf<DualChannelId?>(null) }
     var selectedPickerTab by remember { mutableIntStateOf(0) } // 0: Online Search, 1: Downloaded
+    var showUserManual by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(errorMessage) {
@@ -94,6 +95,13 @@ fun DualBudScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showUserManual = !showUserManual }) {
+                        Icon(
+                            imageVector = Icons.Default.HelpOutline,
+                            contentDescription = "User Manual",
+                            tint = if (showUserManual) ClayPrimary else OnSurfaceVariant
+                        )
+                    }
                     // Status Badge
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -126,6 +134,14 @@ fun DualBudScreen(
                 DualBudStatusBanner(
                     state = uiState,
                     onSwap = { viewModel.swapChannels() }
+                )
+            }
+
+            // User Manual & Quick Start
+            item {
+                DualBudUserManualCard(
+                    expanded = showUserManual,
+                    onToggle = { showUserManual = !showUserManual }
                 )
             }
 
@@ -916,3 +932,144 @@ private fun formatDuration(millis: Long): String {
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
 }
+
+@Composable
+private fun DualBudUserManualCard(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(
+            containerColor = SurfaceContainerLow
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onToggle),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(ClayPrimary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = null,
+                        tint = ClayPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "User Manual & Quick Start",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnSurface
+                    )
+                    Text(
+                        text = if (expanded) "Tap to collapse manual" else "How to play 2 different songs in left & right ears",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = OnSurfaceVariant
+                )
+            }
+
+            if (expanded) {
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(SurfaceContainerHigh)
+                )
+                Spacer(Modifier.height(14.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DualBudManualStep(
+                        step = "1",
+                        title = "Connect Stereo Earbuds / Headphones",
+                        description = "Plug in wired earphones or pair Bluetooth stereo earbuds. Ensure both Left and Right earbuds are working."
+                    )
+                    DualBudManualStep(
+                        step = "2",
+                        title = "Select Tracks for Left & Right",
+                        description = "Tap 'Select Track' under the LEFT and RIGHT earbud cards to search online or pick from your downloaded songs."
+                    )
+                    DualBudManualStep(
+                        step = "3",
+                        title = "Turn On Dual Bud Mode",
+                        description = "Toggle the switch or power button on. MyPlayer isolates audio channels, sending Song 1 to the Left ear and Song 2 to the Right ear."
+                    )
+                    DualBudManualStep(
+                        step = "4",
+                        title = "Independent Playback & Volume",
+                        description = "Each earbud has its own Play/Pause, Seek bar, and Volume slider. Adjust your music without interrupting the other person!"
+                    )
+                    DualBudManualStep(
+                        step = "5",
+                        title = "Instant Channel Swap",
+                        description = "Tap 'Swap Left ↔ Right' anytime to flip songs between the ears instantly without stopping audio."
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DualBudManualStep(
+    step: String,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(ClayPrimary),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = step,
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurface
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
