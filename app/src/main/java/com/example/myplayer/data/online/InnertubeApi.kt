@@ -54,15 +54,18 @@ class InnertubeApi @Inject constructor(
     private val BASE_URL: String by lazy { enc.baseUrl }
     private val API_KEY: String by lazy { enc.ytmApiKey }
 
-    // YouTube Music web client context
+    // YouTube Music web client context (Device Locale Auto-Detected - Zero Hardcoding)
     private val CLIENT_CONTEXT: String by lazy {
+        val locale = java.util.Locale.getDefault()
+        val lang = locale.language.ifBlank { "en" }
+        val country = locale.country.ifBlank { "US" }
         JSONObject().apply {
             put("context", JSONObject().apply {
                 put("client", JSONObject().apply {
                     put("clientName", enc.clientWebName)
                     put("clientVersion", enc.clientWebVersion)
-                    put("hl", "en")
-                    put("gl", "US")
+                    put("hl", lang)
+                    put("gl", country)
                 })
             })
         }.toString()
@@ -120,6 +123,8 @@ class InnertubeApi @Inject constructor(
      * Retrieves related/radio recommendation tracks for a given YouTube video ID
      * using YouTube Music's 'next' endpoint.
      */
+    suspend fun getUpNext(videoId: String): List<OnlineSong> = getNextRadioTracks(videoId)
+
     suspend fun getNextRadioTracks(videoId: String): List<OnlineSong> = withContext(Dispatchers.IO) {
         val cleanVideoId = videoId.removePrefix("online://").trim()
         if (cleanVideoId.isBlank()) return@withContext emptyList()

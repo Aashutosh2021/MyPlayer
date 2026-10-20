@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -148,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Update Now", fontWeight = FontWeight.Bold)
+                                Text("Update Now", fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         },
                         dismissButton = {
