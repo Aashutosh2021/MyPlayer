@@ -124,6 +124,7 @@ class InnertubeApi @Inject constructor(
      * using YouTube Music's 'next' endpoint.
      */
     suspend fun getUpNext(videoId: String): List<OnlineSong> = getNextRadioTracks(videoId)
+    suspend fun getRecommendations(videoId: String): List<OnlineSong> = getUpNext(videoId)
 
     suspend fun getNextRadioTracks(videoId: String): List<OnlineSong> = withContext(Dispatchers.IO) {
         val cleanVideoId = videoId.removePrefix("online://").trim()
