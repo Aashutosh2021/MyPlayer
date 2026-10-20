@@ -268,7 +268,7 @@ fun SettingsScreen(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Update Now", fontWeight = FontWeight.Bold, color=Color.White)
+                        Text("Update Now", fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {

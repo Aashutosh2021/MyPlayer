@@ -62,6 +62,7 @@ val OnErrorContainer            = Color(0xFF93000A)
 val NeonLimePrimary: Color      get() = if (ThemeState.isDarkMode) PureWhite else CharcoalPrimary
 val OnNeonLime: Color           get() = if (ThemeState.isDarkMode) CharcoalPrimary else PureWhite
 val ClayPrimary: Color          get() = if (ThemeState.isDarkMode) PureWhite else CharcoalPrimary
+val OnClayPrimary: Color        get() = if (ThemeState.isDarkMode) CharcoalPrimary else PureWhite
 val ClaySecondary: Color        get() = if (ThemeState.isDarkMode) SilverMuted else SlateSecondary
 val ClayTertiary: Color         get() = if (ThemeState.isDarkMode) SlateSecondary else SilverMuted
 

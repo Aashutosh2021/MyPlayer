@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -186,7 +187,8 @@ fun SyncPlayScreen(
                             Text(
                                 "Synchronized Listening",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
@@ -294,11 +296,15 @@ fun SyncPlayScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                         Spacer(Modifier.width(8.dp))
-                        Text("CREATE ROOM (HOST)", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("CREATE ROOM (HOST)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -308,11 +314,15 @@ fun SyncPlayScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.Sync, contentDescription = null)
+                        Icon(Icons.Default.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(8.dp))
-                        Text("JOIN NEARBY ROOM (AUTO)", fontWeight = FontWeight.Bold)
+                        Text("JOIN NEARBY ROOM (AUTO)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -322,11 +332,15 @@ fun SyncPlayScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.SettingsEthernet, contentDescription = null)
+                        Icon(Icons.Default.SettingsEthernet, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(8.dp))
-                        Text("JOIN BY IP ADDRESS", fontWeight = FontWeight.Medium)
+                        Text("JOIN BY IP ADDRESS", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
 

@@ -1051,7 +1051,7 @@ private fun DualBudManualStep(
         ) {
             Text(
                 text = step,
-                color = Color.White,
+                color = OnClayPrimary,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
             )
         }

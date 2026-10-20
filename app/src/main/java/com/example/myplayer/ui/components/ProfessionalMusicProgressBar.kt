@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myplayer.ui.theme.OnPrimary
 import com.example.myplayer.ui.theme.Primary
 import com.example.myplayer.ui.theme.Secondary
 
@@ -134,9 +135,9 @@ fun ProfessionalMusicProgressBar(
                     center = Offset(thumbX, centerY)
                 )
 
-                // Crisp inner white dot
+                // Crisp inner dot (contrasting in dark and light mode)
                 drawCircle(
-                    color = Color.White,
+                    color = OnPrimary,
                     radius = thumbR * 0.4f,
                     center = Offset(thumbX, centerY)
                 )

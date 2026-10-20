@@ -258,7 +258,7 @@ fun RadialAudioController(
             )
             // Center highlight
             drawCircle(
-                color = Color.White,
+                color = OnPrimary,
                 radius = thumbRadiusPx * 0.45f,
                 center = Offset(thumbX, thumbY)
             )

@@ -522,9 +522,9 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                             modifier = Modifier.height(34.dp)
                         ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(Modifier.width(4.dp))
-                            Text("Play Mix", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Play Mix", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                 }

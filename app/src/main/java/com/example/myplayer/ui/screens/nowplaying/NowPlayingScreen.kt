@@ -107,9 +107,9 @@ fun NowPlayingScreen(
             dismissButton = {
                 TextButton(onClick = { showRemoveConfirm = false }) { Text("Cancel") }
             },
-            containerColor = Color(0xFF1C2330),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFA4AAB7)
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -119,21 +119,21 @@ fun NowPlayingScreen(
             title = { Text("Audio Quality") },
             text = {
                 Column {
-                    Text("Badge: ${audioQuality.displayBadge}", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Badge: ${audioQuality.displayBadge}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
-                    Text("Format: ${audioQuality.format}", color = Color(0xFFA4AAB7))
-                    Text("Technical: ${audioQuality.technicalSummary}", color = Color(0xFFA4AAB7))
-                    Text("Source: ${audioQuality.sourceName}", color = Color(0xFFA4AAB7))
+                    Text("Format: ${audioQuality.format}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Technical: ${audioQuality.technicalSummary}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Source: ${audioQuality.sourceName}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showQualityDetails = false }) {
-                    Text("OK", color = Color.White)
+                    Text("OK", color = MaterialTheme.colorScheme.primary)
                 }
             },
-            containerColor = Color(0xFF1C2330),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFA4AAB7)
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -201,7 +201,7 @@ fun NowPlayingScreen(
                 DropdownMenu(
                     expanded = showMoreSheet,
                     onDismissRequest = { showMoreSheet = false },
-                    modifier = Modifier.background(Color(0xFF1C2330))
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
                 ) {
                     if (hasSong && canDownload) {
                         DropdownMenuItem(
@@ -212,14 +212,14 @@ fun NowPlayingScreen(
                                         isDownloading -> "Downloading..."
                                         else -> "Download Offline"
                                     },
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             leadingIcon = {
                                 Icon(
                                     if (isDownloaded) Icons.Filled.CheckCircle else Icons.Filled.Download,
                                     null,
-                                    tint = Color.White
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             onClick = {
@@ -229,18 +229,18 @@ fun NowPlayingScreen(
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Sleep Timer", color = Color.White) },
-                        leadingIcon = { Icon(Icons.Filled.Timer, null, tint = Color.White) },
+                        text = { Text("Sleep Timer", color = MaterialTheme.colorScheme.onSurface) },
+                        leadingIcon = { Icon(Icons.Filled.Timer, null, tint = MaterialTheme.colorScheme.onSurface) },
                         onClick = { showMoreSheet = false; showSleepTimer = true }
                     )
                     DropdownMenuItem(
-                        text = { Text("Audio Quality (${audioQuality.displayBadge})", color = Color.White) },
-                        leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = Color.White) },
+                        text = { Text("Audio Quality (${audioQuality.displayBadge})", color = MaterialTheme.colorScheme.onSurface) },
+                        leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = MaterialTheme.colorScheme.onSurface) },
                         onClick = { showMoreSheet = false; showQualityDetails = true }
                     )
                     DropdownMenuItem(
-                        text = { Text("Settings", color = Color.White) },
-                        leadingIcon = { Icon(Icons.Filled.Settings, null, tint = Color.White) },
+                        text = { Text("Settings", color = MaterialTheme.colorScheme.onSurface) },
+                        leadingIcon = { Icon(Icons.Filled.Settings, null, tint = MaterialTheme.colorScheme.onSurface) },
                         onClick = { showMoreSheet = false; onNavigateToSettings() }
                     )
                 }
@@ -440,7 +440,7 @@ fun CustomLyricsDialog(
                 enabled = text.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     disabledContentColor = TextMuted
                 ),

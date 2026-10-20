@@ -261,13 +261,13 @@ fun PlaylistDetailScreen(
                                 .shadow(8.dp, RoundedCornerShape(24.dp), spotColor = Color(0x28000000)),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.surface
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             shape = RoundedCornerShape(24.dp)
                         ) {
                             Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 14.sp,color = Color.White)
+                            Text("Play", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
 
                         Button(
@@ -805,12 +805,12 @@ fun AddSongsSheet(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Filled.LibraryAdd, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.LibraryAdd, null, tint = OnClayPrimary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 "Add ${selectedIds.size} Song${if (selectedIds.size != 1) "s" else ""}",
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White
+                                color = OnClayPrimary
                             )
                         }
                     }
