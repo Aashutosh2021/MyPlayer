@@ -30,7 +30,8 @@ data class LyricsMetadata(
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
     private val lyricsRepository: LyricsRepository,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    val equalizerProcessor: com.example.myplayer.playback.equalizer.StudioEqualizerAudioProcessor
 ) : ViewModel() {
 
     private val _lyricsState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)

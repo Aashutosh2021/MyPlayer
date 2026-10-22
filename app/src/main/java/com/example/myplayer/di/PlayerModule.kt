@@ -58,11 +58,26 @@ object PlayerModule {
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
-        cacheDataSourceFactory: CacheDataSource.Factory
+        cacheDataSourceFactory: CacheDataSource.Factory,
+        studioEqualizerAudioProcessor: com.example.myplayer.playback.equalizer.StudioEqualizerAudioProcessor
     ): ExoPlayer {
         val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
         val initialShuffle = prefs.getBoolean("playback_shuffle_mode", false)
+
+        val renderersFactory = object : androidx.media3.exoplayer.DefaultRenderersFactory(context) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): androidx.media3.exoplayer.audio.AudioSink {
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(arrayOf(studioEqualizerAudioProcessor))
+                    .build()
+            }
+        }
 
         // Buffer up to 5 minutes (entire song) upfront so playback never stalls in background
         val loadControl = DefaultLoadControl.Builder()
@@ -78,7 +93,7 @@ object PlayerModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 5))
 
-        return ExoPlayer.Builder(context)
+        return ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
