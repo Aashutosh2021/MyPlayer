@@ -51,10 +51,26 @@ class SettingsViewModel @Inject constructor(
     val spotifyUsername = spotifyManager.username
     val isSpotifySyncing = spotifyManager.isSyncing
 
-    fun syncSpotifyTaste() {
+    private val _spotifySyncMessage = MutableStateFlow<String?>(null)
+    val spotifySyncMessage = _spotifySyncMessage.asStateFlow()
+
+    fun clearSpotifySyncMessage() {
+        _spotifySyncMessage.value = null
+    }
+
+    fun syncSpotify() {
         viewModelScope.launch {
-            spotifyManager.syncSpotifyTasteIntoAi()
+            val res = spotifyManager.syncAllSpotifyLibraryAndPlaylists()
+            res.onSuccess { result ->
+                _spotifySyncMessage.value = "Synced ${result.playlistsCount} playlists & ${result.totalTracksSynced} songs from Spotify!"
+            }.onFailure { e ->
+                _spotifySyncMessage.value = "Spotify sync failed: ${e.message}"
+            }
         }
+    }
+
+    fun syncSpotifyTaste() {
+        syncSpotify()
     }
 
     fun logoutSpotify() {

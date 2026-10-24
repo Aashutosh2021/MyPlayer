@@ -2,6 +2,13 @@ package com.example.myplayer.data.spotify
 
 import android.content.Context
 import android.util.Log
+import com.example.myplayer.data.local.dao.FavoriteDao
+import com.example.myplayer.data.local.dao.PlaylistDao
+import com.example.myplayer.data.local.dao.SongDao
+import com.example.myplayer.data.local.entity.FavoriteEntity
+import com.example.myplayer.data.local.entity.PlaylistEntity
+import com.example.myplayer.data.local.entity.PlaylistSongCrossReference
+import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.recommendation.ai.OnDeviceMusicAiModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -26,13 +33,31 @@ data class SpotifyTrackSeed(
     val title: String,
     val artist: String,
     val durationMs: Long,
-    val weight: Float
+    val weight: Float,
+    val artworkUrl: String? = null
+)
+
+data class SpotifyPlaylistSummary(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val imageUrl: String?,
+    val totalTracks: Int
+)
+
+data class SpotifyFullSyncResult(
+    val likedSongsCount: Int,
+    val playlistsCount: Int,
+    val totalTracksSynced: Int
 )
 
 @Singleton
 class SpotifyIntegrationManager @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val aiModel: OnDeviceMusicAiModel
+    @param:ApplicationContext private val context: Context,
+    private val aiModel: OnDeviceMusicAiModel,
+    private val songDao: SongDao,
+    private val playlistDao: PlaylistDao,
+    private val favoriteDao: FavoriteDao
 ) {
     companion object {
         private const val TAG = "SpotifyIntegration"
@@ -49,6 +74,8 @@ class SpotifyIntegrationManager @Inject constructor(
         private const val HASH_SEARCH_DESKTOP = "4801118d4a100f756e833d33984436a3899cff359c532f8fd3aaf174b60b3b49"
         private const val HASH_ADD_TO_LIBRARY = "7c5a69420e2bfae3da5cc4e14cbc8bb3f6090f80afc00ffc179177f19be3f33d"
         private const val HASH_ARTIST_OVERVIEW = "5b9e64f43843fa3a9b6a98543600299b0a2cbbbccfdcdcef2402eb9c1017ca4c"
+        private const val HASH_LIBRARY_V3 = "973e511ca44261fda7eebac8b653155e7caee3675abb4fb110cc1b8c78b091c3"
+        private const val HASH_FETCH_PLAYLIST = "346811f856fb0b7e4f6c59f8ebea78dd081c6e2fb01b77c954b26259d5fc6763"
 
         const val USER_AGENT_DESKTOP =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -174,6 +201,13 @@ class SpotifyIntegrationManager @Inject constructor(
                     durationMs = track.durationMs,
                     reward = track.weight
                 )
+            }
+
+            // Also synchronize full Spotify library and playlists into MyPlayer Room DB
+            try {
+                syncAllSpotifyLibraryAndPlaylists()
+            } catch (e: Exception) {
+                Log.w(TAG, "Full Spotify library sync failed during taste sync", e)
             }
 
             deduplicated
@@ -498,8 +532,9 @@ class SpotifyIntegrationManager @Inject constructor(
                     artistsArr.getJSONObject(j).optString("name").takeIf { it.isNotBlank() }?.let { artistNames.add(it) }
                 }
             }
+            val albumArt = t.optJSONObject("album")?.optJSONArray("images")?.optJSONObject(0)?.optString("url")
             if (name.isNotBlank() && artistNames.isNotEmpty()) {
-                list.add(SpotifyTrackSeed(id, name, artistNames.joinToString(", "), dur, 1.0f))
+                list.add(SpotifyTrackSeed(id, name, artistNames.joinToString(", "), dur, 1.0f, albumArt))
             }
         }
         return list
@@ -533,11 +568,260 @@ class SpotifyIntegrationManager @Inject constructor(
                     if (!aName.isNullOrBlank()) artists.add(aName)
                 }
             }
+            val albumArt = data.optJSONObject("albumOfTrack")?.optJSONObject("coverArt")
+                ?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
             if (name.isNotBlank() && artists.isNotEmpty()) {
-                out.add(SpotifyTrackSeed(id, name, artists.joinToString(", "), dur, 1.0f))
+                out.add(SpotifyTrackSeed(id, name, artists.joinToString(", "), dur, 1.0f, albumArt))
             }
         }
         return out
+    }
+
+    fun fetchUserPlaylists(token: String): List<SpotifyPlaylistSummary> {
+        val out = mutableListOf<SpotifyPlaylistSummary>()
+        try {
+            val res = httpGet(
+                "$REST_BASE_URL/me/playlists?limit=50&offset=0",
+                mapOf(
+                    "Authorization" to "Bearer $token",
+                    "app-platform" to "WebPlayer",
+                    "Origin" to "https://open.spotify.com",
+                    "Referer" to "https://open.spotify.com/"
+                )
+            )
+            val items = JSONObject(res).optJSONArray("items")
+            if (items != null) {
+                for (i in 0 until items.length()) {
+                    val item = items.getJSONObject(i)
+                    val id = item.optString("id")
+                    val name = item.optString("name")
+                    val desc = item.optString("description")
+                    val imgUrl = item.optJSONArray("images")?.optJSONObject(0)?.optString("url")
+                    val total = item.optJSONObject("tracks")?.optInt("total", 0) ?: 0
+                    if (id.isNotBlank() && name.isNotBlank()) {
+                        out.add(SpotifyPlaylistSummary(id, name, desc, imgUrl, total))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "REST me/playlists failed, trying GraphQL libraryV3", e)
+            try {
+                val vars = JSONObject().apply {
+                    put("filters", JSONArray().put("Playlists"))
+                    put("order", JSONObject.NULL)
+                    put("textFilter", "")
+                    put("features", JSONArray().put("LIKED_SONGS"))
+                    put("limit", 50)
+                    put("offset", 0)
+                    put("flatten", true)
+                    put("expandedFolders", JSONArray())
+                    put("folderUri", JSONObject.NULL)
+                    put("includeFoldersWhenFlattening", false)
+                }
+                val gqlRes = graphqlPost(token, "libraryV3", HASH_LIBRARY_V3, vars)
+                val items = gqlRes.optJSONObject("data")
+                    ?.optJSONObject("me")
+                    ?.optJSONObject("libraryV3")
+                    ?.optJSONArray("items")
+                if (items != null) {
+                    for (i in 0 until items.length()) {
+                        val itemWrapper = items.getJSONObject(i).optJSONObject("item") ?: continue
+                        val data = itemWrapper.optJSONObject("data") ?: continue
+                        val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
+                        val id = uri.substringAfterLast(":")
+                        val name = data.optString("name")
+                        val desc = data.optString("description")
+                        val img = data.optJSONObject("images")?.optJSONArray("items")
+                            ?.optJSONObject(0)?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
+                        val total = data.optJSONObject("content")?.optInt("totalCount", 0) ?: 0
+                        if (id.isNotBlank() && name.isNotBlank()) {
+                            out.add(SpotifyPlaylistSummary(id, name, desc, img, total))
+                        }
+                    }
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "GraphQL libraryV3 failed", ex)
+            }
+        }
+        return out
+    }
+
+    fun fetchPlaylistTracks(token: String, playlistId: String): List<SpotifyTrackSeed> {
+        val out = mutableListOf<SpotifyTrackSeed>()
+        try {
+            val res = httpGet(
+                "$REST_BASE_URL/playlists/$playlistId/tracks?limit=100&offset=0",
+                mapOf(
+                    "Authorization" to "Bearer $token",
+                    "app-platform" to "WebPlayer",
+                    "Origin" to "https://open.spotify.com",
+                    "Referer" to "https://open.spotify.com/"
+                )
+            )
+            val items = JSONObject(res).optJSONArray("items")
+            if (items != null) {
+                for (i in 0 until items.length()) {
+                    val trackObj = items.getJSONObject(i).optJSONObject("track") ?: continue
+                    val id = trackObj.optString("id")
+                    val name = trackObj.optString("name")
+                    val dur = trackObj.optLong("duration_ms", 0L)
+                    val artistsArr = trackObj.optJSONArray("artists")
+                    val artistNames = mutableListOf<String>()
+                    if (artistsArr != null) {
+                        for (j in 0 until artistsArr.length()) {
+                            val a = artistsArr.getJSONObject(j).optString("name")
+                            if (a.isNotBlank()) artistNames.add(a)
+                        }
+                    }
+                    val albumArt = trackObj.optJSONObject("album")?.optJSONArray("images")
+                        ?.optJSONObject(0)?.optString("url")
+                    if (id.isNotBlank() && name.isNotBlank() && artistNames.isNotEmpty()) {
+                        out.add(SpotifyTrackSeed(id, name, artistNames.joinToString(", "), dur, 1.0f, albumArt))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "REST playlist tracks failed, trying GraphQL fetchPlaylist", e)
+            try {
+                val vars = JSONObject().apply {
+                    put("uri", "spotify:playlist:$playlistId")
+                    put("offset", 0)
+                    put("limit", 100)
+                    put("enableWatchFeedEntrypoint", false)
+                }
+                val gqlRes = graphqlPost(token, "fetchPlaylist", HASH_FETCH_PLAYLIST, vars)
+                val items = gqlRes.optJSONObject("data")
+                    ?.optJSONObject("playlistV2")
+                    ?.optJSONObject("content")
+                    ?.optJSONArray("items")
+                if (items != null) {
+                    for (i in 0 until items.length()) {
+                        val elem = items.getJSONObject(i)
+                        val itemWrapper = elem.optJSONObject("itemV2") ?: continue
+                        val data = itemWrapper.optJSONObject("data") ?: continue
+                        val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
+                        val id = uri.substringAfterLast(":")
+                        val name = data.optString("name")
+                        val dur = data.optJSONObject("duration")?.optLong("totalMilliseconds", 0L) ?: 0L
+                        val artistItems = data.optJSONObject("artists")?.optJSONArray("items")
+                        val artists = mutableListOf<String>()
+                        if (artistItems != null) {
+                            for (j in 0 until artistItems.length()) {
+                                val a = artistItems.getJSONObject(j).optJSONObject("profile")?.optString("name")
+                                if (!a.isNullOrBlank()) artists.add(a)
+                            }
+                        }
+                        val albumArt = data.optJSONObject("albumOfTrack")?.optJSONObject("coverArt")
+                            ?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
+                        if (id.isNotBlank() && name.isNotBlank() && artists.isNotEmpty()) {
+                            out.add(SpotifyTrackSeed(id, name, artists.joinToString(", "), dur, 1.0f, albumArt))
+                        }
+                    }
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "GraphQL fetchPlaylist failed for $playlistId", ex)
+            }
+        }
+        return out
+    }
+
+    /**
+     * Syncs all user Spotify Liked Songs and Playlists into MyPlayer Room DB
+     * (SongEntity, PlaylistEntity, PlaylistSongCrossReference, FavoriteEntity).
+     */
+    suspend fun syncAllSpotifyLibraryAndPlaylists(): Result<SpotifyFullSyncResult> = withContext(Dispatchers.IO) {
+        _isSyncing.value = true
+        runCatching {
+            val token = getValidAccessToken() ?: throw IllegalStateException("Not logged in to Spotify")
+            var totalTracks = 0
+            val allCollectedSeeds = mutableListOf<SpotifyTrackSeed>()
+
+            // 1. Sync Liked Songs into MyPlayer Favorites & Library
+            val likedTracks = fetchGraphQlLikedSongs(token, limit = 100)
+            if (likedTracks.isNotEmpty()) {
+                val songEntities = likedTracks.map { seed ->
+                    val songId = "spotify:${seed.id}"
+                    SongEntity(
+                        id = songId,
+                        title = seed.title,
+                        artist = seed.artist,
+                        album = "Spotify Liked Songs",
+                        duration = seed.durationMs,
+                        path = "online://${seed.id}",
+                        albumArt = seed.artworkUrl,
+                        dateAdded = System.currentTimeMillis()
+                    )
+                }
+                songDao.insertSongs(songEntities)
+                favoriteDao.insertFavorites(songEntities.map { FavoriteEntity(songId = it.id, addedAt = System.currentTimeMillis()) })
+                allCollectedSeeds.addAll(likedTracks)
+                totalTracks += likedTracks.size
+                Log.d(TAG, "Synced ${likedTracks.size} Liked Songs to MyPlayer Favorites")
+            }
+
+            // 2. Sync User's Spotify Playlists into MyPlayer Playlists
+            val playlists = fetchUserPlaylists(token)
+            var playlistsSynced = 0
+            for (pl in playlists) {
+                try {
+                    val tracks = fetchPlaylistTracks(token, pl.id)
+                    if (tracks.isEmpty()) continue
+
+                    val existingPl = playlistDao.getPlaylistByName(pl.name)
+                    val plId = existingPl?.id ?: playlistDao.insertPlaylist(PlaylistEntity(name = pl.name))
+
+                    val trackEntities = mutableListOf<SongEntity>()
+                    val crossRefs = mutableListOf<PlaylistSongCrossReference>()
+
+                    tracks.forEachIndexed { pos, seed ->
+                        val songId = "spotify:${seed.id}"
+                        trackEntities.add(
+                            SongEntity(
+                                id = songId,
+                                title = seed.title,
+                                artist = seed.artist,
+                                album = pl.name,
+                                duration = seed.durationMs,
+                                path = "online://${seed.id}",
+                                albumArt = seed.artworkUrl ?: pl.imageUrl,
+                                dateAdded = System.currentTimeMillis()
+                            )
+                        )
+                        crossRefs.add(PlaylistSongCrossReference(playlistId = plId, songId = songId, position = pos))
+                    }
+
+                    songDao.insertSongs(trackEntities)
+                    playlistDao.insertPlaylistSongs(crossRefs)
+                    allCollectedSeeds.addAll(tracks)
+                    totalTracks += tracks.size
+                    playlistsSynced++
+                    Log.d(TAG, "Synced playlist '${pl.name}' (${tracks.size} tracks)")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to sync playlist '${pl.name}'", e)
+                }
+            }
+
+            // 3. Train On-Device AI with all synced songs
+            allCollectedSeeds.distinctBy { "${it.title.lowercase()}_${it.artist.lowercase()}" }
+                .take(100)
+                .forEach { track ->
+                    aiModel.learnFromInteraction(
+                        videoId = track.id,
+                        title = track.title,
+                        artist = track.artist,
+                        durationMs = track.durationMs,
+                        reward = 1.8f
+                    )
+                }
+
+            SpotifyFullSyncResult(
+                likedSongsCount = likedTracks.size,
+                playlistsCount = playlistsSynced,
+                totalTracksSynced = totalTracks
+            )
+        }.also {
+            _isSyncing.value = false
+        }
     }
 
     private fun graphqlPost(token: String, operationName: String, sha256Hash: String, variables: JSONObject): JSONObject {

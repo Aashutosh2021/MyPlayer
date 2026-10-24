@@ -125,12 +125,36 @@ class PlaybackSourceResolver @Inject constructor(
         }
 
         // Rule 3: Online songs (path starts with online:// or path is null)
-        val videoId = if (path != null && path.startsWith("online://")) {
+        val rawCandidateId = if (path != null && path.startsWith("online://")) {
             path.removePrefix("online://")
         } else if (request.songId.startsWith("online://")) {
             request.songId.removePrefix("online://")
         } else {
             rawVideoId ?: request.songId
+        }
+
+        var videoId = rawCandidateId
+        if (videoId.length != 11 || videoId.contains("spotify", ignoreCase = true)) {
+            val dbSong = withContext(Dispatchers.IO) { songDao.getSongById(request.songId) }
+            val existingYtId = dbSong?.videoId
+            if (!existingYtId.isNullOrBlank() && existingYtId.length == 11) {
+                videoId = existingYtId
+            } else {
+                val qTitle = request.metadata["title"] ?: dbSong?.title ?: request.title
+                val qArtist = request.metadata["artist"] ?: dbSong?.artist ?: request.artist
+                val q = "$qTitle $qArtist".trim()
+                if (q.isNotBlank()) {
+                    val match = withContext(Dispatchers.IO) {
+                        try { innertubeApi.search(q, filtered = true).songs.firstOrNull() } catch (_: Exception) { null }
+                    }
+                    if (match != null) {
+                        videoId = match.videoId
+                        withContext(Dispatchers.IO) {
+                            try { songDao.updateSongVideoId(request.songId, match.videoId) } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
         }
 
         return resolveOnlineStream(videoId, setCustomError)

@@ -58,7 +58,15 @@ fun SettingsScreen(
     val isSpotifyLoggedIn by viewModel.isSpotifyLoggedIn.collectAsStateWithLifecycle()
     val spotifyUsername by viewModel.spotifyUsername.collectAsStateWithLifecycle()
     val isSpotifySyncing by viewModel.isSpotifySyncing.collectAsStateWithLifecycle()
+    val spotifySyncMessage by viewModel.spotifySyncMessage.collectAsStateWithLifecycle()
     var showSpotifyDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(spotifySyncMessage) {
+        spotifySyncMessage?.let {
+            showDialogText = it
+            viewModel.clearSpotifySyncMessage()
+        }
+    }
 
     var showNameDialog by remember { mutableStateOf(false) }
     var editNameInput by remember { mutableStateOf("") }
@@ -459,11 +467,11 @@ fun SettingsScreen(
                 SettingsNavigationRow(
                     icon = Icons.Filled.CheckCircle,
                     title = "Spotify Connected (${spotifyUsername ?: "User"})",
-                    subtitle = if (isSpotifySyncing) "Syncing taste into MyPlayer..." else "Tap to re-sync Liked Songs & Top 50 Tracks",
+                    subtitle = if (isSpotifySyncing) "Syncing playlists & library into MyPlayer..." else "Tap to sync all Spotify Playlists & Library",
                     onClick = {
                         if (!isSpotifySyncing) {
-                            viewModel.syncSpotifyTaste()
-                            showDialogText = "Syncing your Spotify taste profile into AI..."
+                            viewModel.syncSpotify()
+                            showDialogText = "Syncing all Spotify Playlists and Library songs into MyPlayer..."
                         }
                     }
                 )

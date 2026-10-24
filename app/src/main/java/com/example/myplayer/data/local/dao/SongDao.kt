@@ -44,4 +44,7 @@ interface SongDao {
 
     @Query("SELECT * FROM songs WHERE videoId = :videoId LIMIT 1")
     suspend fun getSongByVideoId(videoId: String): SongEntity?
+
+    @Query("UPDATE songs SET videoId = :videoId WHERE id = :id")
+    suspend fun updateSongVideoId(id: String, videoId: String): Unit
 }
