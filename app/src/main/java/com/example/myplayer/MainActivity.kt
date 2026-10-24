@@ -38,6 +38,8 @@ import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.data.update.UpdateInfo
 import com.example.myplayer.data.update.UpdateNotifier
+import com.example.myplayer.ui.components.WhatsNewDialog
+import com.example.myplayer.ui.components.WhatsNewRepository
 import com.example.myplayer.ui.screens.main.MainScreen
 import com.example.myplayer.ui.theme.MyPlayerTheme
 import com.example.myplayer.ui.theme.ThemeState
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsDataStore: SettingsDataStore
 
     private var launchUpdateAvailable by mutableStateOf<UpdateInfo?>(null)
+    private var showWhatsNew by mutableStateOf(false)
 
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -73,6 +76,10 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermissionIfNeeded()
         checkForUpdatesOnLaunch()
+
+        if (WhatsNewRepository.shouldShow(this)) {
+            showWhatsNew = true
+        }
 
         setContent {
             val scope = rememberCoroutineScope()
@@ -159,6 +166,15 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text("Later")
                             }
+                        }
+                    )
+                }
+
+                if (launchUpdateAvailable == null && showWhatsNew) {
+                    WhatsNewDialog(
+                        onDismiss = {
+                            showWhatsNew = false
+                            WhatsNewRepository.markSeen(this@MainActivity)
                         }
                     )
                 }

@@ -296,7 +296,14 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
                 val isShuffleOn by viewModel.isShuffleOn.collectAsStateWithLifecycle()
                 val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
-                val durationMs = currentSong?.duration ?: viewModel.currentDuration.collectAsStateWithLifecycle().value
+                val liveDuration by viewModel.currentDuration.collectAsStateWithLifecycle()
+                val durationMs = if (liveDuration > 0L) {
+                    liveDuration
+                } else {
+                    currentSong?.duration?.takeIf { it > 0L }
+                        ?: currentOnlineSong?.durationMs?.takeIf { it > 0L }
+                        ?: 0L
+                }
                 val canDownload by viewModel.isCurrentSongOnline.collectAsStateWithLifecycle()
                 val isDownloaded by viewModel.isCurrentSongDownloaded.collectAsStateWithLifecycle()
                 val isDownloading by viewModel.isCurrentSongDownloading.collectAsStateWithLifecycle()

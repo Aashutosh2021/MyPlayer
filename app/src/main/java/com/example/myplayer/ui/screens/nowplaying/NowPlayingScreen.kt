@@ -80,7 +80,7 @@ fun NowPlayingScreen(
     var showMoreSheet by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
-    val duration = durationMs.coerceAtLeast(1L)
+    val duration = durationMs.coerceAtLeast(0L)
 
     val positionMs = positionState.value
 

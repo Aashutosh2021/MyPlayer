@@ -57,13 +57,17 @@ fun RadialAudioController(
 ) {
     // positionMs accepted as Long; caller already passes positionState.value so
     // reads are scoped to this composable only (Phase 4 handled in caller).
-    val duration = durationMs.coerceAtLeast(1L)
+    val hasValidDuration = durationMs > 0L
     val density = LocalDensity.current
 
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
-    val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val actualProgress = if (hasValidDuration) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
     val currentProgress = if (isDragging) dragProgress else actualProgress
 
     // Concentric pulsing aura animation when playing
@@ -150,7 +154,7 @@ fun RadialAudioController(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(duration) {
+                .pointerInput(durationMs) {
                     // Tap: update local progress only; fire seek on release.
                     fun angleToProgress(offset: Offset): Float {
                         val centerX = size.width / 2f
@@ -166,16 +170,18 @@ fun RadialAudioController(
 
                     detectTapGestures(
                         onPress = { offset ->
-                            isDragging = true
-                            dragProgress = angleToProgress(offset)
-                            tryAwaitRelease()
-                            // Seek fires exactly once — on release.
-                            onSeek((dragProgress * duration).toLong())
-                            isDragging = false
+                            if (hasValidDuration) {
+                                isDragging = true
+                                dragProgress = angleToProgress(offset)
+                                tryAwaitRelease()
+                                // Seek fires exactly once — on release.
+                                onSeek((dragProgress * durationMs).toLong())
+                                isDragging = false
+                            }
                         }
                     )
                 }
-                .pointerInput(duration) {
+                .pointerInput(durationMs) {
                     fun angleToProgress(offset: Offset): Float {
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
@@ -200,7 +206,9 @@ fun RadialAudioController(
                         },
                         onDragEnd = {
                             // Seek fires exactly once per drag interaction.
-                            onSeek((dragProgress * duration).toLong())
+                            if (hasValidDuration) {
+                                onSeek((dragProgress * durationMs).toLong())
+                            }
                             isDragging = false
                         },
                         onDragCancel = {
@@ -325,7 +333,7 @@ fun RadialAudioController(
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 24.dp, vertical = 2.dp)
         ) {
-            val displayedPositionMs = if (isDragging) (dragProgress * duration).toLong() else positionMs
+            val displayedPositionMs = if (isDragging && hasValidDuration) (dragProgress * durationMs).toLong() else positionMs
             Text(
                 text = formatDuration(displayedPositionMs),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -334,7 +342,7 @@ fun RadialAudioController(
             )
 
             Text(
-                text = formatDuration(duration),
+                text = if (hasValidDuration) formatDuration(durationMs) else "--:--",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.BottomEnd)

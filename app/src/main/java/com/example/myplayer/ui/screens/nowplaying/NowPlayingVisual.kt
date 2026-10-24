@@ -90,11 +90,15 @@ fun NowPlayingVisual(
     modifier: Modifier = Modifier,
     lyricsContent: @Composable () -> Unit = {}
 ) {
-    val duration = durationMs.coerceAtLeast(1L)
+    val hasValidDuration = durationMs > 0L
     var isDraggingProgress by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
 
-    val rawProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val rawProgress = if (hasValidDuration) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
     val displayProgress = if (isDraggingProgress) dragFraction else rawProgress
 
     val animatedProgress by animateFloatAsState(
@@ -292,26 +296,9 @@ fun NowPlayingVisual(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(duration) {
+                        .pointerInput(durationMs) {
                             detectTapGestures { offset ->
-                                val cx = size.width / 2f
-                                val yApexPx = yApexDp.toPx()
-                                val radius = size.width * 0.58f
-                                val cy = yApexPx + radius
-                                val dx = offset.x - cx
-                                val dy = offset.y - cy
-                                val dist = sqrt(dx * dx + dy * dy)
-                                if (dy < 0 && abs(dist - radius) <= 36.dp.toPx()) {
-                                    var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-                                    if (angle < 0) angle += 360f
-                                    val p = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
-                                    onSeek((p * duration).toLong())
-                                }
-                            }
-                        }
-                        .pointerInput(duration) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
+                                if (hasValidDuration) {
                                     val cx = size.width / 2f
                                     val yApexPx = yApexDp.toPx()
                                     val radius = size.width * 0.58f
@@ -319,15 +306,36 @@ fun NowPlayingVisual(
                                     val dx = offset.x - cx
                                     val dy = offset.y - cy
                                     val dist = sqrt(dx * dx + dy * dy)
-                                    if (dy < 0 && abs(dist - radius) <= 40.dp.toPx()) {
-                                        isDraggingProgress = true
+                                    if (dy < 0 && abs(dist - radius) <= 36.dp.toPx()) {
                                         var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
                                         if (angle < 0) angle += 360f
-                                        dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                        val p = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                        onSeek((p * durationMs).toLong())
+                                    }
+                                }
+                            }
+                        }
+                        .pointerInput(durationMs) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    if (hasValidDuration) {
+                                        val cx = size.width / 2f
+                                        val yApexPx = yApexDp.toPx()
+                                        val radius = size.width * 0.58f
+                                        val cy = yApexPx + radius
+                                        val dx = offset.x - cx
+                                        val dy = offset.y - cy
+                                        val dist = sqrt(dx * dx + dy * dy)
+                                        if (dy < 0 && abs(dist - radius) <= 40.dp.toPx()) {
+                                            isDraggingProgress = true
+                                            var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                                            if (angle < 0) angle += 360f
+                                            dragFraction = ((angle - startAngle) / sweepAngle).coerceIn(0f, 1f)
+                                        }
                                     }
                                 },
                                 onHorizontalDrag = { change, _ ->
-                                    if (isDraggingProgress) {
+                                    if (isDraggingProgress && hasValidDuration) {
                                         val cx = size.width / 2f
                                         val yApexPx = yApexDp.toPx()
                                         val radius = size.width * 0.58f
@@ -341,7 +349,9 @@ fun NowPlayingVisual(
                                 },
                                 onDragEnd = {
                                     if (isDraggingProgress) {
-                                        onSeek((dragFraction * duration).toLong())
+                                        if (hasValidDuration) {
+                                            onSeek((dragFraction * durationMs).toLong())
+                                        }
                                         isDraggingProgress = false
                                     }
                                 },
@@ -659,7 +669,7 @@ fun NowPlayingVisual(
                         .padding(horizontal = 50.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    val currentPos = if (isDraggingProgress) (dragFraction * duration).toLong() else positionMs
+                    val currentPos = if (isDraggingProgress && hasValidDuration) (dragFraction * durationMs).toLong() else positionMs
                     Text(
                         text = formatTime(currentPos),
                         color = textPrimary,
@@ -667,7 +677,7 @@ fun NowPlayingVisual(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = formatTime(duration),
+                        text = if (hasValidDuration) formatTime(durationMs) else "--:--",
                         color = textMuted,
                         fontSize = 12.sp
                     )
@@ -779,7 +789,11 @@ fun NowPlayingVisual(
         onPlayPause = onPlayPause,
         onPrevious = onPrevious,
         onNext = onNext,
-        onSeek = { frac -> onSeek(frac.toFloat() / durationMs.coerceAtLeast(1L).toFloat()) },
+        onSeek = { frac ->
+            if (durationMs > 0L) {
+                onSeek(frac.toFloat() / durationMs.toFloat())
+            }
+        },
         onFavorite = onFavorite,
         onShuffle = onShuffle,
         onRepeat = onRepeat,

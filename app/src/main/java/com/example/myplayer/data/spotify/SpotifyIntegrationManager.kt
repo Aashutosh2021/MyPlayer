@@ -11,7 +11,11 @@ import com.example.myplayer.data.local.entity.PlaylistSongCrossReference
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.recommendation.ai.OnDeviceMusicAiModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,6 +89,15 @@ class SpotifyIntegrationManager @Inject constructor(
         context.getSharedPreferences("spotify_integration_prefs", Context.MODE_PRIVATE)
     }
     private val refreshMutex = Mutex()
+
+    // Fire-and-forget scope for the heavyweight full-library sync so the login flow
+    // and taste-sync callers are never blocked for minutes by playlist fetching.
+    // Settings' manual "Sync Library" button still awaits the sync directly.
+    private val librarySyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Serializes concurrent full-library syncs (login background sync + manual sync)
+    // so Room inserts and playlist cross-refs can't interleave.
+    private val fullSyncMutex = Mutex()
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
@@ -165,28 +178,31 @@ class SpotifyIntegrationManager @Inject constructor(
             val token = getValidAccessToken() ?: return@withContext emptyList()
             val seeds = mutableListOf<SpotifyTrackSeed>()
 
-            // 1. Tier 1: Fetch REST Top Tracks (short_term = last 4 weeks, medium_term = last 6 months)
-            for ((range, baseWeight) in listOf("short_term" to 2.0f, "medium_term" to 1.5f)) {
+            // 1. Tier 1 (Preferred): Fetch GraphQL Liked Songs (resistant to 429 rate-limiting!)
+            try {
+                val likedTracks = fetchGraphQlLikedSongs(token, limit = 60)
+                likedTracks.forEachIndexed { index, seed ->
+                    val posFactor = 1.0f - (index.toFloat() / likedTracks.size.coerceAtLeast(1)) * 0.5f
+                    seeds.add(seed.copy(weight = 1.5f * posFactor))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "GraphQL likedSongs failed", e)
+            }
+
+            delay(150L)
+
+            // 2. Tier 2: Fetch REST Top Tracks with delays
+            for ((range, baseWeight) in listOf("short_term" to 1.8f, "medium_term" to 1.3f)) {
                 try {
                     val topTracks = fetchRestTopTracks(token, timeRange = range, limit = 40)
                     topTracks.forEachIndexed { index, seed ->
                         val posFactor = 1.0f - (index.toFloat() / topTracks.size.coerceAtLeast(1)) * 0.5f
                         seeds.add(seed.copy(weight = baseWeight * posFactor))
                     }
+                    delay(150L)
                 } catch (e: Exception) {
-                    Log.w(TAG, "REST topTracks($range) failed, continuing with GraphQL", e)
+                    Log.w(TAG, "REST topTracks($range) failed, continuing with available seeds", e)
                 }
-            }
-
-            // 2. Tier 2: Fetch GraphQL Liked Songs (never rate-limited!)
-            try {
-                val likedTracks = fetchGraphQlLikedSongs(token, limit = 60)
-                likedTracks.forEachIndexed { index, seed ->
-                    val posFactor = 1.0f - (index.toFloat() / likedTracks.size.coerceAtLeast(1)) * 0.5f
-                    seeds.add(seed.copy(weight = 1.4f * posFactor))
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "GraphQL likedSongs failed", e)
             }
 
             val deduplicated = seeds.distinctBy { "${it.title.lowercase()}_${it.artist.lowercase()}" }
@@ -203,11 +219,17 @@ class SpotifyIntegrationManager @Inject constructor(
                 )
             }
 
-            // Also synchronize full Spotify library and playlists into MyPlayer Room DB
-            try {
-                syncAllSpotifyLibraryAndPlaylists()
-            } catch (e: Exception) {
-                Log.w(TAG, "Full Spotify library sync failed during taste sync", e)
+            // Also synchronize full Spotify library and playlists into MyPlayer Room DB.
+            // Fire-and-forget: awaiting this (all playlists + tracks fetches with retry
+            // pauses) inside the login chain made the dialog look eternally "stuck on
+            // loading". The login completes, the dialog dismisses, and the library
+            // sync continues in the background.
+            librarySyncScope.launch {
+                // Brief settle delay: Spotify just served the login + taste-sync burst;
+                // firing the full-library burst instantly increases 429 rate-limiting.
+                delay(3_000L)
+                runCatching { syncAllSpotifyLibraryAndPlaylists() }
+                    .onFailure { Log.w(TAG, "Full Spotify library sync failed", it) }
             }
 
             deduplicated
@@ -272,7 +294,7 @@ class SpotifyIntegrationManager @Inject constructor(
     /**
      * Step 1: Search MyPlayer's song on Spotify via GraphQL `searchDesktop`
      */
-    private fun searchTrackOnSpotify(token: String, query: String): SpotifyResolvedMatch? {
+    private suspend fun searchTrackOnSpotify(token: String, query: String): SpotifyResolvedMatch? {
         val vars = JSONObject().apply {
             put("searchTerm", query.trim())
             put("offset", 0)
@@ -311,7 +333,7 @@ class SpotifyIntegrationManager @Inject constructor(
      * Step 2: Send played/liked song to Spotify (`addToLibrary` GraphQL mutation)
      * so Spotify updates your personal taste profile!
      */
-    private fun pushTrackToSpotifyLibrary(token: String, trackUri: String) {
+    private suspend fun pushTrackToSpotifyLibrary(token: String, trackUri: String) {
         try {
             val vars = JSONObject().apply {
                 put("libraryItemUris", JSONArray().put(trackUri))
@@ -326,7 +348,7 @@ class SpotifyIntegrationManager @Inject constructor(
     /**
      * Step 3: Fetch Spotify's Recommended Tracks + Related Artists via `queryArtistOverview`
      */
-    private fun fetchSpotifyArtistAndRelatedRecommendations(
+    private suspend fun fetchSpotifyArtistAndRelatedRecommendations(
         token: String,
         artistId: String
     ): List<SpotifyTrackSeed> {
@@ -383,9 +405,10 @@ class SpotifyIntegrationManager @Inject constructor(
             parseOverviewTracks(mainArtistUnion, collectRelatedIds = true)
         }
 
-        // 2. Fetch top tracks from Spotify's top 3 Related Artists ("Fans Also Like")!
+        // 2. Fetch top tracks from Spotify's top 3 Related Artists ("Fans Also Like") with small delay
         for (relId in relatedArtistIds.take(3)) {
             try {
+                delay(150L)
                 val relVars = JSONObject().apply {
                     put("uri", "spotify:artist:$relId")
                     put("locale", "")
@@ -403,7 +426,7 @@ class SpotifyIntegrationManager @Inject constructor(
 
     // ── Meld's TOTP + sp_dc Authentication Engine ────────────────────────
 
-    private fun fetchAccessTokenViaTotp(spDc: String, spKey: String): Pair<String, Long> {
+    private suspend fun fetchAccessTokenViaTotp(spDc: String, spKey: String): Pair<String, Long> {
         val (secret, version) = fetchNuanceSecret()
         val serverTimeSec = fetchSpotifyServerTime()
         val totp = generateTotp(secret, serverTimeSec)
@@ -426,7 +449,7 @@ class SpotifyIntegrationManager @Inject constructor(
         return accessToken to expiryMs
     }
 
-    private fun fetchNuanceSecret(): Pair<String, Int> {
+    private suspend fun fetchNuanceSecret(): Pair<String, Int> {
         val body = httpGet(NUANCE_GIST_URL, emptyMap())
         val filesObj = JSONObject(body).getJSONObject("files")
         val firstFileKey = filesObj.keys().next()
@@ -447,7 +470,7 @@ class SpotifyIntegrationManager @Inject constructor(
         return bestSecret to maxVer
     }
 
-    private fun fetchSpotifyServerTime(): Long {
+    private suspend fun fetchSpotifyServerTime(): Long {
         val body = httpGet(SERVER_TIME_URL, emptyMap())
         return JSONObject(body).getLong("serverTime")
     }
@@ -493,7 +516,7 @@ class SpotifyIntegrationManager @Inject constructor(
 
     // ── Spotify GraphQL & REST Calls ─────────────────────────────────────
 
-    private fun fetchUserProfile(token: String): String? {
+    private suspend fun fetchUserProfile(token: String): String? {
         return try {
             val gqlRes = graphqlPost(token, "profileAttributes", HASH_PROFILE, JSONObject())
             gqlRes.optJSONObject("data")?.optJSONObject("me")?.optJSONObject("profile")?.optString("name")
@@ -507,7 +530,7 @@ class SpotifyIntegrationManager @Inject constructor(
         }
     }
 
-    private fun fetchRestTopTracks(token: String, timeRange: String, limit: Int): List<SpotifyTrackSeed> {
+    private suspend fun fetchRestTopTracks(token: String, timeRange: String, limit: Int): List<SpotifyTrackSeed> {
         val url = "$REST_BASE_URL/me/top/tracks?time_range=$timeRange&limit=$limit&offset=0"
         val res = httpGet(
             url,
@@ -540,7 +563,7 @@ class SpotifyIntegrationManager @Inject constructor(
         return list
     }
 
-    private fun fetchGraphQlLikedSongs(token: String, limit: Int): List<SpotifyTrackSeed> {
+    private suspend fun fetchGraphQlLikedSongs(token: String, limit: Int): List<SpotifyTrackSeed> {
         val vars = JSONObject().apply {
             put("offset", 0)
             put("limit", limit)
@@ -577,8 +600,51 @@ class SpotifyIntegrationManager @Inject constructor(
         return out
     }
 
-    fun fetchUserPlaylists(token: String): List<SpotifyPlaylistSummary> {
+    suspend fun fetchUserPlaylists(token: String): List<SpotifyPlaylistSummary> {
         val out = mutableListOf<SpotifyPlaylistSummary>()
+        // 1. Prefer GraphQL libraryV3 (much less prone to 429 rate limiting than REST!)
+        try {
+            val vars = JSONObject().apply {
+                put("filters", JSONArray().put("Playlists"))
+                put("order", JSONObject.NULL)
+                put("textFilter", "")
+                put("features", JSONArray().put("LIKED_SONGS"))
+                put("limit", 50)
+                put("offset", 0)
+                put("flatten", true)
+                put("expandedFolders", JSONArray())
+                put("folderUri", JSONObject.NULL)
+                put("includeFoldersWhenFlattening", false)
+            }
+            val gqlRes = graphqlPost(token, "libraryV3", HASH_LIBRARY_V3, vars)
+            val items = gqlRes.optJSONObject("data")
+                ?.optJSONObject("me")
+                ?.optJSONObject("libraryV3")
+                ?.optJSONArray("items")
+            if (items != null) {
+                for (i in 0 until items.length()) {
+                    val itemWrapper = items.getJSONObject(i).optJSONObject("item") ?: continue
+                    val data = itemWrapper.optJSONObject("data") ?: continue
+                    val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
+                    val id = uri.substringAfterLast(":")
+                    val name = data.optString("name")
+                    val desc = data.optString("description")
+                    val img = data.optJSONObject("images")?.optJSONArray("items")
+                        ?.optJSONObject(0)?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
+                    val total = data.optJSONObject("content")?.optInt("totalCount", 0) ?: 0
+                    if (id.isNotBlank() && name.isNotBlank()) {
+                        out.add(SpotifyPlaylistSummary(id, name, desc, img, total))
+                    }
+                }
+            }
+            if (out.isNotEmpty()) {
+                return out
+            }
+        } catch (ex: Exception) {
+            Log.w(TAG, "GraphQL libraryV3 failed, falling back to REST me/playlists", ex)
+        }
+
+        // 2. Fallback to REST me/playlists if GraphQL returned empty or failed
         try {
             val res = httpGet(
                 "$REST_BASE_URL/me/playlists?limit=50&offset=0",
@@ -604,50 +670,58 @@ class SpotifyIntegrationManager @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "REST me/playlists failed, trying GraphQL libraryV3", e)
-            try {
-                val vars = JSONObject().apply {
-                    put("filters", JSONArray().put("Playlists"))
-                    put("order", JSONObject.NULL)
-                    put("textFilter", "")
-                    put("features", JSONArray().put("LIKED_SONGS"))
-                    put("limit", 50)
-                    put("offset", 0)
-                    put("flatten", true)
-                    put("expandedFolders", JSONArray())
-                    put("folderUri", JSONObject.NULL)
-                    put("includeFoldersWhenFlattening", false)
-                }
-                val gqlRes = graphqlPost(token, "libraryV3", HASH_LIBRARY_V3, vars)
-                val items = gqlRes.optJSONObject("data")
-                    ?.optJSONObject("me")
-                    ?.optJSONObject("libraryV3")
-                    ?.optJSONArray("items")
-                if (items != null) {
-                    for (i in 0 until items.length()) {
-                        val itemWrapper = items.getJSONObject(i).optJSONObject("item") ?: continue
-                        val data = itemWrapper.optJSONObject("data") ?: continue
-                        val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
-                        val id = uri.substringAfterLast(":")
-                        val name = data.optString("name")
-                        val desc = data.optString("description")
-                        val img = data.optJSONObject("images")?.optJSONArray("items")
-                            ?.optJSONObject(0)?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
-                        val total = data.optJSONObject("content")?.optInt("totalCount", 0) ?: 0
-                        if (id.isNotBlank() && name.isNotBlank()) {
-                            out.add(SpotifyPlaylistSummary(id, name, desc, img, total))
-                        }
-                    }
-                }
-            } catch (ex: Exception) {
-                Log.e(TAG, "GraphQL libraryV3 failed", ex)
-            }
+            Log.e(TAG, "Both GraphQL and REST failed for user playlists", e)
         }
         return out
     }
 
-    fun fetchPlaylistTracks(token: String, playlistId: String): List<SpotifyTrackSeed> {
+    suspend fun fetchPlaylistTracks(token: String, playlistId: String): List<SpotifyTrackSeed> {
         val out = mutableListOf<SpotifyTrackSeed>()
+        // 1. Prefer GraphQL fetchPlaylist (persisted query, resistant to 429)
+        try {
+            val vars = JSONObject().apply {
+                put("uri", "spotify:playlist:$playlistId")
+                put("offset", 0)
+                put("limit", 100)
+                put("enableWatchFeedEntrypoint", false)
+            }
+            val gqlRes = graphqlPost(token, "fetchPlaylist", HASH_FETCH_PLAYLIST, vars)
+            val items = gqlRes.optJSONObject("data")
+                ?.optJSONObject("playlistV2")
+                ?.optJSONObject("content")
+                ?.optJSONArray("items")
+            if (items != null) {
+                for (i in 0 until items.length()) {
+                    val elem = items.getJSONObject(i)
+                    val itemWrapper = elem.optJSONObject("itemV2") ?: continue
+                    val data = itemWrapper.optJSONObject("data") ?: continue
+                    val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
+                    val id = uri.substringAfterLast(":")
+                    val name = data.optString("name")
+                    val dur = data.optJSONObject("duration")?.optLong("totalMilliseconds", 0L) ?: 0L
+                    val artistItems = data.optJSONObject("artists")?.optJSONArray("items")
+                    val artists = mutableListOf<String>()
+                    if (artistItems != null) {
+                        for (j in 0 until artistItems.length()) {
+                            val a = artistItems.getJSONObject(j).optJSONObject("profile")?.optString("name")
+                            if (!a.isNullOrBlank()) artists.add(a)
+                        }
+                    }
+                    val albumArt = data.optJSONObject("albumOfTrack")?.optJSONObject("coverArt")
+                        ?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
+                    if (id.isNotBlank() && name.isNotBlank() && artists.isNotEmpty()) {
+                        out.add(SpotifyTrackSeed(id, name, artists.joinToString(", "), dur, 1.0f, albumArt))
+                    }
+                }
+            }
+            if (out.isNotEmpty()) {
+                return out
+            }
+        } catch (ex: Exception) {
+            Log.w(TAG, "GraphQL fetchPlaylist failed for $playlistId, falling back to REST", ex)
+        }
+
+        // 2. Fallback to REST playlists/$id/tracks if GraphQL returned empty or failed
         try {
             val res = httpGet(
                 "$REST_BASE_URL/playlists/$playlistId/tracks?limit=100&offset=0",
@@ -681,46 +755,7 @@ class SpotifyIntegrationManager @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "REST playlist tracks failed, trying GraphQL fetchPlaylist", e)
-            try {
-                val vars = JSONObject().apply {
-                    put("uri", "spotify:playlist:$playlistId")
-                    put("offset", 0)
-                    put("limit", 100)
-                    put("enableWatchFeedEntrypoint", false)
-                }
-                val gqlRes = graphqlPost(token, "fetchPlaylist", HASH_FETCH_PLAYLIST, vars)
-                val items = gqlRes.optJSONObject("data")
-                    ?.optJSONObject("playlistV2")
-                    ?.optJSONObject("content")
-                    ?.optJSONArray("items")
-                if (items != null) {
-                    for (i in 0 until items.length()) {
-                        val elem = items.getJSONObject(i)
-                        val itemWrapper = elem.optJSONObject("itemV2") ?: continue
-                        val data = itemWrapper.optJSONObject("data") ?: continue
-                        val uri = itemWrapper.optString("_uri").ifBlank { data.optString("uri") }
-                        val id = uri.substringAfterLast(":")
-                        val name = data.optString("name")
-                        val dur = data.optJSONObject("duration")?.optLong("totalMilliseconds", 0L) ?: 0L
-                        val artistItems = data.optJSONObject("artists")?.optJSONArray("items")
-                        val artists = mutableListOf<String>()
-                        if (artistItems != null) {
-                            for (j in 0 until artistItems.length()) {
-                                val a = artistItems.getJSONObject(j).optJSONObject("profile")?.optString("name")
-                                if (!a.isNullOrBlank()) artists.add(a)
-                            }
-                        }
-                        val albumArt = data.optJSONObject("albumOfTrack")?.optJSONObject("coverArt")
-                            ?.optJSONArray("sources")?.optJSONObject(0)?.optString("url")
-                        if (id.isNotBlank() && name.isNotBlank() && artists.isNotEmpty()) {
-                            out.add(SpotifyTrackSeed(id, name, artists.joinToString(", "), dur, 1.0f, albumArt))
-                        }
-                    }
-                }
-            } catch (ex: Exception) {
-                Log.e(TAG, "GraphQL fetchPlaylist failed for $playlistId", ex)
-            }
+            Log.e(TAG, "Both GraphQL and REST failed for playlist $playlistId", e)
         }
         return out
     }
@@ -729,7 +764,8 @@ class SpotifyIntegrationManager @Inject constructor(
      * Syncs all user Spotify Liked Songs and Playlists into MyPlayer Room DB
      * (SongEntity, PlaylistEntity, PlaylistSongCrossReference, FavoriteEntity).
      */
-    suspend fun syncAllSpotifyLibraryAndPlaylists(): Result<SpotifyFullSyncResult> = withContext(Dispatchers.IO) {
+    suspend fun syncAllSpotifyLibraryAndPlaylists(): Result<SpotifyFullSyncResult> = fullSyncMutex.withLock {
+        withContext(Dispatchers.IO) {
         _isSyncing.value = true
         runCatching {
             val token = getValidAccessToken() ?: throw IllegalStateException("Not logged in to Spotify")
@@ -759,10 +795,15 @@ class SpotifyIntegrationManager @Inject constructor(
                 Log.d(TAG, "Synced ${likedTracks.size} Liked Songs to MyPlayer Favorites")
             }
 
+            // Small delay between library liked songs and playlists fetch to avoid rate burst
+            delay(150L)
+
             // 2. Sync User's Spotify Playlists into MyPlayer Playlists
             val playlists = fetchUserPlaylists(token)
             var playlistsSynced = 0
             for (pl in playlists) {
+                // Sequential delay (150ms) between playlist fetches to prevent 429 rate limiting
+                delay(150L)
                 try {
                     val tracks = fetchPlaylistTracks(token, pl.id)
                     if (tracks.isEmpty()) continue
@@ -822,9 +863,16 @@ class SpotifyIntegrationManager @Inject constructor(
         }.also {
             _isSyncing.value = false
         }
+        }
     }
 
-    private fun graphqlPost(token: String, operationName: String, sha256Hash: String, variables: JSONObject): JSONObject {
+    private suspend fun graphqlPost(
+        token: String,
+        operationName: String,
+        sha256Hash: String,
+        variables: JSONObject,
+        maxRetries: Int = 3
+    ): JSONObject {
         val bodyObj = JSONObject().apply {
             put("variables", variables)
             put("operationName", operationName)
@@ -835,49 +883,97 @@ class SpotifyIntegrationManager @Inject constructor(
                 })
             })
         }
-        val conn = URL(GQL_URL).openConnection() as HttpURLConnection
-        try {
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 20_000
-            conn.setRequestProperty("Authorization", "Bearer $token")
-            conn.setRequestProperty("User-Agent", USER_AGENT_DESKTOP)
-            conn.setRequestProperty("app-platform", "WebPlayer")
-            conn.setRequestProperty("Origin", "https://open.spotify.com")
-            conn.setRequestProperty("Referer", "https://open.spotify.com/")
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            conn.outputStream.use { it.write(bodyObj.toString().toByteArray(Charsets.UTF_8)) }
+        val postData = bodyObj.toString().toByteArray(Charsets.UTF_8)
+        var attempt = 0
 
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-                throw IllegalStateException("GQL $operationName HTTP $code: $err")
+        while (true) {
+            val conn = URL(GQL_URL).openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 20_000
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                conn.setRequestProperty("User-Agent", USER_AGENT_DESKTOP)
+                conn.setRequestProperty("app-platform", "WebPlayer")
+                conn.setRequestProperty("Origin", "https://open.spotify.com")
+                conn.setRequestProperty("Referer", "https://open.spotify.com/")
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                conn.outputStream.use { it.write(postData) }
+
+                val code = conn.responseCode
+                if (code == 429) {
+                    val retryAfterSec = conn.getHeaderField("Retry-After")?.toLongOrNull()
+                    // Cap at 15s so a huge Retry-After header can't freeze the login
+                    // flow for minutes; default exponential backoff otherwise.
+                    val delayMs = if (retryAfterSec != null && retryAfterSec > 0) {
+                        (retryAfterSec * 1000L).coerceAtMost(15_000L)
+                    } else {
+                        ((attempt + 1) * 2000L)
+                    }
+                    Log.w(TAG, "GQL $operationName HTTP 429 Too Many Requests. Retry-After: ${retryAfterSec}s. Pausing ${delayMs}ms (attempt ${attempt + 1}/$maxRetries)...")
+                    if (++attempt <= maxRetries) {
+                        delay(delayMs)
+                        continue
+                    }
+                    throw IllegalStateException("GQL $operationName HTTP 429 rate limit exceeded after $maxRetries retries")
+                }
+
+                if (code !in 200..299) {
+                    val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    throw IllegalStateException("GQL $operationName HTTP $code: $err")
+                }
+                val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                return JSONObject(resp)
+            } finally {
+                conn.disconnect()
             }
-            val resp = conn.inputStream.bufferedReader().use { it.readText() }
-            return JSONObject(resp)
-        } finally {
-            conn.disconnect()
         }
     }
 
-    private fun httpGet(urlString: String, headers: Map<String, String>): String {
-        val conn = URL(urlString).openConnection() as HttpURLConnection
-        try {
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 15_000
-            conn.setRequestProperty("User-Agent", USER_AGENT_DESKTOP)
-            conn.setRequestProperty("Accept", "application/json")
-            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-                throw IllegalStateException("HTTP $code: $err")
+    private suspend fun httpGet(
+        urlString: String,
+        headers: Map<String, String>,
+        maxRetries: Int = 3
+    ): String {
+        var attempt = 0
+
+        while (true) {
+            val conn = URL(urlString).openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 15_000
+                conn.setRequestProperty("User-Agent", USER_AGENT_DESKTOP)
+                conn.setRequestProperty("Accept", "application/json")
+                headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+
+                val code = conn.responseCode
+                if (code == 429) {
+                    val retryAfterSec = conn.getHeaderField("Retry-After")?.toLongOrNull()
+                    // Cap at 15s so a huge Retry-After header can't freeze the login
+                    // flow for minutes; default exponential backoff otherwise.
+                    val delayMs = if (retryAfterSec != null && retryAfterSec > 0) {
+                        (retryAfterSec * 1000L).coerceAtMost(15_000L)
+                    } else {
+                        ((attempt + 1) * 2000L)
+                    }
+                    Log.w(TAG, "HTTP GET $urlString 429 Too Many Requests. Retry-After: ${retryAfterSec}s. Pausing ${delayMs}ms (attempt ${attempt + 1}/$maxRetries)...")
+                    if (++attempt <= maxRetries) {
+                        delay(delayMs)
+                        continue
+                    }
+                    throw IllegalStateException("HTTP GET 429 rate limit exceeded after $maxRetries retries for $urlString")
+                }
+
+                if (code !in 200..299) {
+                    val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    throw IllegalStateException("HTTP $code: $err")
+                }
+                return conn.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                conn.disconnect()
             }
-            return conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
         }
     }
 

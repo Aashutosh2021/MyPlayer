@@ -87,7 +87,9 @@ fun ClayWavySeekBar(
                 detectTapGestures(
                     onPress = { offset ->
                         val tapProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                        onSeek((tapProgress * durationMs.coerceAtLeast(1L)).toLong())
+                        if (durationMs > 0L) {
+                            onSeek((tapProgress * durationMs).toLong())
+                        }
                     }
                 )
             }
@@ -99,7 +101,9 @@ fun ClayWavySeekBar(
                     },
                     onDragEnd = {
                         isDragging = false
-                        onSeek((dragProgress * durationMs.coerceAtLeast(1L)).toLong())
+                        if (durationMs > 0L) {
+                            onSeek((dragProgress * durationMs).toLong())
+                        }
                     },
                     onDragCancel = {
                         isDragging = false

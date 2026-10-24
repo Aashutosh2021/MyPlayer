@@ -53,6 +53,14 @@ fun SpotifyLoginDialog(
     var currentUrl by remember { mutableStateOf(SpotifyIntegrationManager.LOGIN_URL) }
     val tokenFetchStarted = remember { AtomicBoolean(false) }
 
+    // Error state kept SEPARATE from statusText: previously any failure wrote into
+    // statusText, which kept the full-screen loading overlay up forever with a
+    // still-spinning loader and no dismiss button ("stuck on loading").
+    var loginError by remember { mutableStateOf<String?>(null) }
+
+    // Cookie pair of the last capture attempt, so the error card can offer "Try Again"
+    var lastLoginAttempt by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     var cookieInput by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
 
@@ -60,6 +68,31 @@ fun SpotifyLoginDialog(
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val isGooglePage = currentUrl.contains("accounts.google.") || currentUrl.contains("google.com/signin")
+
+    /**
+     * Single entry point for the completeLoginWithCookies chain (web auto-capture,
+     * cookie paste, and error-card retry). The tokenFetchStarted atomic guards
+     * against double launches from WebView double-firing. On failure the error is
+     * surfaced via a dismissible "Try Again" card instead of an undismissable
+     * forever-spinning overlay.
+     */
+    fun startLogin(spDc: String, spKey: String, loadingMessage: String) {
+        if (!tokenFetchStarted.compareAndSet(false, true)) return
+        loginError = null
+        statusText = loadingMessage
+        scope.launch {
+            spotifyManager.completeLoginWithCookies(spDc, spKey)
+                .onSuccess { username ->
+                    onLoginSuccess(username)
+                    onDismiss()
+                }
+                .onFailure { err ->
+                    statusText = null
+                    loginError = err.message ?: "Unknown login error"
+                    tokenFetchStarted.set(false)
+                }
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -207,21 +240,10 @@ fun SpotifyLoginDialog(
                                     }.toMap()
 
                                     val spDc = cookieMap["sp_dc"]
-                                    if (!spDc.isNullOrBlank() && tokenFetchStarted.compareAndSet(false, true)) {
-                                        val spKey = cookieMap["sp_key"] ?: ""
+                                    if (!spDc.isNullOrBlank()) {
                                         view?.stopLoading()
-                                        statusText = "Syncing your Spotify taste profile..."
-                                        scope.launch {
-                                            spotifyManager.completeLoginWithCookies(spDc, spKey)
-                                                .onSuccess { username ->
-                                                    onLoginSuccess(username)
-                                                    onDismiss()
-                                                }
-                                                .onFailure { err ->
-                                                    statusText = "Login failed: ${err.message}"
-                                                    tokenFetchStarted.set(false)
-                                                }
-                                        }
+                                        lastLoginAttempt = spDc to (cookieMap["sp_key"] ?: "")
+                                        startLogin(spDc, cookieMap["sp_key"] ?: "", "Syncing your Spotify taste profile...")
                                     }
                                 }
 
@@ -381,6 +403,52 @@ fun SpotifyLoginDialog(
                             }
                         }
                     }
+
+                    // Failure card: replaces the old behaviour of leaving the
+                    // forever-spinning full-screen overlay up with no way out.
+                    // Floats at the bottom so the top bar (close) stays reachable.
+                    loginError?.let { errMsg ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(12.dp)
+                                .fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Login failed: $errMsg",
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    "Tip: agar repeat hota hai toh 'Paste Cookie' tab se sp_dc cookie try karo.",
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontSize = 12.sp
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(
+                                        onClick = {
+                                            lastLoginAttempt?.let { (dc, key) ->
+                                                startLogin(dc, key, "Syncing your Spotify taste profile...")
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) { Text("Try Again", color = spotifyGreen) }
+                                    TextButton(
+                                        onClick = { loginError = null },
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) { Text("Close", color = onSurfaceColor) }
+                                }
+                            }
+                        }
+                    }
                 }
             } else {
                 // Tab 1: Paste sp_dc Cookie Mode
@@ -447,19 +515,9 @@ fun SpotifyLoginDialog(
                         Button(
                             onClick = {
                                 val cleanCookie = cookieInput.trim()
-                                if (cleanCookie.isNotBlank() && tokenFetchStarted.compareAndSet(false, true)) {
-                                    statusText = "Validating cookie & training AI Brain..."
-                                    scope.launch {
-                                        spotifyManager.completeLoginWithCookies(cleanCookie, "")
-                                            .onSuccess { user ->
-                                                onLoginSuccess(user)
-                                                onDismiss()
-                                            }
-                                            .onFailure { err ->
-                                                statusText = "Cookie validation failed: ${err.message}"
-                                                tokenFetchStarted.set(false)
-                                            }
-                                    }
+                                if (cleanCookie.isNotBlank()) {
+                                    lastLoginAttempt = cleanCookie to ""
+                                    startLogin(cleanCookie, "", "Validating cookie & training AI Brain...")
                                 }
                             },
                             enabled = cookieInput.isNotBlank() && statusText == null,
@@ -479,6 +537,36 @@ fun SpotifyLoginDialog(
                             CircularProgressIndicator(color = spotifyGreen, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(10.dp))
                             Text(statusText!!, fontSize = 12.sp, color = onSurfaceColor)
+                        }
+                    }
+
+                    // Cookie-paste failure card with Retry (button re-enables as well
+                    // because statusText resets to null on failure now).
+                    loginError?.let { errMsg ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Cookie validation failed: $errMsg",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(
+                                    onClick = {
+                                        startLogin(cookieInput.trim(), "", "Validating cookie & training AI Brain...")
+                                    }
+                                ) { Text("Retry", fontSize = 12.sp) }
+                                TextButton(
+                                    onClick = { loginError = null }
+                                ) { Text("Close", fontSize = 12.sp) }
+                            }
                         }
                     }
                 }

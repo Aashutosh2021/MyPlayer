@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import com.example.myplayer.R
 import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.ui.components.ClayIconButton
+import com.example.myplayer.ui.components.WhatsNewDialog
 import com.example.myplayer.ui.theme.*
 
 @Composable
@@ -70,6 +71,11 @@ fun SettingsScreen(
 
     var showNameDialog by remember { mutableStateOf(false) }
     var editNameInput by remember { mutableStateOf("") }
+    var showWhatsNewDialog by remember { mutableStateOf(false) }
+
+    if (showWhatsNewDialog) {
+        WhatsNewDialog(onDismiss = { showWhatsNewDialog = false })
+    }
 
     if (showSpotifyDialog) {
         SpotifyLoginDialog(
@@ -586,10 +592,11 @@ fun SettingsScreen(
         }
 
         item {
-            SettingsInfoRow(
+            SettingsNavigationRow(
                 icon = Icons.Filled.Info,
-                title = "Version",
-                subtitle = com.example.myplayer.BuildConfig.VERSION_NAME
+                title = "What's New in v${com.example.myplayer.BuildConfig.VERSION_NAME}",
+                subtitle = "See new features and improvements in this release",
+                onClick = { showWhatsNewDialog = true }
             )
         }
 

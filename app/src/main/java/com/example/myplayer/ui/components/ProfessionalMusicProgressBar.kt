@@ -33,14 +33,16 @@ fun ProfessionalMusicProgressBar(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val duration = durationMs.coerceAtLeast(1L)
+    val hasValidDuration = durationMs > 0L
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
     val currentProgress = if (isDragging) {
         dragProgress
+    } else if (hasValidDuration) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
-        (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        0f
     }
 
     val thumbRadius by animateDpAsState(
@@ -62,25 +64,35 @@ fun ProfessionalMusicProgressBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(32.dp)
-                .pointerInput(duration) {
+                .pointerInput(durationMs) {
                     detectTapGestures { offset ->
-                        val newFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                        onSeek((newFraction * duration).toLong())
+                        if (hasValidDuration) {
+                            val newFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            onSeek((newFraction * durationMs).toLong())
+                        }
                     }
                 }
-                .pointerInput(duration) {
+                .pointerInput(durationMs) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            isDragging = true
-                            dragProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                            if (hasValidDuration) {
+                                isDragging = true
+                                dragProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                            }
                         },
                         onDrag = { change, _ ->
-                            change.consume()
-                            dragProgress = (change.position.x / size.width).coerceIn(0f, 1f)
+                            if (isDragging && hasValidDuration) {
+                                change.consume()
+                                dragProgress = (change.position.x / size.width).coerceIn(0f, 1f)
+                            }
                         },
                         onDragEnd = {
-                            onSeek((dragProgress * duration).toLong())
-                            isDragging = false
+                            if (isDragging) {
+                                if (hasValidDuration) {
+                                    onSeek((dragProgress * durationMs).toLong())
+                                }
+                                isDragging = false
+                            }
                         },
                         onDragCancel = {
                             isDragging = false
@@ -154,7 +166,7 @@ fun ProfessionalMusicProgressBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val displayMs = if (isDragging) (dragProgress * duration).toLong() else positionMs
+            val displayMs = if (isDragging && hasValidDuration) (dragProgress * durationMs).toLong() else positionMs
             Text(
                 text = formatDuration(displayMs),
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -165,7 +177,7 @@ fun ProfessionalMusicProgressBar(
                 color = Secondary
             )
             Text(
-                text = formatDuration(durationMs),
+                text = if (hasValidDuration) formatDuration(durationMs) else "--:--",
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,

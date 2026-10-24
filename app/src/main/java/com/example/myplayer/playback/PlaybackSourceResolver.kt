@@ -36,128 +36,147 @@ class PlaybackSourceResolver @Inject constructor(
     private val streamUrlTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val STREAM_URL_TTL_MS = 5 * 60 * 60 * 1000L
 
-    suspend fun resolve(request: PlayRequest, setCustomError: (String) -> Unit): String? {
-        val rawVideoId = if (request.songId.startsWith("online://")) {
-            request.songId.removePrefix("online://")
-        } else if (request.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
-            request.songId
-        } else {
-            request.metadata["videoId"]
-        }
+    // Spotify-imported Liked Songs / Playlist tracks carry 22-char Spotify IDs.
+    // Cache maps them to their matched 11-char YouTube videoIds so a match is
+    // never searched twice during a session.
+    private val spotifyToYoutubeIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-        val streamUrl = request.streamUrl
-        val path = request.localUri
-        val isHttpStreamUrl = streamUrl != null && (streamUrl.startsWith("http://") || streamUrl.startsWith("https://"))
-        val isHttpPath = path != null && (path.startsWith("http://") || path.startsWith("https://"))
+    suspend fun resolve(
+        request: PlayRequest,
+        setCustomError: ((String) -> Unit)? = null
+    ): String? {
+        val localUri = request.localUri
 
-        // Check if pre-resolved HTTP URL has exceeded the 5-hour TTL
-        if (rawVideoId != null && (isHttpStreamUrl || isHttpPath)) {
-            val cachedTimestamp = streamUrlTimestamps[rawVideoId]
-            val isExpired = cachedTimestamp != null && (System.currentTimeMillis() - cachedTimestamp) >= STREAM_URL_TTL_MS
-            if (isExpired) {
-                Log.w("PlaybackSourceResolver", "Stream URL for $rawVideoId is older than 5 hours. Refreshing fresh stream.")
-                return resolveOnlineStream(rawVideoId, setCustomError, forceRefresh = true)
-            }
-        }
-
-        if (isHttpStreamUrl) {
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(streamUrl!!, isLocalFile = false)
-            return streamUrl
-        }
-
-        // If it starts with http:// or https://, it is already a resolved streaming URL
-        if (isHttpPath) {
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path!!, isLocalFile = false)
-            return path
-        }
-
-        // Rule 1: Check if the song has been recorded in the downloaded_songs database
-        val downloaded = withContext(Dispatchers.IO) {
-            downloadedSongDao.getById(request.songId)
-        }
-
-        if (downloaded != null) {
-            val localPath = downloaded.localPath
-            val fileExists = checkLocalFileExists(localPath)
-
-            if (fileExists) {
-                Log.d("PlaybackSourceResolver", "Playing downloaded song locally from: $localPath")
-                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(localPath, isLocalFile = true)
-                return localPath
-            } else {
-                Log.w("PlaybackSourceResolver", "Downloaded file missing at: $localPath for ${request.songId}. Falling back to online streaming.")
-                // Clean up stale download record so user can manually re-download
-                withContext(Dispatchers.IO) {
-                    try {
-                        downloadedSongDao.deleteById(request.songId)
-                    } catch (e: Exception) {
-                        Log.e("PlaybackSourceResolver", "Failed to clean stale download record", e)
-                    }
-                }
-                // Fall back directly to streaming using the download ID (YouTube videoId)
-                return resolveOnlineStream(downloaded.id, setCustomError)
-            }
-        }
-
-        // Rule 2: If path is a local file / content URI (not online://)
-        if (path != null && !path.startsWith("online://")) {
-            val fileExists = checkLocalFileExists(path)
-
-            if (fileExists) {
-                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(path, isLocalFile = true)
-                return path
-            } else {
-                Log.w("PlaybackSourceResolver", "Local file missing: $path for song ${request.songId}")
-                // Check if this song can be streamed (e.g. from restored backup or YouTube origin)
-                val videoId = withContext(Dispatchers.IO) {
-                    songDao.getSongById(request.songId)?.videoId
-                } ?: request.metadata["videoId"]
-                  ?: if (request.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) request.songId else null
-
-                if (!videoId.isNullOrBlank()) {
-                    Log.i("PlaybackSourceResolver", "Local file missing, falling back to streaming for videoId: $videoId")
-                    return resolveOnlineStream(videoId, setCustomError)
+        // 1. Pure local file check: only true filesystem/content URIs
+        if (request.playbackSource == PlaybackSourceType.LOCAL && !localUri.isNullOrBlank()) {
+            if (localUri.startsWith("content://") || localUri.startsWith("file://") || localUri.startsWith("/")) {
+                val fileExists = checkLocalFileExists(localUri)
+                if (fileExists) {
+                    _currentAudioQuality.value = losslessStreamResolver.inspectQuality(localUri, isLocalFile = true)
+                    return localUri
                 } else {
-                    setCustomError("Local file not found. Playback stopped.")
+                    Log.w("PlaybackSourceResolver", "Local file missing: $localUri for song ${request.songId}")
+                    val dbVideoId = withContext(Dispatchers.IO) {
+                        songDao.getSongById(request.songId)?.videoId
+                    } ?: request.metadata["videoId"]
+                    if (!dbVideoId.isNullOrBlank()) {
+                        return resolveOnlineStream(dbVideoId, setCustomError)
+                    }
+                    setCustomError?.invoke("Local file not found. Playback stopped.")
                     return null
                 }
             }
         }
 
-        // Rule 3: Online songs (path starts with online:// or path is null)
-        val rawCandidateId = if (path != null && path.startsWith("online://")) {
-            path.removePrefix("online://")
-        } else if (request.songId.startsWith("online://")) {
-            request.songId.removePrefix("online://")
-        } else {
-            rawVideoId ?: request.songId
+        // 2. Downloaded songs check
+        val downloaded = withContext(Dispatchers.IO) {
+            downloadedSongDao.getById(request.songId)
+        }
+        if (downloaded != null) {
+            val dlPath = downloaded.localPath
+            val fileExists = checkLocalFileExists(dlPath)
+            if (fileExists) {
+                Log.d("PlaybackSourceResolver", "Playing downloaded song locally from: $dlPath")
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(dlPath, isLocalFile = true)
+                return dlPath
+            } else {
+                Log.w("PlaybackSourceResolver", "Downloaded file missing at: $dlPath for ${request.songId}. Falling back to online streaming.")
+                withContext(Dispatchers.IO) {
+                    try { downloadedSongDao.deleteById(request.songId) } catch (_: Exception) {}
+                }
+                return resolveOnlineStream(downloaded.id, setCustomError)
+            }
         }
 
-        var videoId = rawCandidateId
-        if (videoId.length != 11 || videoId.contains("spotify", ignoreCase = true)) {
-            val dbSong = withContext(Dispatchers.IO) { songDao.getSongById(request.songId) }
-            val existingYtId = dbSong?.videoId
-            if (!existingYtId.isNullOrBlank() && existingYtId.length == 11) {
-                videoId = existingYtId
+        // 3. Direct HTTP stream URL already resolved
+        val directStreamUrl = if (!request.streamUrl.isNullOrBlank() && request.streamUrl.startsWith("http")) {
+            request.streamUrl
+        } else if (!localUri.isNullOrBlank() && (localUri.startsWith("http://") || localUri.startsWith("https://"))) {
+            localUri
+        } else {
+            null
+        }
+
+        if (!directStreamUrl.isNullOrBlank()) {
+            val rawVideoId = when {
+                request.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) -> request.songId
+                localUri?.startsWith("online://") == true -> localUri.removePrefix("online://").takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
+                else -> request.metadata["videoId"]
+            }
+            if (rawVideoId != null) {
+                val cachedTimestamp = streamUrlTimestamps[rawVideoId]
+                val isExpired = cachedTimestamp != null && (System.currentTimeMillis() - cachedTimestamp) >= STREAM_URL_TTL_MS
+                if (isExpired) {
+                    Log.w("PlaybackSourceResolver", "Stream URL for $rawVideoId is older than 5 hours. Refreshing fresh stream.")
+                    return resolveOnlineStream(rawVideoId, setCustomError, forceRefresh = true)
+                }
+            }
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(directStreamUrl, isLocalFile = false)
+            return directStreamUrl
+        }
+
+        // 4. Extract clean ID from localUri or songId
+        val rawId = when {
+            localUri?.startsWith("online://") == true -> localUri.removePrefix("online://")
+            else -> request.songId
+        }
+
+        var cleanId = rawId
+            .removePrefix("online://")
+            .removePrefix("spotify:track:")
+            .removePrefix("spotify:")
+            .trim()
+
+        if (cleanId.isBlank()) {
+            setCustomError?.invoke("Invalid track ID")
+            return null
+        }
+
+        // 5. If cleanId is a 22-char Spotify ID (not an 11-char YouTube videoId),
+        // automatically match it to its 11-char YouTube videoId using title + artist!
+        val isYoutubeId = cleanId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))
+        if (!isYoutubeId) {
+            val cachedYtId = spotifyToYoutubeIdCache[cleanId]
+            if (!cachedYtId.isNullOrBlank()) {
+                cleanId = cachedYtId
             } else {
-                val qTitle = request.metadata["title"] ?: dbSong?.title ?: request.title
-                val qArtist = request.metadata["artist"] ?: dbSong?.artist ?: request.artist
-                val q = "$qTitle $qArtist".trim()
-                if (q.isNotBlank()) {
-                    val match = withContext(Dispatchers.IO) {
-                        try { innertubeApi.search(q, filtered = true).songs.firstOrNull() } catch (_: Exception) { null }
-                    }
-                    if (match != null) {
-                        videoId = match.videoId
-                        withContext(Dispatchers.IO) {
-                            try { songDao.updateSongVideoId(request.songId, match.videoId) } catch (_: Exception) {}
+                val dbSong = withContext(Dispatchers.IO) { songDao.getSongById(request.songId) }
+                val existingYtId = dbSong?.videoId?.takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
+                if (!existingYtId.isNullOrBlank()) {
+                    spotifyToYoutubeIdCache[cleanId] = existingYtId
+                    cleanId = existingYtId
+                } else {
+                    val qTitle = request.title.ifBlank { dbSong?.title ?: request.metadata["title"] ?: "" }
+                    val qArtist = request.artist.ifBlank { dbSong?.artist ?: request.metadata["artist"] ?: "" }
+                    val query = "$qTitle $qArtist".trim()
+                    if (query.isNotBlank()) {
+                        val matchedYtId = withContext(Dispatchers.IO) {
+                            try {
+                                innertubeApi.search(query, filtered = true).songs.firstOrNull()?.videoId
+                            } catch (e: Exception) {
+                                Log.w("PlaybackSourceResolver", "Spotify->YouTube match failed for $cleanId", e)
+                                null
+                            }
                         }
+                        if (!matchedYtId.isNullOrBlank()) {
+                            spotifyToYoutubeIdCache[cleanId] = matchedYtId
+                            cleanId = matchedYtId
+                            withContext(Dispatchers.IO) {
+                                try { songDao.updateSongVideoId(request.songId, matchedYtId) } catch (_: Exception) {}
+                            }
+                        } else {
+                            setCustomError?.invoke("Could not find matching stream for '${qTitle}'")
+                            return null
+                        }
+                    } else {
+                        setCustomError?.invoke("Invalid track ID: $cleanId")
+                        return null
                     }
                 }
             }
         }
 
-        return resolveOnlineStream(videoId, setCustomError)
+        return resolveOnlineStream(cleanId, setCustomError, forceRefresh = false)
     }
 
     private suspend fun checkLocalFileExists(filePath: String): Boolean = withContext(Dispatchers.IO) {

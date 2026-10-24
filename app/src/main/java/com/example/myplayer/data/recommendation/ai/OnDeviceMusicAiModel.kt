@@ -233,6 +233,15 @@ class OnDeviceMusicAiModel @Inject constructor(
             .distinct()
             .take(4)
 
+        // Spotify-recommended tracks carry 22-char Spotify IDs (fed by
+        // SpotifyIntegrationManager's 2-way bridge), so they never pass the
+        // 11-char topSeeds filter. Pick them separately so those exact songs
+        // get resolved onto YouTube Music and shown on HomeScreen.
+        val topSpotifyTracks = rankedEntries
+            .filter { !it.videoId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) && it.title.isNotBlank() }
+            .distinctBy { "${it.title.lowercase()}_${it.artist.lowercase()}" }
+            .take(8)
+
         // Learn top artists & recurring title vibe keywords dynamically
         val artistScores = mutableMapOf<String, Double>()
         val keywordScores = mutableMapOf<String, Double>()
@@ -295,6 +304,22 @@ class OnDeviceMusicAiModel @Inject constructor(
                             val artWeight = 5.0f / (idx + 1)
                             tracks.take(12).forEachIndexed { rankIdx, track ->
                                 registerCandidate(track, artWeight * (1.0f - rankIdx * 0.04f))
+                            }
+                        } catch (_: Exception) {}
+                    })
+                }
+
+                // 3. Directly resolve Spotify's exact recommended tracks onto YouTube Music!
+                topSpotifyTracks.forEachIndexed { idx, spEntry ->
+                    add(async {
+                        try {
+                            val query = "${spEntry.title} ${spEntry.artist}".trim()
+                            val matchedSong = innertubeApi.search(query, filtered = true).songs.firstOrNull()
+                            if (matchedSong != null) {
+                                // High priority bonus (starts +10.0f, floor +4.0f) so
+                                // Spotify's exact recommendations appear at the top!
+                                val spotifyBonus = (10.0f - (idx * 0.6f)).coerceAtLeast(4.0f)
+                                registerCandidate(matchedSong, spotifyBonus)
                             }
                         } catch (_: Exception) {}
                     })

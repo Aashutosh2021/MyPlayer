@@ -343,9 +343,19 @@ class MusicController @Inject constructor(
                 syncPlaybackInterceptor?.onPlayerIsPlayingChanged(isPlaying, pos)
             }
 
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                val dur = mediaController?.duration ?: 0L
+                if (dur > 0L) {
+                    playbackStateManager.updateDuration(dur)
+                }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
-                    playbackStateManager.updateDuration(mediaController?.duration ?: 0L)
+                    val dur = mediaController?.duration ?: 0L
+                    if (dur > 0L) {
+                        playbackStateManager.updateDuration(dur)
+                    }
                 } else if (playbackState == Player.STATE_ENDED) {
                     if (activeRecoveryJob?.isActive == true) {
                         Log.d("MusicController", "Ignoring STATE_ENDED while online recovery is active")

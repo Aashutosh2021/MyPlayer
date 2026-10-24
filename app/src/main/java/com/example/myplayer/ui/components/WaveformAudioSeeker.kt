@@ -32,11 +32,11 @@ fun WaveformAudioSeeker(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val duration = durationMs.coerceAtLeast(1L)
+    val hasValidDuration = durationMs > 0L
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
-    val actualProgress = (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val actualProgress = if (hasValidDuration) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val currentProgress = if (isDragging) dragProgress else actualProgress
 
     val barCount = 42
@@ -55,30 +55,34 @@ fun WaveformAudioSeeker(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .pointerInput(duration) {
-                    detectTapGestures { offset ->
-                        val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
-                        onSeek((newProgress * duration).toLong())
+                .pointerInput(hasValidDuration, durationMs) {
+                    if (hasValidDuration) {
+                        detectTapGestures { offset ->
+                            val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                            onSeek((newProgress * durationMs).toLong())
+                        }
                     }
                 }
-                .pointerInput(duration) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            dragProgress = (offset.x / size.width).coerceIn(0f, 1f)
-                        },
-                        onDrag = { change, _ ->
-                            change.consume()
-                            dragProgress = (change.position.x / size.width).coerceIn(0f, 1f)
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            onSeek((dragProgress * duration).toLong())
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                        }
-                    )
+                .pointerInput(hasValidDuration, durationMs) {
+                    if (hasValidDuration) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = true
+                                dragProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                dragProgress = (change.position.x / size.width).coerceIn(0f, 1f)
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                onSeek((dragProgress * durationMs).toLong())
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                            }
+                        )
+                    }
                 }
         ) {
             val totalWidth = size.width
@@ -111,7 +115,7 @@ fun WaveformAudioSeeker(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val displayMs = if (isDragging) (dragProgress * duration).toLong() else positionMs
+            val displayMs = if (isDragging && hasValidDuration) (dragProgress * durationMs).toLong() else positionMs
             Text(
                 text = formatDuration(displayMs),
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -121,7 +125,7 @@ fun WaveformAudioSeeker(
                 color = MaterialTheme.colorScheme.secondary
             )
             Text(
-                text = formatDuration(duration),
+                text = if (hasValidDuration) formatDuration(durationMs) else "--:--",
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp
