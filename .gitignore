@@ -73,3 +73,11 @@ stitch_assets/
 stitch_myplayer_android*/
 *stitch_assets*
 *stitch_myplayer_android*
+
+# Markdown files
+*.md
+!read.md
+!README.md
+
+Meld/
+LastWave/

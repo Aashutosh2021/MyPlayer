@@ -87,7 +87,6 @@ fun NowPlayingVisual(
     onRepeat: () -> Unit = {},
     onBack: () -> Unit = {},
     onOptions: () -> Unit = {},
-    onEqualizer: () -> Unit = {},
     modifier: Modifier = Modifier,
     lyricsContent: @Composable () -> Unit = {}
 ) {
@@ -224,54 +223,26 @@ fun NowPlayingVisual(
                     )
                 }
 
-                // Right Action Buttons: Equalizer & Options
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Circular Options Button
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(topBtnBg)
+                        .border(BorderStroke(1.dp, topBtnBorder), CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(color = controlPrimary),
+                            onClick = onOptions
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Circular Studio Equalizer & Stem Mixer Button
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(topBtnBg)
-                            .border(BorderStroke(1.dp, topBtnBorder), CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = controlPrimary),
-                                onClick = onEqualizer
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.GraphicEq,
-                            contentDescription = "Studio Equalizer & Stem Mixer",
-                            tint = topBtnTint,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Circular Options Button
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(topBtnBg)
-                            .border(BorderStroke(1.dp, topBtnBorder), CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = controlPrimary),
-                                onClick = onOptions
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreHoriz,
-                            contentDescription = "Options",
-                            tint = topBtnTint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.MoreHoriz,
+                        contentDescription = "Options",
+                        tint = topBtnTint,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 

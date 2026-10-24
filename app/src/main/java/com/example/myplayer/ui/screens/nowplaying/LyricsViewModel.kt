@@ -30,8 +30,7 @@ data class LyricsMetadata(
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
     private val lyricsRepository: LyricsRepository,
-    private val musicController: MusicController,
-    val equalizerProcessor: com.example.myplayer.playback.equalizer.StudioEqualizerAudioProcessor
+    private val musicController: MusicController
 ) : ViewModel() {
 
     private val _lyricsState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)
@@ -72,31 +71,36 @@ class LyricsViewModel @Inject constructor(
     }
 
     private var lastMetadata: LyricsMetadata? = null
+    private var fetchJob: kotlinx.coroutines.Job? = null
 
     fun retryLyrics() {
-        val currentMeta = lastMetadata ?: run {
-            val local = musicController.currentSong.value
-            val online = musicController.currentOnlineSong.value
-            when {
-                local != null -> LyricsMetadata(local.id, local.title, local.artist, local.album, local.duration)
-                online != null -> LyricsMetadata(online.videoId, online.title, online.artist, null, online.durationMs)
-                else -> null
+        val local = musicController.currentSong.value
+        val online = musicController.currentOnlineSong.value
+        val fallback = lastMetadata
+        val meta = when {
+            local != null -> LyricsMetadata(
+                songId = local.id,
+                title = local.title,
+                artist = local.artist,
+                album = local.album,
+                durationMs = if (local.duration > 0L) local.duration else musicController.currentDuration.value
+            )
+            online != null -> LyricsMetadata(
+                songId = online.videoId,
+                title = online.title,
+                artist = online.artist,
+                album = null,
+                durationMs = if (online.durationMs > 0L) online.durationMs else musicController.currentDuration.value
+            )
+            fallback != null -> {
+                val dur = if (fallback.durationMs > 0L) fallback.durationMs else musicController.currentDuration.value
+                fallback.copy(durationMs = dur)
             }
+            else -> null
         } ?: return
 
-        val latestDuration = if (currentMeta.durationMs > 0L) {
-            currentMeta.durationMs
-        } else {
-            musicController.currentDuration.value
-        }
-        val updatedMeta = currentMeta.copy(durationMs = latestDuration)
-        lastMetadata = updatedMeta
-
-        viewModelScope.launch {
-            _lyricsState.value = LyricsUiState.Loading
-            lyricsRepository.deleteLyrics(updatedMeta.songId)
-            fetchLyrics(updatedMeta)
-        }
+        lastMetadata = meta
+        fetchLyricsInternal(meta, forceRefresh = true)
     }
 
     fun saveCustomLyrics(lyricsText: String) {
@@ -125,8 +129,16 @@ class LyricsViewModel @Inject constructor(
     fun getCurrentMetadata(): LyricsMetadata? = lastMetadata
 
     fun fetchLyrics(metadata: LyricsMetadata) {
-        viewModelScope.launch {
+        fetchLyricsInternal(metadata, forceRefresh = false)
+    }
+
+    private fun fetchLyricsInternal(metadata: LyricsMetadata, forceRefresh: Boolean) {
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch {
             _lyricsState.value = LyricsUiState.Loading
+            if (forceRefresh) {
+                lyricsRepository.deleteLyrics(metadata.songId)
+            }
             val durationSec = (metadata.durationMs / 1000).toInt()
             val result = lyricsRepository.fetchLyrics(
                 songId = metadata.songId,

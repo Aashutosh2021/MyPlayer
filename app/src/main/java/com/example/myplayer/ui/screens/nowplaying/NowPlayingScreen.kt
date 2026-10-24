@@ -78,7 +78,6 @@ fun NowPlayingScreen(
     var showQualityDetails by remember { mutableStateOf(false) }
     var showCustomLyricsDialog by remember { mutableStateOf(false) }
     var showMoreSheet by remember { mutableStateOf(false) }
-    var showEqualizerSheet by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(1L)
@@ -155,13 +154,6 @@ fun NowPlayingScreen(
         )
     }
 
-    if (showEqualizerSheet) {
-        StudioEqualizerSheet(
-            processor = lyricsViewModel.equalizerProcessor,
-            onDismiss = { showEqualizerSheet = false }
-        )
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         NowPlayingVisual(
             title = title,
@@ -182,7 +174,6 @@ fun NowPlayingScreen(
             onRepeat = onCycleRepeatMode,
             onBack = onBackClick,
             onOptions = { showMoreSheet = true },
-            onEqualizer = { showEqualizerSheet = true },
             lyricsContent = {
                 val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
                 val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
@@ -191,6 +182,7 @@ fun NowPlayingScreen(
                     positionMs = lyricsPositionState,
                     onSeek = onSeek,
                     onAddCustomLyrics = { showCustomLyricsDialog = true },
+                    onRetryLyrics = { lyricsViewModel.retryLyrics() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(450.dp)
@@ -237,11 +229,6 @@ fun NowPlayingScreen(
                             }
                         )
                     }
-                    DropdownMenuItem(
-                        text = { Text("Equalizer & Stem Mixer", color = MaterialTheme.colorScheme.onSurface) },
-                        leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = MaterialTheme.colorScheme.primary) },
-                        onClick = { showMoreSheet = false; showEqualizerSheet = true }
-                    )
                     DropdownMenuItem(
                         text = { Text("Sleep Timer", color = MaterialTheme.colorScheme.onSurface) },
                         leadingIcon = { Icon(Icons.Filled.Timer, null, tint = MaterialTheme.colorScheme.onSurface) },

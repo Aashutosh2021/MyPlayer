@@ -592,8 +592,14 @@ class InnertubeApi @Inject constructor(
                     throw YouTubeStreamBlockedException("YouTube stream extraction failed: No audio streams found.")
                 }
 
-                // Prefer highest bitrate audio stream
-                val bestStream = audioStreams.maxByOrNull { it.getBitrate() }
+                // Prefer efficient Opus stream (60-96 kbps = Spotify "Normal" quality: ~75 KB per 9s chunk!)
+                // Falls back to standard AAC/Opus if medium bitrate isn't present.
+                val optimalStream = audioStreams
+                    .filter { it.getFormat()?.name?.contains("WEB", ignoreCase = true) == true || it.getCodec()?.contains("opus", ignoreCase = true) == true }
+                    .minByOrNull { kotlin.math.abs(it.getBitrate() - 75_000) }
+                    ?: audioStreams.minByOrNull { kotlin.math.abs(it.getBitrate() - 96_000) }
+                    ?: audioStreams.maxByOrNull { it.getBitrate() }
+                val bestStream = optimalStream
                 val contentUrl = bestStream?.getContent()
                 if (!contentUrl.isNullOrBlank()) {
                     cacheStreamUrl(videoId, contentUrl)
