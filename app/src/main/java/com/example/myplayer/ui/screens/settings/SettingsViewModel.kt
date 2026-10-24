@@ -43,8 +43,23 @@ class SettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val preferencesManager: PreferencesManager,
     private val backupRestoreManager: BackupRestoreManager,
-    private val updateChecker: UpdateChecker
+    private val updateChecker: UpdateChecker,
+    val spotifyManager: com.example.myplayer.data.spotify.SpotifyIntegrationManager
 ) : ViewModel() {
+
+    val isSpotifyLoggedIn = spotifyManager.isLoggedIn
+    val spotifyUsername = spotifyManager.username
+    val isSpotifySyncing = spotifyManager.isSyncing
+
+    fun syncSpotifyTaste() {
+        viewModelScope.launch {
+            spotifyManager.syncSpotifyTasteIntoAi()
+        }
+    }
+
+    fun logoutSpotify() {
+        spotifyManager.logout()
+    }
 
     private val _backupState = MutableStateFlow<BackupRestoreState>(BackupRestoreState.Idle)
     val backupState = _backupState.asStateFlow()

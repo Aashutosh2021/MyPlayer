@@ -55,8 +55,23 @@ fun SettingsScreen(
     var showDialogText by remember { mutableStateOf<String?>(null) }
     var isLoadingDialog by remember { mutableStateOf(false) }
 
+    val isSpotifyLoggedIn by viewModel.isSpotifyLoggedIn.collectAsStateWithLifecycle()
+    val spotifyUsername by viewModel.spotifyUsername.collectAsStateWithLifecycle()
+    val isSpotifySyncing by viewModel.isSpotifySyncing.collectAsStateWithLifecycle()
+    var showSpotifyDialog by remember { mutableStateOf(false) }
+
     var showNameDialog by remember { mutableStateOf(false) }
     var editNameInput by remember { mutableStateOf("") }
+
+    if (showSpotifyDialog) {
+        SpotifyLoginDialog(
+            spotifyManager = viewModel.spotifyManager,
+            onDismiss = { showSpotifyDialog = false },
+            onLoginSuccess = { user ->
+                showDialogText = "Connected to Spotify as $user! Taste profile synced into AI recommendations."
+            }
+        )
+    }
 
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -427,6 +442,41 @@ fun SettingsScreen(
                 checked = isAutoplayEnabled,
                 onCheckedChange = { viewModel.setAutoplayEnabled(it) }
             )
+        }
+
+        // Section: Spotify & AI Taste
+        item { SettingsSectionHeader(title = "Spotify & AI Taste") }
+
+        item {
+            if (!isSpotifyLoggedIn) {
+                SettingsNavigationRow(
+                    icon = Icons.Filled.MusicNote,
+                    title = "Connect Spotify",
+                    subtitle = "Import your Liked Songs & Top Tracks into MyPlayer",
+                    onClick = { showSpotifyDialog = true }
+                )
+            } else {
+                SettingsNavigationRow(
+                    icon = Icons.Filled.CheckCircle,
+                    title = "Spotify Connected (${spotifyUsername ?: "User"})",
+                    subtitle = if (isSpotifySyncing) "Syncing taste into MyPlayer..." else "Tap to re-sync Liked Songs & Top 50 Tracks",
+                    onClick = {
+                        if (!isSpotifySyncing) {
+                            viewModel.syncSpotifyTaste()
+                            showDialogText = "Syncing your Spotify taste profile into AI..."
+                        }
+                    }
+                )
+                SettingsNavigationRow(
+                    icon = Icons.Filled.Delete,
+                    title = "Disconnect Spotify",
+                    subtitle = "Clear Spotify session cookies and tokens",
+                    onClick = {
+                        viewModel.logoutSpotify()
+                        showDialogText = "Disconnected from Spotify."
+                    }
+                )
+            }
         }
 
         // Section: Backup & Restore

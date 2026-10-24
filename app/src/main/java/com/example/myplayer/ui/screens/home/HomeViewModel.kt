@@ -44,13 +44,18 @@ class HomeViewModel @Inject constructor(
     private val innertubeApi: InnertubeApi,
     private val recommendationCache: RecommendationCache,
     private val lastFmRecommendationSource: LastFmRecommendationSource,
-    private val aiModel: OnDeviceMusicAiModel
+    private val aiModel: OnDeviceMusicAiModel,
+    val spotifyManager: com.example.myplayer.data.spotify.SpotifyIntegrationManager
 ) : ViewModel() {
 
     private val _userState = MutableStateFlow<RecommendationUserState?>(null)
     val userState: StateFlow<RecommendationUserState?> = _userState.asStateFlow()
 
     val selectedCategory = MutableStateFlow("All")
+
+    val isSpotifyLoggedIn = spotifyManager.isLoggedIn
+    val spotifyUsername = spotifyManager.username
+    val isSpotifySyncing = spotifyManager.isSyncing
 
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
@@ -183,6 +188,21 @@ class HomeViewModel @Inject constructor(
                 delay(15 * 60 * 1000L)
                 refreshAiRecommendations()
             }
+        }
+
+        // 5. Sync Spotify taste into AI if user is logged in
+        viewModelScope.launch {
+            if (spotifyManager.isLoggedIn.value) {
+                spotifyManager.syncSpotifyTasteIntoAi()
+                refreshAiRecommendations()
+            }
+        }
+    }
+
+    fun syncSpotifyTasteAndRefresh() {
+        viewModelScope.launch {
+            spotifyManager.syncSpotifyTasteIntoAi()
+            refreshAiRecommendations()
         }
     }
 
