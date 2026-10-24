@@ -1,22 +1,22 @@
 package com.example.myplayer.ui.screens.settings
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Message
+import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +34,10 @@ import com.example.myplayer.data.spotify.SpotifyIntegrationManager
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
+// Firefox Android UA bypasses Google's "disallowed_useragent" & broken WebView Passkey prompts
+private const val USER_AGENT_GOOGLE_AUTH =
+    "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun SpotifyLoginDialog(
@@ -42,11 +46,11 @@ fun SpotifyLoginDialog(
     onLoginSuccess: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Web, 1 = Cookie Paste
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Web Login, 1 = Cookie Paste
     var isLoading by remember { mutableStateOf(true) }
     var statusText by remember { mutableStateOf<String?>(null) }
-    var currentUrl by remember { mutableStateOf(SpotifyIntegrationManager.LOGIN_URL) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var currentUrl by remember { mutableStateOf(SpotifyIntegrationManager.LOGIN_URL) }
     val tokenFetchStarted = remember { AtomicBoolean(false) }
 
     var cookieInput by remember { mutableStateOf("") }
@@ -55,16 +59,21 @@ fun SpotifyLoginDialog(
     val spotifyGreen = Color(0xFF1DB954)
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val isGooglePage = currentUrl.contains("accounts.google.com")
+    val isGooglePage = currentUrl.contains("accounts.google.") || currentUrl.contains("google.com/signin")
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(8.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(surfaceColor)
         ) {
@@ -89,14 +98,14 @@ fun SpotifyLoginDialog(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back to Spotify",
+                                contentDescription = "Back",
                                 tint = spotifyGreen
                             )
                         }
                         Spacer(Modifier.width(4.dp))
                     }
                     Text(
-                        text = "Spotify AI Taste Connection",
+                        text = "Connect Spotify",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = onSurfaceColor
                     )
@@ -106,7 +115,7 @@ fun SpotifyLoginDialog(
                 }
             }
 
-            // Mode Tabs: Web Login vs Cookie Paste
+            // Mode Tabs: Web Sign-In vs Cookie Paste
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +134,7 @@ fun SpotifyLoginDialog(
                 FilterChip(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    label = { Text("Paste Cookie (Google Accounts)", fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Paste Cookie", fontWeight = FontWeight.SemiBold) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = spotifyGreen,
                         selectedLabelColor = Color.White
@@ -133,7 +142,7 @@ fun SpotifyLoginDialog(
                 )
             }
 
-            if (isLoading && selectedTab == 0 || statusText != null) {
+            if ((isLoading && selectedTab == 0) || statusText != null) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = spotifyGreen
@@ -141,73 +150,6 @@ fun SpotifyLoginDialog(
             }
 
             if (selectedTab == 0) {
-                // Notice banner explaining Google login behavior
-                if (isGooglePage) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Google blocks in-app sign in",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = "Please log in with your Spotify Email & Password instead, or use the Paste Cookie tab above.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Button(
-                                onClick = { webViewRef?.loadUrl(SpotifyIntegrationManager.LOGIN_URL) },
-                                colors = ButtonDefaults.buttonColors(containerColor = spotifyGreen),
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text("Return", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        }
-                    }
-                } else {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = spotifyGreen,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "Use Spotify Email & Password below. (If created via Google, use your Gmail + Spotify password or 'Paste Cookie' tab).",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
                 Box(modifier = Modifier.fillMaxSize()) {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
@@ -219,13 +161,43 @@ fun SpotifyLoginDialog(
 
                             WebView(ctx).apply {
                                 webViewRef = this
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                // Ensure keyboard pops up inside Compose Dialog for Google email/password fields
+                                isFocusable = true
+                                isFocusableInTouchMode = true
+                                requestFocus()
+
                                 cookieManager.setAcceptThirdPartyCookies(this, true)
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
+                                settings.databaseEnabled = true
                                 settings.loadWithOverviewMode = true
                                 settings.useWideViewPort = true
                                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+
+                                // Enable popup interception so "Continue with Google" window.open() works!
+                                settings.javaScriptCanOpenWindowsAutomatically = true
+                                settings.setSupportMultipleWindows(true)
                                 settings.userAgentString = SpotifyIntegrationManager.USER_AGENT_DESKTOP
+
+                                fun updateUaForUrl(view: WebView?, url: String?) {
+                                    if (view == null || url == null) return
+                                    val isGoogleUrl = url.contains("accounts.google.") ||
+                                        url.contains("google.com/o/oauth") ||
+                                        url.contains("google.com/signin")
+
+                                    val targetUa = if (isGoogleUrl) {
+                                        USER_AGENT_GOOGLE_AUTH
+                                    } else {
+                                        SpotifyIntegrationManager.USER_AGENT_DESKTOP
+                                    }
+                                    if (view.settings.userAgentString != targetUa) {
+                                        view.settings.userAgentString = targetUa
+                                    }
+                                }
 
                                 fun tryExtractCookieAndFinish(view: WebView?) {
                                     val cookies = CookieManager.getInstance().getCookie("https://open.spotify.com") ?: return
@@ -238,7 +210,7 @@ fun SpotifyLoginDialog(
                                     if (!spDc.isNullOrBlank() && tokenFetchStarted.compareAndSet(false, true)) {
                                         val spKey = cookieMap["sp_key"] ?: ""
                                         view?.stopLoading()
-                                        statusText = "Syncing your Spotify taste profile into AI Brain..."
+                                        statusText = "Syncing your Spotify taste profile..."
                                         scope.launch {
                                             spotifyManager.completeLoginWithCookies(spDc, spKey)
                                                 .onSuccess { username ->
@@ -253,50 +225,134 @@ fun SpotifyLoginDialog(
                                     }
                                 }
 
+                                // 1. Intercept window.open() popups from "Continue with Google" button
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onCreateWindow(
+                                        view: WebView?,
+                                        isDialog: Boolean,
+                                        isUserGesture: Boolean,
+                                        resultMsg: Message?
+                                    ): Boolean {
+                                        val mainWebView = view ?: return false
+                                        val popupWebView = WebView(mainWebView.context).apply {
+                                            settings.javaScriptEnabled = true
+                                            settings.domStorageEnabled = true
+                                            settings.userAgentString = USER_AGENT_GOOGLE_AUTH
+                                            webViewClient = object : WebViewClient() {
+                                                override fun shouldOverrideUrlLoading(
+                                                    v: WebView?,
+                                                    request: WebResourceRequest?
+                                                ): Boolean {
+                                                    val popupUrl = request?.url?.toString() ?: return false
+                                                    updateUaForUrl(mainWebView, popupUrl)
+                                                    mainWebView.loadUrl(popupUrl)
+                                                    v?.destroy()
+                                                    return true
+                                                }
+
+                                                override fun onPageStarted(v: WebView?, url: String?, favicon: Bitmap?) {
+                                                    if (!url.isNullOrBlank() && url != "about:blank") {
+                                                        updateUaForUrl(mainWebView, url)
+                                                        mainWebView.loadUrl(url)
+                                                        v?.destroy()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                                        transport.webView = popupWebView
+                                        resultMsg.sendToTarget()
+                                        return true
+                                    }
+                                }
+
+                                // 2. Handle navigation, Google UA switching, intent:// URLs, and CSS fix
                                 webViewClient = object : WebViewClient() {
                                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                         isLoading = true
                                         url?.let { currentUrl = it }
+                                        updateUaForUrl(view, url)
+
+                                        // Disable broken WebView Passkey prompt on Google Sign-In so email/password works
+                                        if (url?.contains("google.") == true) {
+                                            view?.evaluateJavascript(
+                                                """
+                                                (function() {
+                                                  try {
+                                                    delete window.PublicKeyCredential;
+                                                    if (navigator.credentials) {
+                                                      navigator.credentials.get = function() {
+                                                        return Promise.reject(new Error('WebAuthn disabled in WebView'));
+                                                      };
+                                                    }
+                                                  } catch(e) {}
+                                                })();
+                                                """.trimIndent(),
+                                                null
+                                            )
+                                        }
                                     }
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         isLoading = false
                                         url?.let { currentUrl = it }
+                                        CookieManager.getInstance().flush()
 
-                                        // Apply Meld's layout fix so <main> login form never collapses
-                                        view?.evaluateJavascript(
-                                            """
-                                            (function() {
-                                              var id = 'meld-login-layout-fix';
-                                              if (!document.getElementById(id)) {
-                                                var st = document.createElement('style');
-                                                st.id = id;
-                                                st.textContent =
-                                                  'html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; }' +
-                                                  'body > div { height: auto !important; min-height: 100% !important; }' +
-                                                  'main { position: static !important; height: auto !important; min-height: 100dvh !important; max-height: none !important; overflow: visible !important; }';
-                                                document.head.appendChild(st);
-                                              }
-                                            })();
-                                            """.trimIndent(),
-                                            null
-                                        )
+                                        // Apply Meld's CSS layout fix on Spotify pages
+                                        if (url?.contains("spotify.com") == true) {
+                                            view?.evaluateJavascript(
+                                                """
+                                                (function() {
+                                                  var id = 'meld-login-layout-fix';
+                                                  if (!document.getElementById(id)) {
+                                                    var st = document.createElement('style');
+                                                    st.id = id;
+                                                    st.textContent =
+                                                      'html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; }' +
+                                                      'body > div { height: auto !important; min-height: 100% !important; }' +
+                                                      'main { position: static !important; height: auto !important; min-height: 100dvh !important; max-height: none !important; overflow: visible !important; }';
+                                                    document.head.appendChild(st);
+                                                  }
+                                                })();
+                                                """.trimIndent(),
+                                                null
+                                            )
+                                        }
 
                                         if (url?.startsWith("https://open.spotify.com") == true) {
                                             tryExtractCookieAndFinish(view)
                                         }
                                     }
 
-                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView?,
+                                        request: WebResourceRequest?
+                                    ): Boolean {
                                         val reqUrl = request?.url?.toString() ?: return false
                                         currentUrl = reqUrl
 
-                                        // If Google OAuth is hit, use compatible mobile Chrome user-agent
-                                        if (reqUrl.contains("accounts.google.com")) {
-                                            view?.settings?.userAgentString =
-                                                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
-                                        } else {
-                                            view?.settings?.userAgentString = SpotifyIntegrationManager.USER_AGENT_DESKTOP
+                                        // Handle intent:// or custom scheme links from Google/Spotify OAuth
+                                        if (!reqUrl.startsWith("http://") && !reqUrl.startsWith("https://")) {
+                                            if (reqUrl.startsWith("intent://")) {
+                                                try {
+                                                    val intent = Intent.parseUri(reqUrl, Intent.URI_INTENT_SCHEME)
+                                                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                                                    if (!fallbackUrl.isNullOrBlank()) {
+                                                        updateUaForUrl(view, fallbackUrl)
+                                                        view?.loadUrl(fallbackUrl)
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                            return true
+                                        }
+
+                                        // If switching between Spotify and Google OAuth, swap User-Agent before loading!
+                                        val isGoogle = reqUrl.contains("accounts.google.") || reqUrl.contains("google.com/o/oauth")
+                                        val expectedUa = if (isGoogle) USER_AGENT_GOOGLE_AUTH else SpotifyIntegrationManager.USER_AGENT_DESKTOP
+                                        if (view != null && view.settings.userAgentString != expectedUa) {
+                                            view.settings.userAgentString = expectedUa
+                                            view.loadUrl(reqUrl)
+                                            return true
                                         }
 
                                         if (reqUrl.startsWith("https://open.spotify.com")) {
@@ -327,7 +383,7 @@ fun SpotifyLoginDialog(
                     }
                 }
             } else {
-                // ── Tab 1: Paste sp_dc Cookie Mode (Spotube Method) ────────
+                // Tab 1: Paste sp_dc Cookie Mode
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -348,8 +404,8 @@ fun SpotifyLoginDialog(
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "1. Open chrome/browser and log in to open.spotify.com (works with Google, Apple, or Facebook).\n" +
-                                "2. Open Developer Tools (F12 or Inspect) > Storage/Application > Cookies > open.spotify.com.\n" +
+                                "1. Open your browser and log in to open.spotify.com (via Google, Apple, or Facebook).\n" +
+                                "2. Inspect / Developer Tools > Application/Storage > Cookies > open.spotify.com.\n" +
                                 "3. Copy the value of 'sp_dc' and paste it below.",
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
@@ -363,7 +419,7 @@ fun SpotifyLoginDialog(
                         onValueChange = { cookieInput = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Spotify sp_dc Cookie") },
-                        placeholder = { Text("AQB... (long string)") },
+                        placeholder = { Text("AQB... (long token)") },
                         singleLine = false,
                         maxLines = 4,
                         colors = OutlinedTextFieldDefaults.colors(
