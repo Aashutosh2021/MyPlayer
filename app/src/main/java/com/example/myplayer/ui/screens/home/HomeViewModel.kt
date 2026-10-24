@@ -23,6 +23,7 @@ import com.example.myplayer.playback.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.*
@@ -56,6 +57,7 @@ class HomeViewModel @Inject constructor(
     val isSpotifyLoggedIn = spotifyManager.isLoggedIn
     val spotifyUsername = spotifyManager.username
     val isSpotifySyncing = spotifyManager.isSyncing
+    private var spotifyBridgeJob: Job? = null
 
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
@@ -172,6 +174,29 @@ class HomeViewModel @Inject constructor(
                     // Refresh recommendations after learning first song if list was empty
                     if (_aiRecommendations.value.isEmpty()) {
                         refreshAiRecommendations()
+                    }
+
+                    // 2-Way Spotify Bridge: When a song plays for 30s+, report to Spotify and pull live recommendations
+                    if (spotifyManager.isLoggedIn.value) {
+                        val playedTitle = played[1]
+                        val playedArtist = played[2]
+                        spotifyBridgeJob?.cancel()
+                        spotifyBridgeJob = viewModelScope.launch(Dispatchers.IO) {
+                            delay(30_000L)
+                            val stillPlayingSame = (musicController.currentOnlineSong.value?.title == playedTitle) ||
+                                (musicController.currentSong.value?.title == playedTitle)
+
+                            if (stillPlayingSame) {
+                                val newSpotifyRecos = spotifyManager.reportPlayedSongAndFetchSpotifyRecommendations(
+                                    title = playedTitle,
+                                    artist = playedArtist,
+                                    syncToSpotifyLibrary = true
+                                )
+                                if (newSpotifyRecos.isNotEmpty()) {
+                                    refreshAiRecommendations()
+                                }
+                            }
+                        }
                     }
                 }
             }
