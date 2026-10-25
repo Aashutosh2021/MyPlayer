@@ -163,11 +163,14 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // 3. Background Spotify sync (delayed 6s so it NEVER slows down app startup or song clicks!)
+        // 3. Background Spotify sync (delayed 4s so it NEVER slows down app startup)
         viewModelScope.launch(Dispatchers.IO) {
-            delay(6_000L)
+            delay(4_000L)
             if (spotifyManager.isLoggedIn.value) {
                 spotifyManager.syncSpotifyTasteIntoAi()
+                // FIX: Refresh UI immediately after Spotify taste is seeded into AI!
+                _categoryRecommendations.value = emptyMap()
+                refreshAiRecommendations()
             }
         }
 
@@ -202,9 +205,9 @@ class HomeViewModel @Inject constructor(
                             durationMs = playedDur
                         )
 
-                        // Wait another 26s (total 30s of listening) before syncing with Spotify
+                        // Wait another 8s (total 12s of listening) before syncing with Spotify
                         if (spotifyManager.isLoggedIn.value) {
-                            delay(26_000L)
+                            delay(8_000L)
                             val stillPlayingSame =
                                 (musicController.currentOnlineSong.value?.title == playedTitle) ||
                                 (musicController.currentSong.value?.title == playedTitle)
@@ -216,6 +219,7 @@ class HomeViewModel @Inject constructor(
                                     syncToSpotifyLibrary = true
                                 )
                                 if (newSpotifyRecos.isNotEmpty()) {
+                                    _categoryRecommendations.value = emptyMap()
                                     refreshAiRecommendations()
                                 }
                             }

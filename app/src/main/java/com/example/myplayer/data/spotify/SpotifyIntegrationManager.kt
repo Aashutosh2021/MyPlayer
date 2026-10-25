@@ -289,22 +289,37 @@ class SpotifyIntegrationManager @Inject constructor(
         val token = getValidAccessToken() ?: return@withContext emptyList()
         try {
             // 1. Resolve MyPlayer song on Spotify
-            val match = searchTrackOnSpotify(token, "$title $artist") ?: return@withContext emptyList()
-            Log.d(TAG, "Matched on Spotify: '${match.title}' by ${match.artistName} (track=${match.trackId}, artist=${match.artistId})")
+            val match = searchTrackOnSpotify(token, "$title $artist")
+            val recommendedTracks = mutableListOf<SpotifyTrackSeed>()
 
-            // 2. Push song to Spotify Library so Spotify's taste algorithm updates!
-            if (syncToSpotifyLibrary && match.trackUri.isNotBlank()) {
-                pushTrackToSpotifyLibrary(token, match.trackUri)
+            if (match != null) {
+                Log.d(TAG, "Matched on Spotify: '${match.title}' by ${match.artistName} (track=${match.trackId}, artist=${match.artistId})")
+
+                // 2. Push song to Spotify Library so Spotify's taste algorithm updates!
+                if (syncToSpotifyLibrary && match.trackUri.isNotBlank()) {
+                    pushTrackToSpotifyLibrary(token, match.trackUri)
+                }
+
+                // 3. Pull Spotify's live recommendations (Top Tracks + Related Artists from queryArtistOverview)
+                recommendedTracks.addAll(fetchSpotifyArtistAndRelatedRecommendations(token, match.artistId))
             }
 
-            // 3. Pull Spotify's live recommendations (Top Tracks + Related Artists from queryArtistOverview)
-            val spotifyRecos = fetchSpotifyArtistAndRelatedRecommendations(token, match.artistId)
+            // Fallback: If 0 tracks found (or match was null), search artist's tracks directly to seed taste
+            if (recommendedTracks.isEmpty()) {
+                val searchRecos = searchSpotifyTracks(
+                    token = token,
+                    query = artist.ifBlank { title },
+                    limit = 10
+                )
+                recommendedTracks.addAll(searchRecos)
+            }
 
             // 4. Feed Spotify's new recommendations into MyPlayer's On-Device AI!
-            spotifyRecos.forEachIndexed { idx, seed ->
-                val weight = (1.5f - (idx * 0.03f)).coerceAtLeast(0.5f)
+            recommendedTracks.forEachIndexed { idx, seed ->
+                val weight = (2.4f - (idx * 0.15f)).coerceAtLeast(1.0f)
+                val seedId = if (seed.id.startsWith("spotify:")) seed.id else "spotify:${seed.id}"
                 aiModel.learnFromInteraction(
-                    videoId = seed.id,
+                    videoId = seedId,
                     title = seed.title,
                     artist = seed.artist,
                     durationMs = seed.durationMs,
@@ -312,11 +327,68 @@ class SpotifyIntegrationManager @Inject constructor(
                 )
             }
 
-            spotifyRecos
+            recommendedTracks
         } catch (e: Exception) {
             Log.w(TAG, "2-Way Spotify recommendation bridge failed", e)
             emptyList()
         }
+    }
+
+    /**
+     * Search tracks on Spotify via GraphQL `searchDesktop` (Meld fallback)
+     */
+    private suspend fun searchSpotifyTracks(token: String, query: String, limit: Int = 10): List<SpotifyTrackSeed> {
+        val out = mutableListOf<SpotifyTrackSeed>()
+        try {
+            val vars = JSONObject().apply {
+                put("searchTerm", query.trim())
+                put("offset", 0)
+                put("limit", limit.coerceAtLeast(5))
+                put("numberOfTopResults", 3)
+                put("includeAudiobooks", false)
+                put("includeArtistHasConcertsField", false)
+                put("includePreReleases", false)
+                put("includeLocalConcertsField", false)
+                put("includeAuthors", false)
+            }
+
+            val res = graphqlPost(token, "searchDesktop", HASH_SEARCH_DESKTOP, vars)
+            val items = res.optJSONObject("data")
+                ?.optJSONObject("searchV2")
+                ?.optJSONObject("tracksV2")
+                ?.optJSONArray("items") ?: return emptyList()
+
+            for (i in 0 until items.length().coerceAtMost(limit)) {
+                val itemData = items.getJSONObject(i).optJSONObject("item")?.optJSONObject("data") ?: continue
+                val trackUri = itemData.optString("uri")
+                val trackId = trackUri.substringAfterLast(":")
+                val trackName = itemData.optString("name")
+                val dur = itemData.optJSONObject("duration")?.optLong("totalMilliseconds", 0L) ?: 0L
+
+                val artistItems = itemData.optJSONObject("artists")?.optJSONArray("items")
+                val artistNames = mutableListOf<String>()
+                if (artistItems != null) {
+                    for (j in 0 until artistItems.length()) {
+                        val aName = artistItems.getJSONObject(j).optJSONObject("profile")?.optString("name")
+                        if (!aName.isNullOrBlank()) artistNames.add(aName)
+                    }
+                }
+                if (trackId.isNotBlank() && trackName.isNotBlank()) {
+                    out.add(
+                        SpotifyTrackSeed(
+                            id = trackId,
+                            title = trackName,
+                            artist = artistNames.joinToString(", ").ifBlank { "Unknown Artist" },
+                            durationMs = dur,
+                            weight = 1.2f
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "searchSpotifyTracks failed for query: $query", e)
+        }
+        return out
     }
 
     /**
