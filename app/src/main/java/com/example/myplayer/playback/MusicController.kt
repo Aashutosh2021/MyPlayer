@@ -841,6 +841,10 @@ class MusicController @Inject constructor(
         _playbackQueue.value = _songQueue.toList()
         playbackStateManager.updateCurrentOnlineSong(null)
 
+        val targetSong = songs[clampedIndex]
+        playbackStateManager.updateCurrentSong(targetSong)
+        playbackStateManager.updatePosition(0L)
+
         val requests = songs.map { song ->
             PlayRequest(
                 songId = song.id,
@@ -1393,6 +1397,18 @@ class MusicController @Inject constructor(
             return controller.getMediaItemAt(index)
         }
         return null
+    }
+
+    override fun onStreamResolving(request: PlayRequest) {
+        // Immediately pause previous song so old audio NEVER plays under the new song's artwork!
+        Handler(Looper.getMainLooper()).post {
+            try {
+                mediaController?.pause()
+            } catch (_: Exception) {}
+        }
+        playbackStateManager.updatePlayingState(false)
+        playbackStateManager.updatePosition(0L)
+        playbackStateManager.updateMachineState(PlaybackMachineState.BUFFERING)
     }
 
     override fun onStreamResolutionFailed(request: PlayRequest, error: String) {

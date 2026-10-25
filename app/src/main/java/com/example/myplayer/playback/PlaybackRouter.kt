@@ -251,16 +251,17 @@ class PlaybackRouter @Inject constructor(
         if (queueIndex in currentRequests.indices) {
             lastIndex = queueIndex
         }
-
         prefetchJob?.cancel()
         prefetchJob = scope.launch(Dispatchers.IO) {
-            // Wait 3 seconds so current song buffering finishes first at full speed
-            kotlinx.coroutines.delay(3000)
-            val nextReq = delegate.getNextPlayRequest()
-                ?: currentRequests.getOrNull(lastIndex + 1)
-
-            if (nextReq != null) {
-                sourceResolver.resolve(nextReq) { /* ignore background prefetch error */ }
+            // Wait 2.5s so current song finishes initial buffering at full speed
+            kotlinx.coroutines.delay(2500L)
+            val upcoming = currentRequests.drop(lastIndex + 1).take(3)
+            if (upcoming.isNotEmpty()) {
+                sourceResolver.prefetchSongs(upcoming)
+            } else {
+                delegate.getNextPlayRequest()?.let { nextReq ->
+                    sourceResolver.prefetchSongs(listOf(nextReq))
+                }
             }
         }
     }

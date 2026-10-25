@@ -325,9 +325,10 @@ class HomeViewModel @Inject constructor(
     fun playSong(songs: List<SongEntity>, startIndex: Int) {
         musicController.playSongs(songs, startIndex)
         val song = songs.getOrNull(startIndex) ?: return
-        aiModel.onSongTransition(song.videoId ?: song.id, song.title, song.artist, song.duration)
-        viewModelScope.launch { repository.incrementPlayCount(song.id) }
-        viewModelScope.launch { repository.addRecentHistory(song.id) }
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.incrementPlayCount(song.id)
+            repository.addRecentHistory(song.id)
+        }
     }
 
     fun toggleFavorite(song: SongEntity, isCurrentlyFavorite: Boolean) {
@@ -354,8 +355,7 @@ class HomeViewModel @Inject constructor(
         musicController.playOnlineSongs(onlineSongs, clampedIndex)
         val selected = songs.getOrNull(clampedIndex)
         if (selected != null) {
-            aiModel.onSongTransition(selected.videoId, selected.title, selected.artist, selected.durationMs)
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 repository.addRecentHistory(selected.videoId)
             }
         }

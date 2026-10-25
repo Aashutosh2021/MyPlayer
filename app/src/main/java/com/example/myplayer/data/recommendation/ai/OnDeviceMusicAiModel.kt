@@ -69,6 +69,10 @@ class OnDeviceMusicAiModel @Inject constructor(
     private var lastStartedDurationMs: Long = 0L
     private var lastStartedTimestampMs: Long = 0L
 
+    // 5-minute in-memory cache to prevent background recommendation churn during song transitions
+    @Volatile private var cachedRecos: List<RecommendationSong> = emptyList()
+    @Volatile private var lastRecoTimeMs: Long = 0L
+
     /**
      * Call whenever a new song starts playing (online or offline).
      * Automatically evaluates how long the user listened to the PREVIOUS song:
@@ -216,9 +220,16 @@ class OnDeviceMusicAiModel @Inject constructor(
      * 2. Learned Artist & Style Keyword clusters
      * 3. 128-D Neural Cosine Similarity + Time-of-Day Contextual Bandit ranking
      */
-    suspend fun generateRecommendations(limit: Int = 45): List<RecommendationSong> = withContext(Dispatchers.IO) {
+    suspend fun generateRecommendations(
+        limit: Int = 45,
+        forceRefresh: Boolean = false
+    ): List<RecommendationSong> = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        val entries = loadHistoryEntries()
+        if (!forceRefresh && cachedRecos.isNotEmpty() && (now - lastRecoTimeMs) < 5 * 60 * 1000L) {
+            return@withContext cachedRecos.take(limit)
+        }
+
+        val entries = loadHistoryEntries().toMutableList()
 
         // Rank seeds by (Affinity Score * Exponential Recency Decay)
         val rankedEntries = entries.sortedByDescending { e ->
@@ -231,15 +242,12 @@ class OnDeviceMusicAiModel @Inject constructor(
             .map { it.videoId }
             .filter { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
             .distinct()
-            .take(2) // 2 top seeds (each returns 20+ radio songs from InnerTube)
+            .take(2) // 2 seeds return 40+ radio tracks
 
-        // Spotify-recommended tracks carry 22-char Spotify IDs (fed by
-        // SpotifyIntegrationManager's 2-way bridge), so they never pass the
-        // 11-char topSeeds filter. Pick top 3 to keep network requests lightweight.
         val topSpotifyTracks = rankedEntries
             .filter { !it.videoId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) && it.title.isNotBlank() }
             .distinctBy { "${it.title.lowercase()}_${it.artist.lowercase()}" }
-            .take(3)
+            .take(2) // Resolve 2 Spotify tracks per cycle and cache their YT IDs
 
         // Learn top artists & recurring title vibe keywords dynamically
         val artistScores = mutableMapOf<String, Double>()
@@ -264,12 +272,13 @@ class OnDeviceMusicAiModel @Inject constructor(
                 }
         }
 
-        val topArtists = artistScores.entries.sortedByDescending { it.value }.map { it.key }.take(2)
+        val topArtists = artistScores.entries.sortedByDescending { it.value }.map { it.key }.take(1)
         val topKeywords = keywordScores.entries.sortedByDescending { it.value }.map { it.key }.take(4)
         val topStyle = topKeywords.firstOrNull() ?: ""
 
         val candidatePool = java.util.concurrent.ConcurrentHashMap<String, OnlineSong>()
         val graphBonusMap = java.util.concurrent.ConcurrentHashMap<String, Float>()
+        val resolvedSpotifyToYt = java.util.concurrent.ConcurrentHashMap<String, String>()
 
         fun registerCandidate(song: OnlineSong, graphBonus: Float) {
             if (song.videoId.isBlank()) return
@@ -294,37 +303,44 @@ class OnDeviceMusicAiModel @Inject constructor(
                     })
                 }
 
-                // 2. Learned Artist + Learned Vibe Keyword queries
+                // 2. Learned Artist query
                 topArtists.forEachIndexed { idx, artist ->
                     add(async {
                         try {
-                            val q = if (topStyle.isNotBlank() && idx % 2 == 1) "$artist $topStyle" else artist
+                            val q = if (topStyle.isNotBlank()) "$artist $topStyle" else artist
                             val tracks = innertubeApi.search(q, filtered = true).songs
-                            val artWeight = 5.0f / (idx + 1)
-                            tracks.take(12).forEachIndexed { rankIdx, track ->
-                                registerCandidate(track, artWeight * (1.0f - rankIdx * 0.04f))
+                            tracks.take(10).forEachIndexed { rankIdx, track ->
+                                registerCandidate(track, 5.0f * (1.0f - rankIdx * 0.04f))
                             }
                         } catch (_: Exception) {}
                     })
                 }
 
-                // 3. Directly resolve Spotify's exact recommended tracks onto YouTube Music!
+                // 3. Directly resolve Spotify's exact recommended tracks onto YouTube Music & cache IDs
                 topSpotifyTracks.forEachIndexed { idx, spEntry ->
                     add(async {
                         try {
                             val query = "${spEntry.title} ${spEntry.artist}".trim()
                             val matchedSong = innertubeApi.search(query, filtered = true).songs.firstOrNull()
-                            if (matchedSong != null) {
-                                // High priority bonus (starts +10.0f, floor +4.0f) so
-                                // Spotify's exact recommendations appear at the top!
+                            if (matchedSong != null && matchedSong.videoId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
                                 val spotifyBonus = (10.0f - (idx * 0.6f)).coerceAtLeast(4.0f)
                                 registerCandidate(matchedSong, spotifyBonus)
+                                resolvedSpotifyToYt[spEntry.videoId] = matchedSong.videoId
                             }
                         } catch (_: Exception) {}
                     })
                 }
             }
             jobs.awaitAll()
+        }
+
+        // Permanently upgrade 22-char Spotify IDs to 11-char YouTube IDs in history
+        if (resolvedSpotifyToYt.isNotEmpty()) {
+            val updated = entries.map { e ->
+                val ytId = resolvedSpotifyToYt[e.videoId]
+                if (ytId != null) e.copy(videoId = ytId) else e
+            }
+            saveHistoryEntries(updated)
         }
 
         // Pure cold-start fallback ONLY if user has 0 history on fresh install
@@ -339,7 +355,7 @@ class OnDeviceMusicAiModel @Inject constructor(
         val recentlyPlayedIds = rankedEntries.take(5).map { it.videoId }.toSet()
 
         // Final Ranking using 128-D Neural Cosine Similarity + Graph Overlap + Artist Affinity
-        candidatePool.values
+        val finalRanked = candidatePool.values
             .map { cand ->
                 val neuralSim = predictAffinityScore(cand) // -1.0f to +1.0f
                 val graphScore = graphBonusMap[cand.videoId] ?: 0f
@@ -369,6 +385,12 @@ class OnDeviceMusicAiModel @Inject constructor(
                     source = "on_device_ai"
                 )
             }
+
+        if (finalRanked.isNotEmpty()) {
+            cachedRecos = finalRanked
+            lastRecoTimeMs = System.currentTimeMillis()
+        }
+        finalRanked
     }
 
     /**

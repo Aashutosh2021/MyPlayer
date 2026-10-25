@@ -9,10 +9,15 @@ import com.example.myplayer.data.local.dao.DownloadedSongDao
 import com.example.myplayer.data.local.dao.SongDao
 import com.example.myplayer.data.online.InnertubeApi
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -37,9 +42,11 @@ class PlaybackSourceResolver @Inject constructor(
     private val STREAM_URL_TTL_MS = 5 * 60 * 60 * 1000L
 
     // Spotify-imported Liked Songs / Playlist tracks carry 22-char Spotify IDs.
-    // Cache maps them to their matched 11-char YouTube videoIds so a match is
-    // never searched twice during a session.
+    // SharedPreferences + in-memory cache ensure a match is permanently remembered across app restarts.
+    private val prefs by lazy { context.getSharedPreferences("spotify_yt_id_mapping", Context.MODE_PRIVATE) }
     private val spotifyToYoutubeIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var activePrefetchJob: Job? = null
 
     suspend fun resolve(
         request: PlayRequest,
@@ -47,131 +54,111 @@ class PlaybackSourceResolver @Inject constructor(
     ): String? {
         val localUri = request.localUri
 
-        // 1. Pure local file check: only true filesystem/content URIs
+        // 0. ULTRA-FAST PATH (<1ms): Check in-memory stream URL cache FIRST!
+        val quickId = (localUri?.removePrefix("online://") ?: request.songId)
+            .removePrefix("online://")
+            .removePrefix("spotify:track:")
+            .removePrefix("spotify:")
+            .trim()
+        val mappedQuickId = spotifyToYoutubeIdCache[quickId] ?: prefs.getString(quickId, null) ?: quickId
+        if (mappedQuickId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+            val fastCachedUrl = innertubeApi.getCachedStreamUrl(mappedQuickId)
+            if (!fastCachedUrl.isNullOrBlank()) {
+                Log.d("PlaybackSourceResolver", "0ms instant cache hit for $mappedQuickId")
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(fastCachedUrl, isLocalFile = false)
+                return fastCachedUrl
+            }
+        }
+
+        // 1. Check if song is downloaded locally
+        val downloaded = withContext(Dispatchers.IO) {
+            try {
+                downloadedSongDao.getById(request.songId) ?: downloadedSongDao.getById(mappedQuickId)
+            } catch (_: Exception) { null }
+        }
+        if (downloaded != null) {
+            val file = File(downloaded.localPath)
+            if (file.exists() && file.length() > 0L) {
+                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(downloaded.localPath, isLocalFile = true)
+                return downloaded.localPath
+            }
+        }
+
+        // 2. Pure local device audio file
         if (request.playbackSource == PlaybackSourceType.LOCAL && !localUri.isNullOrBlank()) {
             if (localUri.startsWith("content://") || localUri.startsWith("file://") || localUri.startsWith("/")) {
                 val fileExists = checkLocalFileExists(localUri)
                 if (fileExists) {
                     _currentAudioQuality.value = losslessStreamResolver.inspectQuality(localUri, isLocalFile = true)
                     return localUri
-                } else {
-                    Log.w("PlaybackSourceResolver", "Local file missing: $localUri for song ${request.songId}")
-                    val dbVideoId = withContext(Dispatchers.IO) {
-                        songDao.getSongById(request.songId)?.videoId
-                    } ?: request.metadata["videoId"]
-                    if (!dbVideoId.isNullOrBlank()) {
-                        return resolveOnlineStream(dbVideoId, setCustomError)
-                    }
-                    setCustomError?.invoke("Local file not found. Playback stopped.")
-                    return null
                 }
             }
         }
 
-        // 2. Downloaded songs check
-        val downloaded = withContext(Dispatchers.IO) {
-            downloadedSongDao.getById(request.songId)
-        }
-        if (downloaded != null) {
-            val dlPath = downloaded.localPath
-            val fileExists = checkLocalFileExists(dlPath)
-            if (fileExists) {
-                Log.d("PlaybackSourceResolver", "Playing downloaded song locally from: $dlPath")
-                _currentAudioQuality.value = losslessStreamResolver.inspectQuality(dlPath, isLocalFile = true)
-                return dlPath
-            } else {
-                Log.w("PlaybackSourceResolver", "Downloaded file missing at: $dlPath for ${request.songId}. Falling back to online streaming.")
-                withContext(Dispatchers.IO) {
-                    try { downloadedSongDao.deleteById(request.songId) } catch (_: Exception) {}
-                }
-                return resolveOnlineStream(downloaded.id, setCustomError)
-            }
-        }
-
-        // 3. Direct HTTP stream URL already resolved
-        val directStreamUrl = if (!request.streamUrl.isNullOrBlank() && request.streamUrl.startsWith("http")) {
-            request.streamUrl
+        // 3. Direct HTTP URL
+        if (!request.streamUrl.isNullOrBlank() && request.streamUrl.startsWith("http")) {
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(request.streamUrl, isLocalFile = false)
+            return request.streamUrl
         } else if (!localUri.isNullOrBlank() && (localUri.startsWith("http://") || localUri.startsWith("https://"))) {
-            localUri
-        } else {
-            null
+            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(localUri, isLocalFile = false)
+            return localUri
         }
 
-        if (!directStreamUrl.isNullOrBlank()) {
-            val rawVideoId = when {
-                request.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) -> request.songId
-                localUri?.startsWith("online://") == true -> localUri.removePrefix("online://").takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
-                else -> request.metadata["videoId"]
-            }
-            if (rawVideoId != null) {
-                val cachedTimestamp = streamUrlTimestamps[rawVideoId]
-                val isExpired = cachedTimestamp != null && (System.currentTimeMillis() - cachedTimestamp) >= STREAM_URL_TTL_MS
-                if (isExpired) {
-                    Log.w("PlaybackSourceResolver", "Stream URL for $rawVideoId is older than 5 hours. Refreshing fresh stream.")
-                    return resolveOnlineStream(rawVideoId, setCustomError, forceRefresh = true)
-                }
-            }
-            _currentAudioQuality.value = losslessStreamResolver.inspectQuality(directStreamUrl, isLocalFile = false)
-            return directStreamUrl
-        }
-
-        // 4. Extract clean ID from localUri or songId
-        val rawId = when {
-            localUri?.startsWith("online://") == true -> localUri.removePrefix("online://")
-            else -> request.songId
-        }
-
-        var cleanId = rawId
-            .removePrefix("online://")
-            .removePrefix("spotify:track:")
-            .removePrefix("spotify:")
-            .trim()
-
+        var cleanId = mappedQuickId
         if (cleanId.isBlank()) {
             setCustomError?.invoke("Invalid track ID")
             return null
         }
 
-        // 5. If cleanId is a 22-char Spotify ID (not an 11-char YouTube videoId),
-        // automatically match it to its 11-char YouTube videoId using title + artist!
-        val isYoutubeId = cleanId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))
-        if (!isYoutubeId) {
-            val cachedYtId = spotifyToYoutubeIdCache[cleanId]
-            if (!cachedYtId.isNullOrBlank()) {
-                cleanId = cachedYtId
+        // 4. If cleanId is still a 22-char Spotify ID, match to 11-char YouTube ID AND save permanently to DB!
+        val isYouTubeId = cleanId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))
+        if (!isYouTubeId) {
+            val dbSong = withContext(Dispatchers.IO) {
+                try {
+                    songDao.getSongById(request.songId)
+                } catch (_: Exception) { null }
+            }
+            val existingYtId = dbSong?.videoId?.takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
+            if (existingYtId != null) {
+                spotifyToYoutubeIdCache[quickId] = existingYtId
+                prefs.edit().putString(quickId, existingYtId).apply()
+                cleanId = existingYtId
             } else {
-                val dbSong = withContext(Dispatchers.IO) { songDao.getSongById(request.songId) }
-                val existingYtId = dbSong?.videoId?.takeIf { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
-                if (!existingYtId.isNullOrBlank()) {
-                    spotifyToYoutubeIdCache[cleanId] = existingYtId
-                    cleanId = existingYtId
-                } else {
-                    val qTitle = request.title.ifBlank { dbSong?.title ?: request.metadata["title"] ?: "" }
-                    val qArtist = request.artist.ifBlank { dbSong?.artist ?: request.metadata["artist"] ?: "" }
-                    val query = "$qTitle $qArtist".trim()
-                    if (query.isNotBlank()) {
-                        val matchedYtId = withContext(Dispatchers.IO) {
-                            try {
-                                innertubeApi.search(query, filtered = true).songs.firstOrNull()?.videoId
-                            } catch (e: Exception) {
-                                Log.w("PlaybackSourceResolver", "Spotify->YouTube match failed for $cleanId", e)
-                                null
-                            }
+                val qTitle = request.title.ifBlank { dbSong?.title ?: request.metadata["title"] ?: "" }
+                val qArtist = request.artist.ifBlank { dbSong?.artist ?: request.metadata["artist"] ?: "" }
+                if (qTitle.isNotBlank()) {
+                    val matchedYtId = withContext(Dispatchers.IO) {
+                        try {
+                            innertubeApi.search("$qTitle $qArtist".trim(), filtered = true)
+                                .songs.firstOrNull()?.videoId
+                        } catch (e: Exception) {
+                            Log.w("PlaybackSourceResolver", "Spotify->YouTube match failed for $cleanId", e)
+                            null
                         }
-                        if (!matchedYtId.isNullOrBlank()) {
-                            spotifyToYoutubeIdCache[cleanId] = matchedYtId
-                            cleanId = matchedYtId
-                            withContext(Dispatchers.IO) {
-                                try { songDao.updateSongVideoId(request.songId, matchedYtId) } catch (_: Exception) {}
-                            }
-                        } else {
-                            setCustomError?.invoke("Could not find matching stream for '${qTitle}'")
-                            return null
+                    }
+                    if (!matchedYtId.isNullOrBlank()) {
+                        spotifyToYoutubeIdCache[quickId] = matchedYtId
+                        prefs.edit().putString(quickId, matchedYtId).apply()
+                        cleanId = matchedYtId
+                        // Permanently save the 11-char YouTube ID into Room DB so it NEVER needs searching again!
+                        prefetchScope.launch {
+                            try {
+                                songDao.updateSongVideoId(request.songId, matchedYtId)
+                                songDao.updateSongPath(request.songId, "online://$matchedYtId")
+                                if (dbSong != null) {
+                                    songDao.insertSongs(
+                                        listOf(dbSong.copy(videoId = matchedYtId, path = "online://$matchedYtId"))
+                                    )
+                                }
+                            } catch (_: Exception) {}
                         }
                     } else {
-                        setCustomError?.invoke("Invalid track ID: $cleanId")
+                        setCustomError?.invoke("Could not find stream for '$qTitle'")
                         return null
                     }
+                } else {
+                    setCustomError?.invoke("Could not find stream for '${request.songId}'")
+                    return null
                 }
             }
         }
@@ -204,6 +191,7 @@ class PlaybackSourceResolver @Inject constructor(
     }
 
     fun cancelPrefetches() {
+        activePrefetchJob?.cancel()
         innertubeApi.cancelAllPrefetches()
     }
 
@@ -273,17 +261,22 @@ class PlaybackSourceResolver @Inject constructor(
         innertubeApi.prefetchVisibleStreams(videoIds)
     }
 
+    /**
+     * Prefetches upcoming songs in the queue (including 22-char Spotify Playlist songs!)
+     * so pressing Next (>|) or tapping upcoming songs plays in 0ms!
+     */
     fun prefetchSongs(requests: List<PlayRequest>) {
-        val onlineVideoIds = requests.mapNotNull { req ->
-            val uri = req.localUri ?: req.songId
-            if (req.playbackSource == PlaybackSourceType.ONLINE || uri.startsWith("online://")) {
-                uri.removePrefix("online://")
-            } else if (req.songId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) && req.playbackSource != PlaybackSourceType.LOCAL) {
-                req.songId
-            } else null
-        }
-        if (onlineVideoIds.isNotEmpty()) {
-            innertubeApi.prefetchVisibleStreams(onlineVideoIds)
+        if (requests.isEmpty()) return
+        activePrefetchJob?.cancel()
+        activePrefetchJob = prefetchScope.launch {
+            for (req in requests.take(3)) {
+                if (!isActive) break
+                try {
+                    // Calling resolve(req) converts 22-char Spotify IDs to 11-char YT IDs
+                    // AND caches their googlevideo.com stream URLs in the background!
+                    resolve(req)
+                } catch (_: Exception) {}
+            }
         }
     }
 }
