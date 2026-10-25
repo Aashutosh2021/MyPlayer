@@ -12,7 +12,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
@@ -51,24 +53,29 @@ object WhatsNewRepository {
 
     fun getCurrentFeatures(): List<WhatsNewFeature> = listOf(
         WhatsNewFeature(
-            icon = Icons.Filled.Sync,
-            title = "2-Way Spotify Sync",
-            description = "Sync Spotify Liked Songs & Playlists into MyPlayer with instant YouTube stream matching."
-        ),
-        WhatsNewFeature(
-            icon = Icons.Filled.Bolt,
-            title = "Instant 350ms Streaming",
-            description = "Zero-delay playback start (<0.4s) with lightweight 9s rolling buffer — saves 60% data with zero buffering."
+            icon = Icons.Filled.Headphones,
+            title = "Listen Together (Party Mode)",
+            description = "Stream songs from any corner on Earth in real-time sync with friends! Create or join private rooms with ultra-fast MQTT sync."
         ),
         WhatsNewFeature(
             icon = Icons.Filled.AutoAwesome,
-            title = "On-Device AI Recommendations",
-            description = "Neural embeddings and contextual learning that tune your Home screen to your live music taste."
+            title = "Smart AI 2.0 & Diversified Mixes",
+            description = "Anti-clustering recommendation engine with max 2 songs per artist, genre exploration mixes, and Spotify taste boosts."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.Lyrics,
-            title = "Synchronized Lyrics",
-            description = "Ultra-smooth time-synced lyrics with auto-retry, smart fallback, and fast offline caching."
+            icon = Icons.Filled.Bolt,
+            title = "Instant Next & Playlist Playback",
+            description = "Zero-latency song transitions (<300ms) with background stream pre-resolving and persistent local ID caching."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.Sync,
+            title = "2-Way Spotify Taste Bridge",
+            description = "Seamless Spotify sync with 8x seed expansion, YouTube Radio discover mixes, and automatic fallback search."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.Download,
+            title = "Universal Offline Downloader",
+            description = "Seamlessly download tracks from both Spotify imports and YouTube in 320kbps with automatic URL resolution."
         )
     )
 }
