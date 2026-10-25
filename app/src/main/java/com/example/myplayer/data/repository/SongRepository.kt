@@ -55,4 +55,24 @@ class SongRepository @Inject constructor(
     suspend fun getSongById(id: String): SongEntity? = withContext(Dispatchers.IO) {
         songDao.getSongById(id)
     }
+
+    suspend fun cacheResolvedYoutubeId(
+        originalId: String,
+        rawSpotifyId: String,
+        youtubeVideoId: String
+    ) = withContext(Dispatchers.IO) {
+        val existing = songDao.getSongById(originalId)
+            ?: songDao.getSongById("spotify:$rawSpotifyId")
+            ?: songDao.getSongById(rawSpotifyId)
+            ?: songDao.getSongById("online://$rawSpotifyId")
+        if (existing != null) {
+            val updated = existing.copy(
+                videoId = youtubeVideoId,
+                path = "online://$youtubeVideoId"
+            )
+            songDao.insertSong(updated)
+            songDao.updateSongVideoId(existing.id, youtubeVideoId)
+            songDao.updateSongPath(existing.id, "online://$youtubeVideoId")
+        }
+    }
 }

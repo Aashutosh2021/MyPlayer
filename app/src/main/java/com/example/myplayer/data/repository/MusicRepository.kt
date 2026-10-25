@@ -90,4 +90,12 @@ class MusicRepository @Inject constructor(
     suspend fun getSongById(id: String): SongEntity? {
         return songRepository.getSongById(id)
     }
+
+    suspend fun cacheResolvedYoutubeId(
+        originalId: String,
+        rawSpotifyId: String,
+        youtubeVideoId: String
+    ) {
+        songRepository.cacheResolvedYoutubeId(originalId, rawSpotifyId, youtubeVideoId)
+    }
 }

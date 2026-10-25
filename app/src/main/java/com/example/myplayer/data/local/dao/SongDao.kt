@@ -21,6 +21,9 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertSongs(songs: List<SongEntity>): Unit
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSong(song: SongEntity): Unit
+
     @Query("DELETE FROM songs WHERE path LIKE :folderUri || '%'")
     fun deleteSongsByFolder(folderUri: String): Unit
 

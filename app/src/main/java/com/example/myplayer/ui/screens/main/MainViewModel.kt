@@ -158,8 +158,11 @@ class MainViewModel @Inject constructor(
             id.isNotEmpty() && (resolving == id || progress.containsKey(id))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val youtubeIdRegex = Regex("^[a-zA-Z0-9_-]{11}$")
+
     /**
      * Resolves the stream URL for the currently playing online song and queues a download.
+     * Supports both direct 11-char YouTube IDs and 22-char Spotify IDs (resolving via search & caching).
      */
     fun downloadCurrentSong() {
         val currentLocal = currentSong.value
@@ -177,68 +180,108 @@ class MainViewModel @Inject constructor(
             return
         }
 
-        val videoId = song.videoId
-        Log.i("MainViewModel", "[DOWNLOAD] Click received for '${song.title}' ($videoId)")
+        val rawId = song.videoId
+            .removePrefix("online://")
+            .removePrefix("spotify:")
+            .trim()
+        if (rawId.isBlank()) return
+
+        Log.i("MainViewModel", "[DOWNLOAD] Click received for '${song.title}' ($rawId)")
 
         // Case 3 — Already downloaded
-        if (downloadedIds.value.contains(videoId)) {
-            Log.i("MainViewModel", "[DOWNLOAD] Song '$videoId' already downloaded, skipping")
+        if (downloadedIds.value.contains(rawId)) {
+            Log.i("MainViewModel", "[DOWNLOAD] Song '$rawId' already downloaded, skipping")
             _downloadError.value = "Already downloaded and available offline"
             return
         }
 
         // Case 2 — Already downloading (prevent duplicate jobs)
-        if (_resolvingDownloadId.value == videoId || downloadRepository.isDownloading(videoId)) {
-            Log.i("MainViewModel", "[DOWNLOAD] Song '$videoId' is already downloading, skipping duplicate")
+        if (_resolvingDownloadId.value == song.videoId || downloadRepository.isDownloading(rawId)) {
+            Log.i("MainViewModel", "[DOWNLOAD] Song '$rawId' is already downloading, skipping duplicate")
             return
         }
 
+        _downloadError.value = null
+        _resolvingDownloadId.value = song.videoId
+
         viewModelScope.launch {
-            if (downloadRepository.isDownloaded(videoId)) return@launch
-
-            _resolvingDownloadId.value = videoId
-            Log.i("MainViewModel", "[DOWNLOAD] Starting download resolution for: ${song.title} ($videoId)")
-
             try {
-                var streamUrl = song.streamUrl?.takeIf { it.isNotBlank() }
-                if (streamUrl == null) {
-                    streamUrl = innertubeApi.getCachedStreamUrl(videoId)
-                }
-                if (streamUrl == null) {
-                    Log.i("MainViewModel", "[DOWNLOAD] Resolving stream URL via InnertubeApi for: $videoId")
-                    streamUrl = innertubeApi.getStreamUrl(videoId)
+                // Step 1: Check if rawId is already an 11-char YouTube videoId.
+                // If it's a 22-char Spotify ID, resolve it to an 11-char YouTube videoId first!
+                val realYtId = if (youtubeIdRegex.matches(rawId)) {
+                    rawId
                 } else {
-                    Log.i("MainViewModel", "[DOWNLOAD] Reusing active session stream URL for: $videoId")
+                    val query = "${song.title} ${song.artist}".trim()
+                    val matchedYtId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching {
+                            innertubeApi.search(query, filtered = true).songs.firstOrNull()?.videoId
+                                ?: innertubeApi.search(query, filtered = false).songs.firstOrNull()?.videoId
+                        }.getOrNull()
+                    }
+                    if (!matchedYtId.isNullOrBlank()) {
+                        musicRepository.cacheResolvedYoutubeId(
+                            originalId = song.videoId,
+                            rawSpotifyId = rawId,
+                            youtubeVideoId = matchedYtId
+                        )
+                    }
+                    matchedYtId
                 }
 
-                if (streamUrl.isNullOrBlank()) {
-                    // Case 4 — Missing URL
-                    val msg = "Download failed: no valid media URL"
-                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)")
+                if (realYtId.isNullOrBlank()) {
+                    val msg = "Download failed: could not match song on YouTube"
+                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($rawId)")
                     _downloadError.value = msg
                     return@launch
                 }
 
-                Log.i("MainViewModel", "[DOWNLOAD] Enqueuing download in DownloadRepository for '${song.title}'")
-                val enqueued = downloadRepository.startDownload(song.copy(streamUrl = streamUrl))
+                if (downloadedIds.value.contains(realYtId) || downloadRepository.isDownloaded(realYtId)) {
+                    _downloadError.value = "Already downloaded and available offline"
+                    return@launch
+                }
+
+                // Step 2: Grab stream URL from memory cache (0ms if song is already playing!) or fetch it
+                var streamUrl = song.streamUrl?.takeIf { it.startsWith("http") }
+                if (streamUrl.isNullOrBlank()) {
+                    streamUrl = innertubeApi.getCachedStreamUrl(realYtId)
+                }
+                if (streamUrl.isNullOrBlank()) {
+                    Log.i("MainViewModel", "[DOWNLOAD] Resolving stream URL via InnertubeApi for: $realYtId")
+                    streamUrl = innertubeApi.getStreamUrl(realYtId)
+                }
+
+                if (streamUrl.isNullOrBlank()) {
+                    val msg = "Download failed: no valid media URL"
+                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($realYtId)")
+                    _downloadError.value = msg
+                    return@launch
+                }
+
+                // Step 3: Start download with the valid 11-char YouTube videoId and streamUrl
+                Log.i("MainViewModel", "[DOWNLOAD] Enqueuing download in DownloadRepository for '${song.title}' ($realYtId)")
+                val enqueued = downloadRepository.startDownload(
+                    song.copy(
+                        videoId = realYtId,
+                        streamUrl = streamUrl
+                    )
+                )
                 if (!enqueued) {
                     val msg = "Download failed: could not schedule download"
-                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)")
+                    Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($realYtId)")
                     _downloadError.value = msg
-                } else {
-                    Log.i("MainViewModel", "[DOWNLOAD] Successfully enqueued download for '${song.title}'")
                 }
             } catch (e: com.example.myplayer.data.online.YouTubeStreamBlockedException) {
-                // Case 5 — Download failure: do not remain stuck in downloading state
                 val msg = e.message ?: "Download failed: YouTube stream blocked"
-                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)", e)
+                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($rawId)", e)
                 _downloadError.value = msg
             } catch (e: Exception) {
                 val msg = "Download failed: ${e.message ?: "Unknown error"}"
-                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($videoId)", e)
+                Log.e("MainViewModel", "[DOWNLOAD] $msg for '${song.title}' ($rawId)", e)
                 _downloadError.value = msg
             } finally {
-                _resolvingDownloadId.value = null
+                if (_resolvingDownloadId.value == song.videoId) {
+                    _resolvingDownloadId.value = null
+                }
             }
         }
     }
