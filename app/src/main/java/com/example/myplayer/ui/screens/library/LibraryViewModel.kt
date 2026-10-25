@@ -44,6 +44,10 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { repository.deletePlaylist(playlist) }
     }
 
+    fun renamePlaylist(playlistId: Long, newName: String) {
+        viewModelScope.launch { repository.renamePlaylist(playlistId, newName) }
+    }
+
     fun addSongToPlaylist(playlistId: Long, song: PlayableSong) {
         viewModelScope.launch { 
             repository.addSongToPlaylist(playlistId, song, 0)

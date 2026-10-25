@@ -47,6 +47,12 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
+    fun renamePlaylist(newName: String) {
+        viewModelScope.launch {
+            repository.renamePlaylist(_playlistId.value, newName)
+        }
+    }
+
     fun addSong(song: PlayableSong) {
         viewModelScope.launch {
             val currentCount = songs.value.size

@@ -57,8 +57,8 @@ object WhatsNewRepository {
         ),
         WhatsNewFeature(
             icon = Icons.Filled.Bolt,
-            title = "Fast Chunked Streaming",
-            description = "Instant playback start with small 9-second chunks — saves up to 60% mobile data with zero buffering."
+            title = "Instant 350ms Streaming",
+            description = "Zero-delay playback start (<0.4s) with lightweight 9s rolling buffer — saves 60% data with zero buffering."
         ),
         WhatsNewFeature(
             icon = Icons.Filled.AutoAwesome,

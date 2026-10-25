@@ -57,7 +57,7 @@ class HomeViewModel @Inject constructor(
     val isSpotifyLoggedIn = spotifyManager.isLoggedIn
     val spotifyUsername = spotifyManager.username
     val isSpotifySyncing = spotifyManager.isSyncing
-    private var spotifyBridgeJob: Job? = null
+    private var aiTrainingJob: Job? = null
 
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
@@ -139,8 +139,19 @@ class HomeViewModel @Inject constructor(
     val isPlaying = musicController.isPlaying
 
     init {
-        // 1. Sync existing local Favorites / MostPlayed / Downloads into On-Device AI Brain
-        viewModelScope.launch {
+        // 1. Load initial recommendations first
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshAiRecommendations()
+            // Prefetch top 2 recommended songs in background so clicking them is 0ms instant!
+            val topIds = _aiRecommendations.value.take(2).map { it.videoId }
+            if (topIds.isNotEmpty()) {
+                innertubeApi.prefetchVisibleStreams(topIds)
+            }
+        }
+
+        // 2. Sync local library signals on IO thread after 2 seconds
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(2_000L)
             combine(mostPlayed, favoriteSongs, downloadedEntities) { most, fav, down ->
                 val favIds = fav.map { it.id }.toSet()
                 val allSongsList = (fav + most + down).distinctBy { it.id }
@@ -152,7 +163,15 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // 2. Auto-train AI whenever user plays/skips/completes a song!
+        // 3. Background Spotify sync (delayed 6s so it NEVER slows down app startup or song clicks!)
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(6_000L)
+            if (spotifyManager.isLoggedIn.value) {
+                spotifyManager.syncSpotifyTasteIntoAi()
+            }
+        }
+
+        // 4. Observe played song — WAIT 4 SECONDS after click before doing ANY AI or Spotify work!
         viewModelScope.launch {
             combine(
                 musicController.currentSong,
@@ -165,25 +184,29 @@ class HomeViewModel @Inject constructor(
                 }
             }.collect { played ->
                 if (played != null && played[0].isNotBlank()) {
-                    aiModel.onSongTransition(
-                        videoId = played[0],
-                        title = played[1],
-                        artist = played[2],
-                        durationMs = played[3].toLongOrNull() ?: 0L
-                    )
-                    // Refresh recommendations after learning first song if list was empty
-                    if (_aiRecommendations.value.isEmpty()) {
-                        refreshAiRecommendations()
-                    }
+                    val playedId = played[0]
+                    val playedTitle = played[1]
+                    val playedArtist = played[2]
+                    val playedDur = played[3].toLongOrNull() ?: 0L
 
-                    // 2-Way Spotify Bridge: When a song plays for 30s+, report to Spotify and pull live recommendations
-                    if (spotifyManager.isLoggedIn.value) {
-                        val playedTitle = played[1]
-                        val playedArtist = played[2]
-                        spotifyBridgeJob?.cancel()
-                        spotifyBridgeJob = viewModelScope.launch(Dispatchers.IO) {
-                            delay(30_000L)
-                            val stillPlayingSame = (musicController.currentOnlineSong.value?.title == playedTitle) ||
+                    // Cancel any previous background AI/Spotify job so 100% bandwidth goes to the clicked song!
+                    aiTrainingJob?.cancel()
+                    aiTrainingJob = viewModelScope.launch(Dispatchers.IO) {
+                        // Let the clicked song resolve and start playing first with ZERO competition!
+                        delay(4_000L)
+
+                        aiModel.onSongTransition(
+                            videoId = playedId,
+                            title = playedTitle,
+                            artist = playedArtist,
+                            durationMs = playedDur
+                        )
+
+                        // Wait another 26s (total 30s of listening) before syncing with Spotify
+                        if (spotifyManager.isLoggedIn.value) {
+                            delay(26_000L)
+                            val stillPlayingSame =
+                                (musicController.currentOnlineSong.value?.title == playedTitle) ||
                                 (musicController.currentSong.value?.title == playedTitle)
 
                             if (stillPlayingSame) {
@@ -202,23 +225,10 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // 3. Load initial AI recommendations on startup
-        viewModelScope.launch {
-            refreshAiRecommendations()
-        }
-
-        // 4. Periodic auto-refresh every 15 minutes (not constantly)
-        viewModelScope.launch {
+        // 5. Periodic auto-refresh every 15 minutes (not constantly)
+        viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(15 * 60 * 1000L)
-                refreshAiRecommendations()
-            }
-        }
-
-        // 5. Sync Spotify taste into AI if user is logged in
-        viewModelScope.launch {
-            if (spotifyManager.isLoggedIn.value) {
-                spotifyManager.syncSpotifyTasteIntoAi()
                 refreshAiRecommendations()
             }
         }

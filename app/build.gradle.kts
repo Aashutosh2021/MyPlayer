@@ -125,9 +125,6 @@ composeCompiler {
 }
 
 dependencies {
-    // Baseline Profile installer for runtime ahead-of-time DEX optimization
-    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-
     // Core library desugaring — backports Java APIs (e.g. URLDecoder.decode(String, Charset))
     // to pre-API 33 devices. Required by NewPipeExtractor v0.26+ which calls that API.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
@@ -159,10 +156,7 @@ dependencies {
     // Media3
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-    implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
-    implementation(libs.media3.exoplayer.dash)
-    implementation(libs.media3.exoplayer.hls)
 
     // Navigation Compose
     implementation(libs.navigation.compose)
@@ -202,7 +196,4 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    
-    // Kotlin Parcelize runtime
-    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.1.0")
 }

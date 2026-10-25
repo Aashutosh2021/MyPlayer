@@ -65,6 +65,10 @@ fun PlaylistDetailScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     var songToRemoveDownload by remember { mutableStateOf<PlayableSong?>(null) }
 
+    // Playlist rename flow: editable name buffer prefilled from current playlist
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameInput by remember { mutableStateOf("") }
+
     songToRemoveDownload?.let { song ->
         AlertDialog(
             onDismissRequest = { songToRemoveDownload = null },
@@ -143,9 +147,64 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.weight(1f)
             )
 
+            ClayIconButton(
+                onClick = {
+                    renameInput = playlist?.name ?: ""
+                    showRenameDialog = true
+                },
+                size = 48.dp
+            ) {
+                Icon(Icons.Filled.Edit, "Rename Playlist", tint = MaterialTheme.colorScheme.onSurface)
+            }
+
             ClayIconButton(onClick = { showAddSheet = true }, size = 48.dp) {
                 Icon(Icons.Filled.Add, "Add Songs", tint = ClayPrimary)
             }
+        }
+
+        if (showRenameDialog) {
+            AlertDialog(
+                onDismissRequest = { showRenameDialog = false; renameInput = "" },
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.primary,
+                textContentColor = MaterialTheme.colorScheme.secondary,
+                title = { Text("Rename Playlist", fontWeight = FontWeight.Bold) },
+                text = {
+                    OutlinedTextField(
+                        value = renameInput,
+                        onValueChange = { renameInput = it },
+                        label = { Text("Playlist name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.secondary,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val newName = renameInput.trim()
+                            if (newName.isNotBlank()) {
+                                viewModel.renamePlaylist(newName)
+                                renameInput = ""
+                                showRenameDialog = false
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                    ) { Text("Rename", fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showRenameDialog = false; renameInput = "" },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                    ) { Text("Cancel") }
+                }
+            )
         }
 
         if (localSongs.isEmpty()) {

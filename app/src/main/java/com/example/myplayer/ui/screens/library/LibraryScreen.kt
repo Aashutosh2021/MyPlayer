@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,11 +50,18 @@ fun LibraryScreen(
     val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
     val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Persisted across navigation (NavHost's rememberSaveableStateHolder):
+    // previously a plain remember reset the section to Downloaded every time the
+    // user opened a playlist / NowPlaying screen and came back.
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var songToAddToPlaylist by remember { mutableStateOf<PlayableSong?>(null) }
     var songToRemoveDownload by remember { mutableStateOf<PlayableSong?>(null) }
+
+    // Playlist rename flow (grid-level "Rename" action): target playlist + name buffer
+    var playlistToRename by remember { mutableStateOf<PlaylistEntity?>(null) }
+    var renameInput by remember { mutableStateOf("") }
 
     songToRemoveDownload?.let { song ->
         AlertDialog(
@@ -118,6 +126,51 @@ fun LibraryScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showCreatePlaylistDialog = false; newPlaylistName = "" },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                ) { Text("Cancel") }
+            }
+        )
+    }
+
+    playlistToRename?.let { target ->
+        AlertDialog(
+            onDismissRequest = { playlistToRename = null; renameInput = "" },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            textContentColor = MaterialTheme.colorScheme.secondary,
+            title = { Text("Rename Playlist", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = renameInput,
+                    onValueChange = { renameInput = it },
+                    label = { Text("Playlist name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.secondary,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newName = renameInput.trim()
+                        if (newName.isNotBlank()) {
+                            viewModel.renamePlaylist(target.id, newName)
+                            renameInput = ""
+                            playlistToRename = null
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Rename", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { playlistToRename = null; renameInput = "" },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                 ) { Text("Cancel") }
             }
@@ -326,6 +379,10 @@ fun LibraryScreen(
                 onPlayFavoriteSongs = { onPlaySong(favoriteSongs, 0) },
                 onCreatePlaylist = { showCreatePlaylistDialog = true },
                 onDeletePlaylist = viewModel::deletePlaylist,
+                onRenamePlaylist = { playlist ->
+                    playlistToRename = playlist
+                    renameInput = playlist.name
+                },
                 onPlaylistClick = onPlaylistClick,
                 bottomPadding = bottomPadding
             )
@@ -572,6 +629,7 @@ fun PlaylistsTab(
     onPlayFavoriteSongs: () -> Unit,
     onCreatePlaylist: () -> Unit,
     onDeletePlaylist: (PlaylistEntity) -> Unit,
+    onRenamePlaylist: (PlaylistEntity) -> Unit,
     onPlaylistClick: (Long) -> Unit,
     bottomPadding: Dp
 ) {
@@ -783,6 +841,9 @@ fun PlaylistsTab(
                         )
                     }
 
+                    IconButton(onClick = { onRenamePlaylist(playlist) }) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = Secondary)
+                    }
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = Secondary)
                     }

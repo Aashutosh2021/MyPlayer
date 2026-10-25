@@ -231,16 +231,15 @@ class OnDeviceMusicAiModel @Inject constructor(
             .map { it.videoId }
             .filter { it.matches(Regex("^[a-zA-Z0-9_-]{11}$")) }
             .distinct()
-            .take(4)
+            .take(2) // 2 top seeds (each returns 20+ radio songs from InnerTube)
 
         // Spotify-recommended tracks carry 22-char Spotify IDs (fed by
         // SpotifyIntegrationManager's 2-way bridge), so they never pass the
-        // 11-char topSeeds filter. Pick them separately so those exact songs
-        // get resolved onto YouTube Music and shown on HomeScreen.
+        // 11-char topSeeds filter. Pick top 3 to keep network requests lightweight.
         val topSpotifyTracks = rankedEntries
             .filter { !it.videoId.matches(Regex("^[a-zA-Z0-9_-]{11}$")) && it.title.isNotBlank() }
             .distinctBy { "${it.title.lowercase()}_${it.artist.lowercase()}" }
-            .take(8)
+            .take(3)
 
         // Learn top artists & recurring title vibe keywords dynamically
         val artistScores = mutableMapOf<String, Double>()
@@ -265,7 +264,7 @@ class OnDeviceMusicAiModel @Inject constructor(
                 }
         }
 
-        val topArtists = artistScores.entries.sortedByDescending { it.value }.map { it.key }.take(3)
+        val topArtists = artistScores.entries.sortedByDescending { it.value }.map { it.key }.take(2)
         val topKeywords = keywordScores.entries.sortedByDescending { it.value }.map { it.key }.take(4)
         val topStyle = topKeywords.firstOrNull() ?: ""
 

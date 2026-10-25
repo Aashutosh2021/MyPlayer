@@ -65,3 +65,51 @@ data class SyncUiState(
     val currentTrack: SyncTrackRef? = null,
     val errorMessage: String? = null
 )
+
+// ── Online Listen Together (Meld Room Code) Models ──────────────────────────
+
+enum class LtRole { NONE, HOST, GUEST }
+
+enum class LtConnectionState { IDLE, CONNECTING, CONNECTED, DISCONNECTED, ERROR }
+
+data class LtTrack(
+    val id: String = "",
+    val title: String = "",
+    val artist: String? = null,
+    val thumbnail: String? = null,
+    val durationMs: Long = 0L
+)
+
+data class LtUser(
+    val userId: String,
+    val username: String,
+    val isHost: Boolean
+)
+
+data class LtJoinRequest(
+    val userId: String,
+    val username: String
+)
+
+data class LtSongSuggestion(
+    val suggestionId: String,
+    val track: LtTrack,
+    val fromUsername: String,
+    val fromUserId: String
+)
+
+data class LtRoomUiState(
+    val role: LtRole = LtRole.NONE,
+    val connectionState: LtConnectionState = LtConnectionState.IDLE,
+    val roomCode: String = "",
+    val userId: String = "",
+    val username: String = "",
+    val autoApproveJoins: Boolean = true,
+    val waitingForApproval: Boolean = false,
+    val errorMessage: String? = null,
+    val currentTrack: LtTrack? = null,
+    val users: List<LtUser> = emptyList(),
+    val pendingJoinRequests: List<LtJoinRequest> = emptyList(),
+    val pendingSuggestions: List<LtSongSuggestion> = emptyList()
+)
+
