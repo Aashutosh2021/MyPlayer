@@ -25,6 +25,9 @@ import javax.inject.Singleton
 private const val TAG = "SyncPlayManager"
 private const val PLAY_AT_LEAD_MS = 1500L
 
+/** Re-entrancy guard for pause()/seek(): breaks MusicController ↔ interceptor recursion. */
+private val inSyncCommand = java.util.concurrent.atomic.AtomicBoolean(false)
+
 @Singleton
 class SyncPlayManager @Inject constructor(
     private val discovery: SyncDiscovery,
@@ -34,7 +37,13 @@ class SyncPlayManager @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val downloadedSongDao: DownloadedSongDao
 ) {
-    private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val managerScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, e ->
+            // Catch-all: an unhandled exception in any launch would otherwise crash
+            // the whole app (e.g. socket writes racing a client disconnect).
+            Log.e(TAG, "Unhandled SyncPlayManager coroutine error", e)
+        }
+    )
 
     private val deviceId: String = UUID.randomUUID().toString()
     private var sessionId: String = ""
@@ -98,6 +107,10 @@ class SyncPlayManager @Inject constructor(
             }
 
             override fun onPauseRequested(): Boolean {
+                // Internal re-entrant call (we're already inside pause()): let
+                // MusicController perform the REAL player pause, otherwise the
+                // host never pauses while slaves do.
+                if (inSyncCommand.get()) return false
                 if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
                     Log.i(TAG, "SyncPlay intercepting PAUSE on Master")
                     pause()
@@ -107,6 +120,7 @@ class SyncPlayManager @Inject constructor(
             }
 
             override fun onResumeRequested(): Boolean {
+                if (inSyncCommand.get()) return false
                 if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
                     Log.i(TAG, "SyncPlay intercepting RESUME on Master")
                     resume()
@@ -116,6 +130,7 @@ class SyncPlayManager @Inject constructor(
             }
 
             override fun onSeekRequested(positionMs: Long): Boolean {
+                if (inSyncCommand.get()) return false
                 if (_uiState.value.role == SyncRole.MASTER && connectedDevices.isNotEmpty()) {
                     Log.i(TAG, "SyncPlay intercepting SEEK on Master to ${positionMs}ms")
                     seek(positionMs)
@@ -926,19 +941,28 @@ class SyncPlayManager @Inject constructor(
     // ---------------------------------------------------------------
 
     fun pause() {
-        musicController.pause()
-        if (_uiState.value.role == SyncRole.MASTER) {
-            sendMessage(
-                SyncMessage.Pause(
-                    sessionId = sessionId,
-                    senderId = deviceId,
-                    sequence = nextSeq(),
-                    timestamp = System.currentTimeMillis(),
-                    positionMs = musicController.getCurrentPosition()
+        // Re-entrancy guard: MusicController.pause() consults the playback
+        // interceptor, whose onPauseRequested() calls THIS pause() again —
+        // without this flag the stack overflows and the app crashes whenever
+        // the user pauses during an active Wi-Fi room.
+        if (!inSyncCommand.compareAndSet(false, true)) return
+        try {
+            musicController.pause()
+            if (_uiState.value.role == SyncRole.MASTER) {
+                sendMessage(
+                    SyncMessage.Pause(
+                        sessionId = sessionId,
+                        senderId = deviceId,
+                        sequence = nextSeq(),
+                        timestamp = System.currentTimeMillis(),
+                        positionMs = musicController.getCurrentPosition()
+                    )
                 )
-            )
+            }
+            updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
+        } finally {
+            inSyncCommand.set(false)
         }
-        updateState { it.copy(playbackState = SyncPlaybackState.PAUSED) }
     }
 
     fun resume() {
@@ -953,17 +977,24 @@ class SyncPlayManager @Inject constructor(
     }
 
     fun seek(positionMs: Long) {
-        musicController.seekTo(positionMs)
-        if (_uiState.value.role == SyncRole.MASTER) {
-            sendMessage(
-                SyncMessage.Seek(
-                    sessionId = sessionId,
-                    senderId = deviceId,
-                    sequence = nextSeq(),
-                    timestamp = System.currentTimeMillis(),
-                    positionMs = positionMs
+        // Same re-entrancy guard as pause(): MusicController.seekTo() consults the
+        // interceptor, which calls back into this seek() — infinite recursion without it.
+        if (!inSyncCommand.compareAndSet(false, true)) return
+        try {
+            musicController.seekTo(positionMs)
+            if (_uiState.value.role == SyncRole.MASTER) {
+                sendMessage(
+                    SyncMessage.Seek(
+                        sessionId = sessionId,
+                        senderId = deviceId,
+                        sequence = nextSeq(),
+                        timestamp = System.currentTimeMillis(),
+                        positionMs = positionMs
+                    )
                 )
-            )
+            }
+        } finally {
+            inSyncCommand.set(false)
         }
     }
 

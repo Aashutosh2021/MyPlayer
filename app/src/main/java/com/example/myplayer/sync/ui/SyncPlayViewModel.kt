@@ -23,10 +23,22 @@ class SyncPlayViewModel @Inject constructor(
 
     val currentSong: StateFlow<SongEntity?> = musicController.currentSong
 
-    // Local Wi-Fi Sync Play actions
-    fun createRoom(displayName: String) = syncPlayManager.createRoom(displayName)
-    fun joinNearbyRoom() = syncPlayManager.startDiscovery()
-    fun joinByIp(ip: String, port: Int = 45200) = syncPlayManager.joinByIp(ip, port)
+    // Local Wi-Fi Sync actions — entering a Wi-Fi room closes any online room first
+    fun createRoom(displayName: String) {
+        meldListenTogetherManager.leaveOnlineRoom()
+        syncPlayManager.createRoom(displayName)
+    }
+
+    fun joinNearbyRoom() {
+        meldListenTogetherManager.leaveOnlineRoom()
+        syncPlayManager.startDiscovery()
+    }
+
+    fun joinByIp(ip: String, port: Int = 45200) {
+        meldListenTogetherManager.leaveOnlineRoom()
+        syncPlayManager.joinByIp(ip, port)
+    }
+
     fun startSyncPlayback() = syncPlayManager.startSyncPlayback()
     fun pause() = syncPlayManager.pause()
     fun resume() = syncPlayManager.resume()
@@ -34,9 +46,16 @@ class SyncPlayViewModel @Inject constructor(
     fun removeSlave(deviceId: String) = syncPlayManager.removeSlaveDevice(deviceId)
     fun leaveRoom() = syncPlayManager.leave()
 
-    // Online Listen Together (Meld Room Code) actions
-    fun createOnlineRoom(username: String) = meldListenTogetherManager.createOnlineRoom(username)
-    fun joinOnlineRoom(roomCode: String, username: String) = meldListenTogetherManager.joinOnlineRoom(roomCode, username)
+    // Online Listen Together actions — entering an online room closes any Wi-Fi room first
+    fun createOnlineRoom(username: String) {
+        syncPlayManager.leave()
+        meldListenTogetherManager.createOnlineRoom(username)
+    }
+
+    fun joinOnlineRoom(roomCode: String, username: String) {
+        syncPlayManager.leave()
+        meldListenTogetherManager.joinOnlineRoom(roomCode, username)
+    }
     fun leaveOnlineRoom() = meldListenTogetherManager.leaveOnlineRoom()
     fun setAutoApprove(autoApprove: Boolean) = meldListenTogetherManager.setAutoApprove(autoApprove)
     fun suggestCurrentSong() = meldListenTogetherManager.suggestCurrentSong()

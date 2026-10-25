@@ -81,6 +81,11 @@ class SpotifyIntegrationManager @Inject constructor(
         private const val HASH_LIBRARY_V3 = "973e511ca44261fda7eebac8b653155e7caee3675abb4fb110cc1b8c78b091c3"
         private const val HASH_FETCH_PLAYLIST = "346811f856fb0b7e4f6c59f8ebea78dd081c6e2fb01b77c954b26259d5fc6763"
 
+        // Instant fallback for fetchNuanceSecret() when api.github.com is
+        // unreachable / rate-limited from shared Indian mobile carrier IPs.
+        private const val FALLBACK_NUANCE_SECRET = "GU2TANZRGQ2TQMJTGQ4DONBZHE2DSMRY"
+        private const val FALLBACK_NUANCE_VERSION = 5
+
         const val USER_AGENT_DESKTOP =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     }
@@ -93,7 +98,7 @@ class SpotifyIntegrationManager @Inject constructor(
     // Fire-and-forget scope for the heavyweight full-library sync so the login flow
     // and taste-sync callers are never blocked for minutes by playlist fetching.
     // Settings' manual "Sync Library" button still awaits the sync directly.
-    private val librarySyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val backgroundSyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Serializes concurrent full-library syncs (login background sync + manual sync)
     // so Room inserts and playlist cross-refs can't interleave.
@@ -115,8 +120,8 @@ class SpotifyIntegrationManager @Inject constructor(
 
     /**
      * Called by SpotifyLoginDialog when WebView captures sp_dc and sp_key cookies.
-     * Exchanges cookies + TOTP for a Bearer token, fetches user profile & taste data,
-     * and injects all Spotify Top Tracks & Liked Songs into OnDeviceMusicAiModel!
+     * Returns the username in <1 second so the UI can show confirmation & close the
+     * dialog without waiting — heavy taste/library/playlist syncing runs in background.
      */
     suspend fun completeLoginWithCookies(spDc: String, spKey: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
@@ -125,16 +130,39 @@ class SpotifyIntegrationManager @Inject constructor(
                 .putString("sp_key", spKey)
                 .apply()
 
-            val token = fetchAccessTokenViaTotp(spDc, spKey)
-            saveAccessToken(token.first, token.second)
+            // Mark logged-in immediately once sp_dc is captured — UI reflects instantly.
             _isLoggedIn.value = true
 
-            val displayName = fetchUserProfile(token.first) ?: "Spotify User"
+            // Token fetch is best-effort here: on slow / rate-limited networks we still
+            // return instantly; getValidAccessToken() retries it during background sync.
+            val tokenPair = try {
+                fetchAccessTokenViaTotp(spDc, spKey)
+            } catch (e: Exception) {
+                Log.w(TAG, "Initial TOTP token fetch delayed, will retry in background", e)
+                null
+            }
+
+            val displayName = if (tokenPair != null) {
+                saveAccessToken(tokenPair.first, tokenPair.second)
+                fetchUserProfile(tokenPair.first) ?: "Spotify User"
+            } else {
+                "Spotify User"
+            }
             prefs.edit().putString("spotify_username", displayName).apply()
             _username.value = displayName
 
-            // Immediately sync user's Spotify Top Tracks, Liked Songs & Top Artists into AI Brain!
-            syncSpotifyTasteIntoAi()
+            // Heavy Taste + Liked Songs + Playlists sync runs in the BACKGROUND so the
+            // login dialog never hangs. syncSpotifyTasteIntoAi() itself auto-launches
+            // syncAllSpotifyLibraryAndPlaylists() afterwards, so a single call here
+            // covers the whole pipeline without duplicate playlist fetches.
+            backgroundSyncScope.launch {
+                try {
+                    syncSpotifyTasteIntoAi()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Background taste sync error", e)
+                }
+            }
+
             displayName
         }
     }
@@ -224,7 +252,7 @@ class SpotifyIntegrationManager @Inject constructor(
             // pauses) inside the login chain made the dialog look eternally "stuck on
             // loading". The login completes, the dialog dismisses, and the library
             // sync continues in the background.
-            librarySyncScope.launch {
+            backgroundSyncScope.launch {
                 // Brief settle delay: Spotify just served the login + taste-sync burst;
                 // firing the full-library burst instantly increases 429 rate-limiting.
                 delay(3_000L)
@@ -450,24 +478,31 @@ class SpotifyIntegrationManager @Inject constructor(
     }
 
     private suspend fun fetchNuanceSecret(): Pair<String, Int> {
-        val body = httpGet(NUANCE_GIST_URL, emptyMap())
-        val filesObj = JSONObject(body).getJSONObject("files")
-        val firstFileKey = filesObj.keys().next()
-        val contentStr = filesObj.getJSONObject(firstFileKey).getString("content")
-        val arr = JSONArray(contentStr)
+        return try {
+            val body = httpGet(NUANCE_GIST_URL, emptyMap())
+            val filesObj = JSONObject(body).getJSONObject("files")
+            val firstFileKey = filesObj.keys().next()
+            val contentStr = filesObj.getJSONObject(firstFileKey).getString("content")
+            val arr = JSONArray(contentStr)
 
-        var bestSecret = ""
-        var maxVer = -1
-        for (i in 0 until arr.length()) {
-            val item = arr.getJSONObject(i)
-            val v = item.getInt("v")
-            if (v > maxVer) {
-                maxVer = v
-                bestSecret = item.getString("s")
+            var bestSecret = ""
+            var maxVer = -1
+            for (i in 0 until arr.length()) {
+                val item = arr.getJSONObject(i)
+                val v = item.getInt("v")
+                if (v > maxVer) {
+                    maxVer = v
+                    bestSecret = item.getString("s")
+                }
             }
+            if (bestSecret.isBlank()) throw IllegalStateException("No TOTP secret in Gist")
+            bestSecret to maxVer
+        } catch (e: Exception) {
+            // Instant fallback when api.github.com is unreachable / rate-limited from
+            // shared mobile carrier IPs (Jio/Airtel) — keeps the TOTP path alive anyway.
+            Log.w(TAG, "Using fallback TOTP nuance secret", e)
+            FALLBACK_NUANCE_SECRET to FALLBACK_NUANCE_VERSION
         }
-        if (bestSecret.isBlank()) throw IllegalStateException("No TOTP secret in Gist")
-        return bestSecret to maxVer
     }
 
     private suspend fun fetchSpotifyServerTime(): Long {

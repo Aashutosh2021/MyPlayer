@@ -11,6 +11,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.myplayer.data.spotify.SpotifyIntegrationManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -46,6 +49,7 @@ fun SpotifyLoginDialog(
     onLoginSuccess: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Web Login, 1 = Cookie Paste
     var isLoading by remember { mutableStateOf(true) }
     var statusText by remember { mutableStateOf<String?>(null) }
@@ -72,9 +76,9 @@ fun SpotifyLoginDialog(
     /**
      * Single entry point for the completeLoginWithCookies chain (web auto-capture,
      * cookie paste, and error-card retry). The tokenFetchStarted atomic guards
-     * against double launches from WebView double-firing. On failure the error is
-     * surfaced via a dismissible "Try Again" card instead of an undismissable
-     * forever-spinning overlay.
+     * against double launches from WebView double-firing. completeLoginWithCookies
+     * now returns in <1s (heavy sync moved to a background scope), so we confirm
+     * with a Toast and let the dialog close right away.
      */
     fun startLogin(spDc: String, spKey: String, loadingMessage: String) {
         if (!tokenFetchStarted.compareAndSet(false, true)) return
@@ -83,14 +87,67 @@ fun SpotifyLoginDialog(
         scope.launch {
             spotifyManager.completeLoginWithCookies(spDc, spKey)
                 .onSuccess { username ->
+                    Toast.makeText(
+                        context,
+                        "Spotify Connected ($username)! Syncing library in background...",
+                        Toast.LENGTH_LONG
+                    ).show()
                     onLoginSuccess(username)
                     onDismiss()
                 }
                 .onFailure { err ->
                     statusText = null
                     loginError = err.message ?: "Unknown login error"
+                    Toast.makeText(
+                        context,
+                        "Login error: ${err.message ?: "Unknown"}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     tokenFetchStarted.set(false)
                 }
+        }
+    }
+
+    /**
+     * Fast-path cookie check used by the 500ms poller AND every WebView callback:
+     * reads both open.spotify.com and accounts.spotify.com cookie jars (after a
+     * Google/email login sp_dc is sometimes only visible via the .spotify.com
+     * wildcard on accounts.spotify.com) and fires login the instant the cookie
+     * appears — without waiting for the 8 MB open.spotify.com page to finish.
+     * Returns true once login is captured / in-flight / already failed.
+     */
+    fun checkCookiesAndCompleteLogin(): Boolean {
+        if (tokenFetchStarted.get()) return true
+        if (loginError != null) return true // past failure — only the manual "Try Again" button retries
+
+        val cm = CookieManager.getInstance()
+        val combinedCookies = buildString {
+            cm.getCookie("https://open.spotify.com")?.let { append(it).append(";") }
+            cm.getCookie("https://accounts.spotify.com")?.let { append(it) }
+        }
+        if (combinedCookies.isBlank()) return false
+
+        val cookieMap = combinedCookies.split(";").mapNotNull { c ->
+            val p = c.trim().split("=", limit = 2)
+            if (p.size == 2 && p[0].trim().isNotEmpty()) p[0].trim() to p[1].trim() else null
+        }.toMap()
+
+        val spDc = cookieMap["sp_dc"]
+        if (spDc.isNullOrBlank()) return false
+
+        webViewRef?.stopLoading()
+        lastLoginAttempt = spDc to (cookieMap["sp_key"] ?: "")
+        startLogin(spDc, cookieMap["sp_key"] ?: "", "Connecting to Spotify...")
+        return true
+    }
+
+    // 500ms cookie poller: completes login ~0.5s after a successful Google/email
+    // sign-in instead of waiting for the heavy 8 MB page's on-page-finished.
+    LaunchedEffect(Unit) {
+        while (!tokenFetchStarted.get()) {
+            delay(500L)
+            CookieManager.getInstance().flush()
+            if (checkCookiesAndCompleteLogin()) break
         }
     }
 
@@ -232,20 +289,9 @@ fun SpotifyLoginDialog(
                                     }
                                 }
 
-                                fun tryExtractCookieAndFinish(view: WebView?) {
-                                    val cookies = CookieManager.getInstance().getCookie("https://open.spotify.com") ?: return
-                                    val cookieMap = cookies.split(";").mapNotNull { c ->
-                                        val p = c.trim().split("=", limit = 2)
-                                        if (p.size == 2) p[0].trim() to p[1].trim() else null
-                                    }.toMap()
-
-                                    val spDc = cookieMap["sp_dc"]
-                                    if (!spDc.isNullOrBlank()) {
-                                        view?.stopLoading()
-                                        lastLoginAttempt = spDc to (cookieMap["sp_key"] ?: "")
-                                        startLogin(spDc, cookieMap["sp_key"] ?: "", "Syncing your Spotify taste profile...")
-                                    }
-                                }
+                                // Cookie auto-capture is handled by the composable-level
+                                // checkCookiesAndCompleteLogin() (polled every 500ms + called
+                                // from every WebView callback) — no factory-local copy needed.
 
                                 // 1. Intercept window.open() popups from "Continue with Google" button
                                 webChromeClient = object : WebChromeClient() {
@@ -294,6 +340,9 @@ fun SpotifyLoginDialog(
                                         isLoading = true
                                         url?.let { currentUrl = it }
                                         updateUaForUrl(view, url)
+                                        // Early instant capture: sp_dc may already be in the jar
+                                        // mid-redirect (e.g. right after the Google OAuth hop).
+                                        checkCookiesAndCompleteLogin()
 
                                         // Disable broken WebView Passkey prompt on Google Sign-In so email/password works
                                         if (url?.contains("google.") == true) {
@@ -341,9 +390,9 @@ fun SpotifyLoginDialog(
                                             )
                                         }
 
-                                        if (url?.startsWith("https://open.spotify.com") == true) {
-                                            tryExtractCookieAndFinish(view)
-                                        }
+                                        // Unconditional: self-guards + polls BOTH spotify
+                                        // domains (open + accounts) via .spotify.com wildcard.
+                                        checkCookiesAndCompleteLogin()
                                     }
 
                                     override fun shouldOverrideUrlLoading(
@@ -352,6 +401,9 @@ fun SpotifyLoginDialog(
                                     ): Boolean {
                                         val reqUrl = request?.url?.toString() ?: return false
                                         currentUrl = reqUrl
+                                        // Catch sp_dc on intermediate redirects too (poller's
+                                        // check is guarded, so multiple callers are safe).
+                                        checkCookiesAndCompleteLogin()
 
                                         // Handle intent:// or custom scheme links from Google/Spotify OAuth
                                         if (!reqUrl.startsWith("http://") && !reqUrl.startsWith("https://")) {
@@ -368,6 +420,16 @@ fun SpotifyLoginDialog(
                                             return true
                                         }
 
+                                        // After successful Google/email login Spotify can land the
+                                        // WebView on accounts.spotify.com/en/status — the old
+                                        // open.spotify.com-only check never fired there and the
+                                        // page sat stuck. Jump straight to the web player instead.
+                                        if (reqUrl.contains("accounts.spotify.com") && reqUrl.contains("/status")) {
+                                            updateUaForUrl(view, "https://open.spotify.com/")
+                                            view?.loadUrl("https://open.spotify.com/")
+                                            return true
+                                        }
+
                                         // If switching between Spotify and Google OAuth, swap User-Agent before loading!
                                         val isGoogle = reqUrl.contains("accounts.google.") || reqUrl.contains("google.com/o/oauth")
                                         val expectedUa = if (isGoogle) USER_AGENT_GOOGLE_AUTH else SpotifyIntegrationManager.USER_AGENT_DESKTOP
@@ -377,9 +439,8 @@ fun SpotifyLoginDialog(
                                             return true
                                         }
 
-                                        if (reqUrl.startsWith("https://open.spotify.com")) {
-                                            tryExtractCookieAndFinish(view)
-                                        }
+                                        // Final navigation check (guarded — no double launch)
+                                        checkCookiesAndCompleteLogin()
                                         return false
                                     }
                                 }
