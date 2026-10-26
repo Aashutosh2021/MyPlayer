@@ -37,7 +37,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags += listOf("-std=c++17", "-O3", "-ffast-math", "-Wall")
+                cppFlags += listOf("-std=c++17", "-O3", "-Wall") // no -ffast-math: DSP relies on isfinite()/denormal guards
                 arguments += listOf("-DANDROID_STL=c++_shared")
             }
         }

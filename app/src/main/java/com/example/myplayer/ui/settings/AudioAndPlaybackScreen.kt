@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -768,6 +769,10 @@ private fun LastWaveVerticalFader(
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val normalized = ((gainDb + 8f) / 16f).coerceIn(0f, 1f)
+    // The pointerInput blocks below are keyed only by `enabled`, so they must NOT capture
+    // gainDb / onGainChange directly (they would stay frozen at the first composition's values).
+    val latestGain by rememberUpdatedState(gainDb)
+    val latestOnGainChange by rememberUpdatedState(onGainChange)
 
     Column(
         modifier = modifier.width(48.dp),
@@ -809,19 +814,32 @@ private fun LastWaveVerticalFader(
                 .background(Color(0xFF241F1F))
                 .pointerInput(enabled) {
                     if (!enabled) return@pointerInput
-                    detectVerticalDragGestures { change, dragAmount ->
-                        change.consume()
-                        val deltaFraction = -dragAmount / size.height.toFloat()
-                        val currentFraction = (gainDb + 8f) / 16f
-                        val newFraction = (currentFraction + deltaFraction).coerceIn(0f, 1f)
-                        val rawGain = newFraction * 16f - 8f
-                        val newGain = if (rawGain in -0.3f..0.3f) 0f else (Math.round(rawGain * 2f) / 2f)
-                        if (newGain != gainDb) {
-                            if (newGain == 0f && gainDb != 0f) {
+                    val thumbPx = 26.dp.toPx()
+                    fun applyTouch(y: Float) {
+                        val g = eqGainForTouch(y, size.height.toFloat(), thumbPx)
+                        if (g != latestGain) {
+                            if (g == 0f) {
                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                             }
-                            onGainChange(newGain)
+                            latestOnGainChange(g)
                         }
+                    }
+                    // Absolute finger position -> gain: the thumb follows the finger 1:1.
+                    detectVerticalDragGestures(
+                        onDragStart = { offset -> applyTouch(offset.y) },
+                        onVerticalDrag = { change, _ ->
+                            change.consume()
+                            applyTouch(change.position.y)
+                        }
+                    )
+                }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    val thumbPx = 26.dp.toPx()
+                    // Tap anywhere on the bar jumps the thumb there ("touch any bar to customize").
+                    detectTapGestures { offset ->
+                        val g = eqGainForTouch(offset.y, size.height.toFloat(), thumbPx)
+                        if (g != latestGain) latestOnGainChange(g)
                     }
                 },
             contentAlignment = Alignment.Center
@@ -970,4 +988,16 @@ private fun SettingsRowToggle(
             )
         )
     }
+}
+
+/**
+ * Maps a touch Y (px inside the 160dp track) to an EQ gain in dB.
+ * The thumb's centre travels from thumbPx/2 (+8 dB) to height - thumbPx/2 (-8 dB).
+ * Snaps to 0.5 dB steps with a small detent around 0 dB.
+ */
+private fun eqGainForTouch(y: Float, heightPx: Float, thumbPx: Float): Float {
+    val travel = (heightPx - thumbPx).coerceAtLeast(1f)
+    val fraction = (1f - (y - thumbPx / 2f) / travel).coerceIn(0f, 1f)
+    val raw = fraction * 16f - 8f
+    return if (raw in -0.3f..0.3f) 0f else Math.round(raw * 2f) / 2f
 }

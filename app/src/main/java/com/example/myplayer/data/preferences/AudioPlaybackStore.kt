@@ -206,9 +206,17 @@ class AudioPlaybackStore @Inject constructor(
     suspend fun setEqPreset(preset: Eq15Preset) = update {
         it[Keys.EQ_PRESET] = preset.name
         it[Keys.EQ_BANDS_CSV] = preset.gainsDb.joinToString(",")
+        // Picking a preset must audibly apply it, even if the EQ switch was off before.
+        it[Keys.EQ_ENABLED] = true
     }
     suspend fun setEqBandGain(index: Int, gainDb: Float, currentBands: List<Float>) = update {
-        val updated = currentBands.toMutableList().apply { this[index] = gainDb.coerceIn(-8f, 8f) }
+        if (index !in 0..14) return@update
+        // Read the freshest saved bands inside the transaction; the passed list may be stale
+        // when several slider events arrive before DataStore has emitted the previous write.
+        val stored = it[Keys.EQ_BANDS_CSV]?.split(",")?.mapNotNull { v -> v.toFloatOrNull() }
+            ?.takeIf { l -> l.size == 15 }
+        val base = stored ?: currentBands.takeIf { l -> l.size == 15 } ?: List(15) { 0f }
+        val updated = base.toMutableList().apply { this[index] = gainDb.coerceIn(-8f, 8f) }
         it[Keys.EQ_BANDS_CSV] = updated.joinToString(",")
     }
     suspend fun setSystemAudioEffects(enabled: Boolean) = update { it[Keys.SYSTEM_FX] = enabled }

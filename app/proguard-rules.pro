@@ -221,3 +221,8 @@
 -dontwarn com.google.errorprone.**
 -dontwarn sun.misc.**
 -dontwarn java.lang.invoke.**
+
+# -- Master audio DSP (JNI): never rename the class or its native methods ------
+-keep class com.example.myplayer.playback.dsp.MasterAudioDspProcessor {
+    native <methods>;
+}
