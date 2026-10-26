@@ -76,11 +76,11 @@ data class AudioPlaybackState(
     val internalDirectOutput: Boolean = false,
     val softwareVolumeUsb: Boolean = false,
     val loudnessMode: LoudnessMode = LoudnessMode.OFF,
-    val eqEnabled: Boolean = true,
-    val eqPreset: Eq15Preset = Eq15Preset.POP,
-    val eqBandGains: List<Float> = Eq15Preset.POP.gainsDb.toList(),
+    val eqEnabled: Boolean = false,
+    val eqPreset: Eq15Preset = Eq15Preset.STUDIO_MASTER,
+    val eqBandGains: List<Float> = Eq15Preset.STUDIO_MASTER.gainsDb.toList(),
     val systemAudioEffects: Boolean = false,
-    val studioMasterClarity: Boolean = false,
+    val studioMasterClarity: Boolean = true,
     val clarityOutputPreset: ClarityOutputPreset = ClarityOutputPreset.REFERENCE,
     val claritySpatialBypass: Boolean = false
 )
@@ -157,7 +157,7 @@ class AudioPlaybackStore @Inject constructor(
     }
 
     val stateFlow: Flow<AudioPlaybackState> = context.audioPlaybackDataStore.data.map { prefs ->
-        val preset = runCatching { Eq15Preset.valueOf(prefs[Keys.EQ_PRESET] ?: "POP") }.getOrDefault(Eq15Preset.POP)
+        val preset = runCatching { Eq15Preset.valueOf(prefs[Keys.EQ_PRESET] ?: "STUDIO_MASTER") }.getOrDefault(Eq15Preset.STUDIO_MASTER)
         val savedBands = prefs[Keys.EQ_BANDS_CSV]?.split(",")?.mapNotNull { it.toFloatOrNull() }
             ?.takeIf { it.size == 15 } ?: preset.gainsDb.toList()
 
@@ -172,11 +172,11 @@ class AudioPlaybackStore @Inject constructor(
             internalDirectOutput = prefs[Keys.INTERNAL_DIRECT] ?: false,
             softwareVolumeUsb = prefs[Keys.SW_VOLUME_USB] ?: false,
             loudnessMode = runCatching { LoudnessMode.valueOf(prefs[Keys.LOUDNESS_MODE] ?: "OFF") }.getOrDefault(LoudnessMode.OFF),
-            eqEnabled = prefs[Keys.EQ_ENABLED] ?: true,
+            eqEnabled = prefs[Keys.EQ_ENABLED] ?: false,
             eqPreset = preset,
             eqBandGains = savedBands,
             systemAudioEffects = prefs[Keys.SYSTEM_FX] ?: false,
-            studioMasterClarity = prefs[Keys.STUDIO_CLARITY] ?: false,
+            studioMasterClarity = prefs[Keys.STUDIO_CLARITY] ?: true,
             clarityOutputPreset = runCatching { ClarityOutputPreset.valueOf(prefs[Keys.CLARITY_PRESET] ?: "REFERENCE") }.getOrDefault(ClarityOutputPreset.REFERENCE),
             claritySpatialBypass = prefs[Keys.CLARITY_SPATIAL_BYPASS] ?: false
         )

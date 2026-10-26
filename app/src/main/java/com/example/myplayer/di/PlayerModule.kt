@@ -17,10 +17,19 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Format
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import android.os.Handler
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.RendererCapabilities
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor
 import com.example.myplayer.playback.dsp.MasterAudioDspProcessor
 import dagger.Module
@@ -209,7 +218,78 @@ object PlayerModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 5))
 
+        // Deprioritize buggy vendor decoders (Samsung One UI / Exynos hardware decoders)
+        // across audio MIME types to avoid misreported sample rates or digital boundary distortion.
+        val accurateAudioMediaCodecSelector = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+            val decoderInfos = runCatching {
+                MediaCodecSelector.DEFAULT.getDecoderInfos(
+                    mimeType,
+                    requiresSecureDecoder,
+                    requiresTunnelingDecoder,
+                )
+            }.getOrDefault(emptyList())
+            if (decoderInfos.isEmpty()) {
+                emptyList()
+            } else {
+                decoderInfos.sortedBy { info ->
+                    val lower = info.name.lowercase()
+                    if (lower.contains("sec.") || lower.contains("exynos")) 1 else 0
+                }
+            }
+        }
+
         val renderersFactory = object : DefaultRenderersFactory(context) {
+            override fun buildAudioRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                audioSink: AudioSink,
+                eventHandler: Handler,
+                eventListener: AudioRendererEventListener,
+                out: ArrayList<Renderer>,
+            ) {
+                // Hardware/platform Dolby Atmos & Spatial audio MediaCodec renderer:
+                // Placed ahead of FFmpeg so Android's native Dolby Atmos HAL and Spatializer
+                // decode E-AC-3 JOC with hardware dialogue normalization, full volume,
+                // and system spatial virtualization. Standard codecs (FLAC, Opus, AAC, MP3, Vorbis)
+                // return FORMAT_UNSUPPORTED_TYPE here so FFmpeg retains priority for them.
+                val dolbySpatialRenderer = object : MediaCodecAudioRenderer(
+                    context,
+                    mediaCodecSelector,
+                    enableDecoderFallback,
+                    eventHandler,
+                    eventListener,
+                    audioSink,
+                ) {
+                    override fun supportsFormat(
+                        mediaCodecSelector: MediaCodecSelector,
+                        format: androidx.media3.common.Format,
+                    ): Int {
+                        val mime = format.sampleMimeType?.lowercase().orEmpty()
+                        val isDolbyOrSpatial = mime.contains("eac3") || mime.contains("ec-3") ||
+                            mime.contains("ac-3") || mime.contains("ac3") || mime.contains("ac4") ||
+                            mime.contains("mha1") || mime.contains("mhm1")
+                        if (!isDolbyOrSpatial) {
+                            return RendererCapabilities.create(C.FORMAT_UNSUPPORTED_TYPE)
+                        }
+                        return super.supportsFormat(mediaCodecSelector, format)
+                    }
+                }
+                out.add(dolbySpatialRenderer)
+
+                super.buildAudioRenderers(
+                    context,
+                    extensionRendererMode,
+                    mediaCodecSelector,
+                    enableDecoderFallback,
+                    audioSink,
+                    eventHandler,
+                    eventListener,
+                    out,
+                )
+            }
+
             override fun buildAudioSink(
                 context: Context,
                 enableFloatOutput: Boolean,
@@ -217,11 +297,17 @@ object PlayerModule {
             ): AudioSink {
                 return DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(true)
-                    .setEnableAudioTrackPlaybackParams(true)
-                    .setAudioProcessors(arrayOf(masterAudioDspProcessor, lastWaveDspProcessor))
+                    .setEnableAudioTrackPlaybackParams(false)
+                    .setAudioCapabilities(AudioCapabilities.getCapabilities(context))
+                    .setAudioProcessors(arrayOf(masterAudioDspProcessor))
                     .build()
             }
-        }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+        }.apply {
+            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            setEnableDecoderFallback(true)
+            setEnableAudioTrackPlaybackParams(false)
+            setMediaCodecSelector(accurateAudioMediaCodecSelector)
+        }
 
         return ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
@@ -232,6 +318,14 @@ object PlayerModule {
             .build().apply {
                 repeatMode = initialRepeat
                 shuffleModeEnabled = initialShuffle
+                addAnalyticsListener(object : AnalyticsListener {
+                    override fun onAudioInputFormatChanged(
+                        eventTime: AnalyticsListener.EventTime,
+                        format: Format,
+                    ) {
+                        masterAudioDspProcessor.setTrackFormat(format)
+                    }
+                })
             }
     }
 }

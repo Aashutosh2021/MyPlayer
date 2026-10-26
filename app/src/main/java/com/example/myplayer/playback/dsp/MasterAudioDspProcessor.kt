@@ -113,11 +113,25 @@ class MasterAudioDspProcessor @Inject constructor() : BaseAudioProcessor() {
     )
     val status: StateFlow<DspStatus> = _status.asStateFlow()
 
-    fun updateState(newState: AudioPlaybackState, trackLufs: Float = -14.0f, isSpatial: Boolean = false) {
+    fun updateState(newState: AudioPlaybackState, trackLufs: Float = currentTrackLufs, isSpatial: Boolean = isSpatialStream) {
         this.currentState = newState
         this.currentTrackLufs = trackLufs
         this.isSpatialStream = isSpatial
         // Always push, even before the first track: the sample rate falls back to the last known one.
+        val sr = if (inputAudioFormat.sampleRate > 0) inputAudioFormat.sampleRate else lastSampleRate
+        pushConfig(sr)
+    }
+
+    fun setTrackFormat(format: androidx.media3.common.Format?) {
+        val mime = format?.sampleMimeType?.lowercase().orEmpty()
+        val isSpatial = mime.contains("eac3") || mime.contains("ec-3") ||
+            mime.contains("ac-3") || mime.contains("ac3") || mime.contains("ac4") ||
+            mime.contains("mha1") || mime.contains("mhm1")
+        val tags = com.example.myplayer.playback.LoudnessNormalizer.parseFromFormat(format)
+        val trackGain = tags.trackGainDb ?: if (isSpatial) 6.0f else 0.0f
+        val trackLufs = -14.0f - trackGain
+        this.currentTrackLufs = trackLufs
+        this.isSpatialStream = isSpatial
         val sr = if (inputAudioFormat.sampleRate > 0) inputAudioFormat.sampleRate else lastSampleRate
         pushConfig(sr)
     }

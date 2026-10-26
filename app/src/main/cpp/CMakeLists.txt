@@ -36,6 +36,8 @@ add_library(
     lastwave_audio_engine
     SHARED
     AudioEngine.cpp
+    DspProcessor.cpp
+    ParametricEq.cpp
 )
 
 target_compile_options(lastwave_audio_engine PRIVATE
