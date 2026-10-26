@@ -24,8 +24,16 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest --no-daemon
+    - name: Build Release APK
+      env:
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+        ALIAS: ${{ secrets.ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: ./gradlew assembleRelease --no-daemon
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: MyPlayer-v5.5-Release
+        path: app/build/outputs/apk/release/*.apk

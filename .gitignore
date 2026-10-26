@@ -82,3 +82,10 @@ stitch_myplayer_android*/
 Meld/
 LastWave/
 Myplayer_vs_LastWave/
+
+# Signing & Secrets
+.env
+*.keystore
+*.jks
+app/*.keystore
+keystore_base64.txt

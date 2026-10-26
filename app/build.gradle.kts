@@ -1,3 +1,7 @@
+import java.io.File
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +15,47 @@ plugins {
 android {
     namespace = "com.example.myplayer"
     compileSdk = 36
+
+    val localProps = Properties().apply {
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) {
+            localPropsFile.inputStream().use { load(it) }
+        }
+        val envFile = rootProject.file(".env")
+        if (envFile.exists()) {
+            envFile.readLines().forEach { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
+                    val parts = trimmed.split("=", limit = 2)
+                    setProperty(parts[0].trim(), parts[1].trim())
+                }
+            }
+        }
+    }
+
+    fun resolveSecret(vararg keys: String): String {
+        for (key in keys) {
+            val fromEnv = System.getenv(key)
+            if (!fromEnv.isNullOrBlank()) return fromEnv.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
+            val fromGradle = project.findProperty(key) as? String
+            if (!fromGradle.isNullOrBlank()) return fromGradle.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
+            val fromLocal = localProps.getProperty(key)
+            if (!fromLocal.isNullOrBlank()) return fromLocal.trim().replace("\r", "").replace("\n", "").replace("\"", "").replace("\\", "")
+            val dotEnv = rootProject.file(".env")
+            if (dotEnv.isFile) {
+                dotEnv.useLines { lines ->
+                    for (line in lines) {
+                        val trimmed = line.trim()
+                        if (trimmed.startsWith("$key=")) {
+                            val v = trimmed.substringAfter("=").trim().replace("\"", "").replace("\\", "")
+                            if (v.isNotBlank()) return v
+                        }
+                    }
+                }
+            }
+        }
+        return ""
+    }
 
     defaultConfig {
         applicationId = "com.example.myplayer"
@@ -50,6 +95,42 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release_config") {
+            val base64Key = resolveSecret("SIGNING_KEY")
+            val storeFilePath = resolveSecret("RELEASE_STORE_FILE")
+            val storePasswordProp = resolveSecret("RELEASE_STORE_PASSWORD", "KEY_STORE_PASSWORD")
+            val keyAliasProp = resolveSecret("RELEASE_KEY_ALIAS", "ALIAS").ifBlank { "myplayer_release_key" }
+            val keyPasswordProp = resolveSecret("RELEASE_KEY_PASSWORD", "KEY_PASSWORD").ifBlank { storePasswordProp }
+
+            val keystoreFile: File? = when {
+                base64Key.isNotBlank() -> {
+                    try {
+                        val decodedBytes = Base64.getDecoder().decode(base64Key.trim())
+                        val tempKeystore = layout.buildDirectory.file("signing/release.keystore").get().asFile
+                        tempKeystore.parentFile.mkdirs()
+                        tempKeystore.writeBytes(decodedBytes)
+                        tempKeystore
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                storeFilePath.isNotBlank() -> file(storeFilePath)
+                else -> null
+            }
+
+            if (keystoreFile != null && keystoreFile.exists() && storePasswordProp.isNotBlank()) {
+                storeFile = keystoreFile
+                storePassword = storePasswordProp
+                keyAlias = keyAliasProp
+                keyPassword = keyPasswordProp
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             // ─── Phase 1: R8 hardening ──────────────────────────────────────
@@ -61,7 +142,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseConfig = signingConfigs.findByName("release_config")
+            signingConfig = if (releaseConfig?.storeFile != null && releaseConfig.storeFile?.exists() == true) {
+                releaseConfig
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
