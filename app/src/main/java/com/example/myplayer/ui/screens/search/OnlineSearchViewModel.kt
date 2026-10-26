@@ -212,15 +212,13 @@ class OnlineSearchViewModel @Inject constructor(
                 if (url != null) {
                     val playableSong = song.copy(streamUrl = url)
                     if (contextSongs.isNotEmpty()) {
-                        val index = contextSongs.indexOfFirst { it.videoId == song.videoId }
-                        if (index != -1) {
-                            val playlist = contextSongs.map { s ->
-                                if (s.videoId == song.videoId) playableSong else s
-                            }
-                            musicController.playOnlineSongs(playlist, index)
-                        } else {
-                            musicController.playOnlineSongs(listOf(playableSong) + contextSongs, 0)
+                        // Compose the queue in the selected song's context so next track
+                        // continues the vibe, not the next same-title YouTube search result.
+                        val (orderedList, index) = SearchQueueComposer.compose(song, contextSongs)
+                        val playlist = orderedList.map { s ->
+                            if (s.videoId == song.videoId) playableSong else s
                         }
+                        musicController.playOnlineSongs(playlist, index)
                     } else {
                         musicController.playOnlineSong(playableSong)
                     }

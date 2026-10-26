@@ -10,13 +10,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -53,29 +53,29 @@ object WhatsNewRepository {
 
     fun getCurrentFeatures(): List<WhatsNewFeature> = listOf(
         WhatsNewFeature(
-            icon = Icons.Filled.Headphones,
-            title = "Listen Together (Party Mode)",
-            description = "Stream songs from any corner on Earth in real-time sync with friends! Create or join private rooms with ultra-fast MQTT sync."
+            icon = Icons.Filled.Waves,
+            title = "Studio Master Clarity (C++17 DSP)",
+            description = "8-stage psychoacoustic mastering chain: dynamic sub-bass foundation, low-mid decongestion, vocal presence lift, 1.22x stereo widener & analog air exciter."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.AutoAwesome,
-            title = "Smart AI 2.0 & Diversified Mixes",
-            description = "Anti-clustering recommendation engine with max 2 songs per artist, genre exploration mixes, and Spotify taste boosts."
+            icon = Icons.Filled.SurroundSound,
+            title = "Dolby Atmos & Hardware Spatial Audio",
+            description = "Dedicated hardware spatializer renderer for E-AC-3 JOC Dolby Atmos with hardware dialogue normalization and Jellyfin FFmpeg 32-bit Float decoding."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.Bolt,
-            title = "Instant Next & Playlist Playback",
-            description = "Zero-latency song transitions (<300ms) with background stream pre-resolving and persistent local ID caching."
+            icon = Icons.Filled.GraphicEq,
+            title = "15-Band Studio Equalizer",
+            description = "15 ISO 2/3-octave center frequencies (25Hz - 16kHz) with real-time frequency curve canvas, haptic tactile faders, and 12 acoustic presets."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.Sync,
-            title = "2-Way Spotify Taste Bridge",
-            description = "Seamless Spotify sync with 8x seed expansion, YouTube Radio discover mixes, and automatic fallback search."
+            icon = Icons.AutoMirrored.Filled.VolumeUp,
+            title = "ReplayGain & -14 LUFS Normalization",
+            description = "Automatic Vorbis & ID3 TXXX tag loudness normalization with Dolby Atmos +6 dB compensation and true-peak protection."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.Download,
-            title = "Universal Offline Downloader",
-            description = "Seamlessly download tracks from both Spotify imports and YouTube in 320kbps with automatic URL resolution."
+            icon = Icons.Filled.Tune,
+            title = "Redesigned Audio & Playback Hub",
+            description = "Full Light & Dark mode support with tactile clay styling, Bit-Perfect direct DAC output, and background playback protection."
         )
     )
 }

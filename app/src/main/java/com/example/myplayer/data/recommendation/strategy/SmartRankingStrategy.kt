@@ -52,6 +52,12 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
         seed: RecommendationSeed,
         candidates: List<RecommendationSong>
     ): List<RecommendationSong> {
+        // Region / Mood / Genre continuity analysis.
+        // This is what keeps a Bollywood happy mix from handing autoplay over to
+        // global charts: text-derived tags drive language (+18/-20), mood (+12/-6)
+        // and genre (+8) alignment scoring. Neutral when either side has no tags.
+        val seedContext = SongContextClassifier.analyze(seed.title, seed.artist, seed.album)
+
         val scoredList = candidates.map { candidate ->
             var score = 0
             val reasons = mutableListOf<String>()
@@ -77,6 +83,38 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
                         reasons.add("Genre Neighbor ($candidateGenre)")
                     }
                 }
+            }
+
+            // 2b. Region / Mood / Genre continuity (autoplay stays in the same vibe)
+            val candidateContext = SongContextClassifier.analyze(candidate.title, candidate.artist, candidate.album)
+            if (seedContext.language.isNotEmpty() && candidateContext.language.isNotEmpty()) {
+                val languageOverlap = seedContext.language.intersect(candidateContext.language)
+                if (languageOverlap.isNotEmpty()) {
+                    score += 18
+                    reasons.add("Language Match")
+                } else {
+                    // Bollywood seed + Hollywood candidate (or vice versa) demotion.
+                    score -= 20
+                    reasons.add("Language Shift")
+                }
+            }
+
+            if (seedContext.mood.isNotEmpty() && candidateContext.mood.isNotEmpty()) {
+                if (seedContext.mood.intersect(candidateContext.mood).isNotEmpty()) {
+                    score += 12
+                    reasons.add("Mood Match")
+                } else {
+                    // Happy seed me sad/actor track bahut neeche.
+                    score -= 6
+                    reasons.add("Mood Shift")
+                }
+            }
+
+            if (seedContext.genre.isNotEmpty() && candidateContext.genre.isNotEmpty() &&
+                seedContext.genre.intersect(candidateContext.genre).isNotEmpty()
+            ) {
+                score += 8
+                reasons.add("Similar Genre")
             }
 
             // 3. Source Consensus & Affinity Signals
