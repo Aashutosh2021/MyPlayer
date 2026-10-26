@@ -12,6 +12,10 @@ import com.example.myplayer.data.local.prefs.PreferencesManager
 import com.example.myplayer.data.update.NoInternetException
 import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.data.update.UpdateInfo
+import com.example.myplayer.data.preferences.AudioPlaybackConfig
+import com.example.myplayer.data.preferences.AudioSettingsRepository
+import com.example.myplayer.data.preferences.ClarityPreset
+import com.example.myplayer.data.preferences.StreamQuality
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,8 +48,14 @@ class SettingsViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val backupRestoreManager: BackupRestoreManager,
     private val updateChecker: UpdateChecker,
-    val spotifyManager: com.example.myplayer.data.spotify.SpotifyIntegrationManager
+    val spotifyManager: com.example.myplayer.data.spotify.SpotifyIntegrationManager,
+    private val audioSettingsRepository: AudioSettingsRepository,
+    val audioPlaybackStore: com.example.myplayer.data.preferences.AudioPlaybackStore,
+    val audioFeatureManagers: com.example.myplayer.playback.AudioFeatureManagers
 ) : ViewModel() {
+
+    val audioConfig = audioSettingsRepository.configFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AudioPlaybackConfig())
 
     val isSpotifyLoggedIn = spotifyManager.isLoggedIn
     val spotifyUsername = spotifyManager.username
@@ -111,6 +121,30 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesManager.setDownloadFolderUri(uri)
         }
+    }
+
+    fun updateWifiQuality(quality: StreamQuality) {
+        viewModelScope.launch { audioSettingsRepository.updateWifiQuality(quality) }
+    }
+
+    fun updateMobileQuality(quality: StreamQuality) {
+        viewModelScope.launch { audioSettingsRepository.updateMobileQuality(quality) }
+    }
+
+    fun updateClarityPreset(preset: ClarityPreset) {
+        viewModelScope.launch { audioSettingsRepository.updateClarityPreset(preset) }
+    }
+
+    fun updateTrueDolby(enabled: Boolean, width: Float = 0.45f) {
+        viewModelScope.launch { audioSettingsRepository.updateTrueDolby(enabled, width) }
+    }
+
+    fun updateLoudness(enabled: Boolean, gainMb: Int = 600) {
+        viewModelScope.launch { audioSettingsRepository.updateLoudness(enabled, gainMb) }
+    }
+
+    fun updateSkipSilence(enabled: Boolean) {
+        viewModelScope.launch { audioSettingsRepository.updateSkipSilence(enabled) }
     }
 
     fun resetStates() {

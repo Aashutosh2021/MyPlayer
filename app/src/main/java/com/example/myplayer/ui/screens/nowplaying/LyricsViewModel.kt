@@ -30,13 +30,18 @@ data class LyricsMetadata(
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
     private val lyricsRepository: LyricsRepository,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    private val audioPlaybackStore: com.example.myplayer.data.preferences.AudioPlaybackStore
 ) : ViewModel() {
 
     private val _lyricsState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)
     val lyricsState: StateFlow<LyricsUiState> = _lyricsState.asStateFlow()
 
     val currentPosition = musicController.currentPosition
+
+    val keepScreenAwakeLyrics = audioPlaybackStore.stateFlow
+        .map { it.keepScreenAwakeLyrics }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     // Auto-fetch whenever the playing song changes
     init {

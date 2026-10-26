@@ -276,16 +276,26 @@ class DownloadWorker @AssistedInject constructor(
                 Log.e("DownloadWorker", "Failed to synchronize local song path in SongDao", e)
             }
 
-            // Automatically download and cache lyrics upon successful download
+            // Automatically download and cache lyrics upon successful download + save companion .lrc file
             try {
-                lyricsRepository.fetchAndCacheLyrics(
+                val lyricsResult = lyricsRepository.fetchLyrics(
                     songId = videoId,
                     trackName = title,
                     artistName = artist,
                     durationSeconds = (durationMs / 1000).toInt()
                 )
+                val targetFile = File(savedPath)
+                if (targetFile.exists() && lyricsResult != null) {
+                    val lrcText = lyricsResult.syncedLyrics?.takeIf { it.isNotBlank() }
+                        ?: lyricsResult.plainLyrics?.takeIf { it.isNotBlank() }
+                    if (!lrcText.isNullOrBlank()) {
+                        val lrcFile = File(targetFile.parentFile, "${targetFile.nameWithoutExtension}.lrc")
+                        lrcFile.writeText(lrcText)
+                        Log.i("DownloadWorker", "Saved .lrc companion file for $videoId to ${lrcFile.absolutePath}")
+                    }
+                }
             } catch (e: Exception) {
-                Log.e("DownloadWorker", "Failed to auto-cache lyrics for $videoId during download", e)
+                Log.e("DownloadWorker", "Failed to auto-cache lyrics or save companion .lrc for $videoId", e)
             }
 
             setProgress(workDataOf(KEY_PROGRESS to 100))

@@ -45,6 +45,7 @@ import javax.inject.Singleton
 @Singleton
 class DualChannelPlaybackManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val lastWaveDspProcessor: com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor,
     private val cacheDataSourceFactory: androidx.media3.datasource.cache.CacheDataSource.Factory? = null,
     outputDevice: AudioOutputDevice = AndroidAudioTrackOutput()
 ) {
@@ -102,6 +103,7 @@ class DualChannelPlaybackManager @Inject constructor(
     fun enableDualBudMode() {
         if (_state.value.isEnabled) return
 
+        lastWaveDspProcessor.isDualBudActive = true
         requestAudioFocus()
         mixer.start()
 
@@ -118,6 +120,7 @@ class DualChannelPlaybackManager @Inject constructor(
     fun disableDualBudMode() {
         if (!_state.value.isEnabled) return
 
+        lastWaveDspProcessor.isDualBudActive = false
         stopPositionPolling()
 
         leftPlayer?.stop()

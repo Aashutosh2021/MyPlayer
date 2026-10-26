@@ -141,4 +141,11 @@ class LosslessStreamResolver @Inject constructor(
                 )
         }
     }
+
+    /**
+     * Exact Streaming & Download Fallback Chain:
+     * YouTube strictly plays as-is; Atmos falls back to Hi-Res -> CD -> 320 kbps -> YouTube.
+     */
+    fun getQualityFallbackChain(selectedTier: com.example.myplayer.data.preferences.AudioQualityTier) =
+        com.example.myplayer.data.preferences.AudioQualityFallbackHelper.getQualityFallbackChain(selectedTier)
 }

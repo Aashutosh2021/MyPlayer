@@ -41,6 +41,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToDualBud: () -> Unit = {},
     onNavigateToSyncPlay: () -> Unit = {},
+    onNavigateToAudioPlayback: (() -> Unit)? = null,
     bottomPadding: androidx.compose.ui.unit.Dp = 120.dp,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -72,6 +73,32 @@ fun SettingsScreen(
     var showNameDialog by remember { mutableStateOf(false) }
     var editNameInput by remember { mutableStateOf("") }
     var showWhatsNewDialog by remember { mutableStateOf(false) }
+
+    val audioConfig by viewModel.audioConfig.collectAsStateWithLifecycle()
+    var showAudioSettingsDialog by remember { mutableStateOf(false) }
+    var showAudioPlaybackScreen by remember { mutableStateOf(false) }
+
+    if (showAudioPlaybackScreen) {
+        com.example.myplayer.ui.settings.AudioAndPlaybackScreen(
+            store = viewModel.audioPlaybackStore,
+            featureManagers = viewModel.audioFeatureManagers,
+            onBack = { showAudioPlaybackScreen = false }
+        )
+        return
+    }
+
+    if (showAudioSettingsDialog) {
+        com.example.myplayer.ui.settings.AudioPlaybackSettingsDialog(
+            config = audioConfig,
+            onDismiss = { showAudioSettingsDialog = false },
+            onWifiQualityChange = { viewModel.updateWifiQuality(it) },
+            onMobileQualityChange = { viewModel.updateMobileQuality(it) },
+            onClarityChange = { viewModel.updateClarityPreset(it) },
+            onDolbyToggle = { enabled, width -> viewModel.updateTrueDolby(enabled, width) },
+            onLoudnessToggle = { enabled, gain -> viewModel.updateLoudness(enabled, gain) },
+            onSkipSilenceToggle = { viewModel.updateSkipSilence(it) }
+        )
+    }
 
     if (showWhatsNewDialog) {
         WhatsNewDialog(onDismiss = { showWhatsNewDialog = false })
@@ -447,6 +474,21 @@ fun SettingsScreen(
 
         // Section: Playback
         item { SettingsSectionHeader(title = "Playback") }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.GraphicEq,
+                title = "Audio & Playback Engine",
+                subtitle = "15-Band EQ, 7 Quality Tiers, Studio Clarity & Bit-Perfect",
+                onClick = {
+                    if (onNavigateToAudioPlayback != null) {
+                        onNavigateToAudioPlayback()
+                    } else {
+                        showAudioPlaybackScreen = true
+                    }
+                }
+            )
+        }
 
         item {
             SettingsToggleRow(

@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.myplayer.data.preferences.AudioSettingsRepository
+import com.example.myplayer.data.preferences.StreamQuality
+import kotlinx.coroutines.flow.firstOrNull
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,7 +32,8 @@ class PlaybackSourceResolver @Inject constructor(
     private val downloadedSongDao: DownloadedSongDao,
     private val songDao: SongDao,
     private val innertubeApi: InnertubeApi,
-    private val losslessStreamResolver: LosslessStreamResolver
+    private val losslessStreamResolver: LosslessStreamResolver,
+    private val audioSettingsRepository: AudioSettingsRepository
 ) {
     private val _currentAudioQuality = MutableStateFlow(AudioQualityInfo())
     val currentAudioQuality: StateFlow<AudioQualityInfo> = _currentAudioQuality.asStateFlow()
@@ -223,10 +227,17 @@ class PlaybackSourceResolver @Inject constructor(
                 return null
             }
 
-            Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId (forceRefresh=$forceRefresh)")
+            val config = audioSettingsRepository.configFlow.firstOrNull()
+            val targetQuality = if (isWifiConnected()) {
+                config?.wifiQuality ?: StreamQuality.HIGH
+            } else {
+                config?.mobileQuality ?: StreamQuality.MEDIUM
+            }
+
+            Log.d("PlaybackSourceResolver", "Resolving stream URL for videoId: $videoId (quality=${targetQuality.name}, forceRefresh=$forceRefresh)")
             val streamUrl = withContext(Dispatchers.IO) {
                 try {
-                    innertubeApi.getStreamUrl(videoId, forceRefresh = forceRefresh)
+                    innertubeApi.getStreamUrl(videoId, targetQuality = targetQuality, forceRefresh = forceRefresh)
                 } catch (e: Exception) {
                     Log.e("PlaybackSourceResolver", "Failed to resolve stream URL for $videoId", e)
                     null
@@ -244,6 +255,15 @@ class PlaybackSourceResolver @Inject constructor(
         } finally {
             _isResolving.value = false
         }
+    }
+
+    fun isWifiConnected(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
     fun isNetworkAvailable(): Boolean {

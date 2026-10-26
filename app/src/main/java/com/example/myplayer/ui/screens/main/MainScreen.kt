@@ -352,6 +352,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     },
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
                     onNavigateToSyncPlay = { navController.navigate(Screen.SyncPlay.route) { launchSingleTop = true } },
+                    onNavigateToAudioPlayback = { navController.navigate(Screen.AudioPlayback.route) { launchSingleTop = true } },
                     bottomPadding = 16.dp
                 )
             }
@@ -364,6 +365,14 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 com.example.myplayer.sync.ui.SyncPlayScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToNowPlaying = { navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true } }
+                )
+            }
+            composable(Screen.AudioPlayback.route) {
+                val settingsVm: com.example.myplayer.ui.screens.settings.SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                com.example.myplayer.ui.settings.AudioAndPlaybackScreen(
+                    store = settingsVm.audioPlaybackStore,
+                    featureManagers = settingsVm.audioFeatureManagers,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

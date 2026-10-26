@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object DualBud : Screen("dual_bud")
     object SyncPlay : Screen("sync_play")
+    object AudioPlayback : Screen("audio_playback")
 }
 
 

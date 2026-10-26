@@ -15,9 +15,14 @@ import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor
+import com.example.myplayer.playback.dsp.MasterAudioDspProcessor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -178,7 +183,9 @@ object PlayerModule {
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
-        cacheDataSourceFactory: CacheDataSource.Factory
+        cacheDataSourceFactory: CacheDataSource.Factory,
+        lastWaveDspProcessor: LastWaveDspAudioProcessor,
+        masterAudioDspProcessor: MasterAudioDspProcessor
     ): ExoPlayer {
         val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
@@ -202,7 +209,21 @@ object PlayerModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 5))
 
-        return ExoPlayer.Builder(context)
+        val renderersFactory = object : DefaultRenderersFactory(context) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): AudioSink {
+                return DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(true)
+                    .setEnableAudioTrackPlaybackParams(true)
+                    .setAudioProcessors(arrayOf(masterAudioDspProcessor, lastWaveDspProcessor))
+                    .build()
+            }
+        }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+
+        return ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)

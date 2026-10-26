@@ -537,7 +537,11 @@ class InnertubeApi @Inject constructor(
      * Employs single-flight deduplication: multiple concurrent requests for the same
      * videoId share a single extraction task.
      */
-    suspend fun getStreamUrl(videoId: String, forceRefresh: Boolean = false): String? = withContext(Dispatchers.IO) {
+    suspend fun getStreamUrl(
+        videoId: String,
+        targetQuality: com.example.myplayer.data.preferences.StreamQuality = com.example.myplayer.data.preferences.StreamQuality.HIGH,
+        forceRefresh: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) return@withContext null
 
         if (forceRefresh) {
@@ -562,7 +566,7 @@ class InnertubeApi @Inject constructor(
 
         val deferred = extractionScope.async {
             try {
-                resolveStreamUrlInternal(videoId)
+                resolveStreamUrlInternal(videoId, targetQuality)
             } finally {
                 inFlightResolutions.remove(videoId)
             }
@@ -579,10 +583,13 @@ class InnertubeApi @Inject constructor(
         }
     }
 
-    private suspend fun resolveStreamUrlInternal(videoId: String): String? {
+    private suspend fun resolveStreamUrlInternal(
+        videoId: String,
+        targetQuality: com.example.myplayer.data.preferences.StreamQuality = com.example.myplayer.data.preferences.StreamQuality.HIGH
+    ): String? {
         return kotlinx.coroutines.withTimeoutOrNull(15_000L) {
             try {
-                Log.i(TAG, "getStreamUrl: Starting resolution for $videoId")
+                Log.i(TAG, "getStreamUrl: Starting resolution for $videoId (quality=${targetQuality.name})")
                 val url = "https://www.youtube.com/watch?v=$videoId"
                 val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getStreamExtractor(url)
                 extractor.fetchPage()
@@ -592,13 +599,31 @@ class InnertubeApi @Inject constructor(
                     throw YouTubeStreamBlockedException("YouTube stream extraction failed: No audio streams found.")
                 }
 
-                // Prefer efficient Opus stream (60-96 kbps = Spotify "Normal" quality: ~75 KB per 9s chunk!)
-                // Falls back to standard AAC/Opus if medium bitrate isn't present.
-                val optimalStream = audioStreams
-                    .filter { it.getFormat()?.name?.contains("WEB", ignoreCase = true) == true || it.getCodec()?.contains("opus", ignoreCase = true) == true }
-                    .minByOrNull { kotlin.math.abs(it.getBitrate() - 75_000) }
-                    ?: audioStreams.minByOrNull { kotlin.math.abs(it.getBitrate() - 96_000) }
-                    ?: audioStreams.maxByOrNull { it.getBitrate() }
+                // Select optimal stream based on user's target StreamQuality
+                val optimalStream = when (targetQuality) {
+                    com.example.myplayer.data.preferences.StreamQuality.LOW -> {
+                        // Data Saver (64 kbps): lowest bitrate stream
+                        audioStreams
+                            .filter { it.getFormat()?.name?.contains("WEB", ignoreCase = true) == true || it.getCodec()?.contains("opus", ignoreCase = true) == true }
+                            .minByOrNull { it.getBitrate() }
+                            ?: audioStreams.minByOrNull { it.getBitrate() }
+                    }
+                    com.example.myplayer.data.preferences.StreamQuality.MEDIUM -> {
+                        // Normal (128 kbps): prefer ~75-96 kbps Opus (Spotify Normal)
+                        audioStreams
+                            .filter { it.getFormat()?.name?.contains("WEB", ignoreCase = true) == true || it.getCodec()?.contains("opus", ignoreCase = true) == true }
+                            .minByOrNull { kotlin.math.abs(it.getBitrate() - 75_000) }
+                            ?: audioStreams.minByOrNull { kotlin.math.abs(it.getBitrate() - 96_000) }
+                            ?: audioStreams.firstOrNull()
+                    }
+                    com.example.myplayer.data.preferences.StreamQuality.HIGH -> {
+                        // High (Best Opus/AAC 160-256 kbps): highest bitrate Opus / M4A
+                        audioStreams
+                            .filter { it.getFormat()?.name?.contains("WEB", ignoreCase = true) == true || it.getCodec()?.contains("opus", ignoreCase = true) == true }
+                            .maxByOrNull { it.getBitrate() }
+                            ?: audioStreams.maxByOrNull { it.getBitrate() }
+                    }
+                }
                 val bestStream = optimalStream
                 val contentUrl = bestStream?.getContent()
                 if (!contentUrl.isNullOrBlank()) {

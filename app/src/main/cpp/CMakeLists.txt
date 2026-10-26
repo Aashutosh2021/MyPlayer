@@ -1,15 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project("myplayer_security")
+project("myplayer_native_modules")
 
 # ── Security compiler flags ───────────────────────────────────────────────────
-# -fstack-protector-strong : Stack canaries on functions with arrays/alloca
-# -D_FORTIFY_SOURCE=2       : Runtime buffer overflow detection
-# -O2                       : Optimise — harder to understand in disassembly
-# -fvisibility=hidden       : Only JNI-exported functions are visible; others
-#                             are hidden from symbol tables (harder to hook)
-# -fPIC                     : Position Independent Code (required for .so)
-# -Wl,--exclude-libs,ALL   : Don't export symbols from static libs
 set(SECURITY_FLAGS
     "-fstack-protector-strong"
     "-D_FORTIFY_SOURCE=2"
@@ -18,20 +11,50 @@ set(SECURITY_FLAGS
     "-fPIC"
 )
 
+# ── Target 1: Security & Tamper Detection (myplayer_security) ─────────────────
 add_library(
-    myplayer_security        # Library name (must match System.loadLibrary() call)
-    SHARED                   # Shared (.so) — loaded at runtime
-    native-lib.cpp           # Source file
+    myplayer_security
+    SHARED
+    native-lib.cpp
 )
 
 target_compile_options(myplayer_security PRIVATE ${SECURITY_FLAGS})
 
 target_link_options(myplayer_security PRIVATE
-    "-Wl,--exclude-libs,ALL"  # Hide all symbols from linked static libs
-    "-Wl,-z,noexecstack"      # Non-executable stack
-    "-Wl,-z,relro"            # Read-only relocations after linking
-    "-Wl,-z,now"              # Resolve all symbols at load time (prevents lazy binding attacks)
+    "-Wl,--exclude-libs,ALL"
+    "-Wl,-z,noexecstack"
+    "-Wl,-z,relro"
+    "-Wl,-z,now"
+    "-Wl,-z,max-page-size=16384"
 )
 
-find_library(log-lib log)    # Android logging
+find_library(log-lib log)
 target_link_libraries(myplayer_security ${log-lib})
+
+# ── Target 2: LastWave 64-Bit DSP Audio Engine (lastwave_audio_engine) ─────────
+add_library(
+    lastwave_audio_engine
+    SHARED
+    AudioEngine.cpp
+)
+
+target_compile_options(lastwave_audio_engine PRIVATE
+    "-std=c++17"
+    "-O3"
+    "-Wall"
+    "-fPIC"
+)
+# Note: "-ffast-math" intentionally ABSENT — the DSP engine relies on
+# std::isfinite() guards and anti-denormal checks that ffast-math optimizes away.
+
+# 16KB page alignment for Android 15/16 (from LastWave commit f7afa9b)
+target_link_options(lastwave_audio_engine PRIVATE
+    "-Wl,-z,max-page-size=16384"
+)
+
+target_link_libraries(
+    lastwave_audio_engine
+    android
+    log
+    m
+)

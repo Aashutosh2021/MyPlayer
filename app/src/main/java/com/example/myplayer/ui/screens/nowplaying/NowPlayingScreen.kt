@@ -137,6 +137,13 @@ fun NowPlayingScreen(
         )
     }
 
+    val keepAwakeLyrics by lyricsViewModel.keepScreenAwakeLyrics.collectAsStateWithLifecycle()
+    val localView = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(keepAwakeLyrics) {
+        localView.keepScreenOn = keepAwakeLyrics
+        onDispose { localView.keepScreenOn = false }
+    }
+
     if (showCustomLyricsDialog) {
         val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
         val currentLyrics = when (val state = lyricsState) {

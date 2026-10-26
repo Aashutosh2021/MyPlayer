@@ -37,8 +37,8 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags += listOf("-std=c++17", "-fstack-protector-strong", "-O2")
-                arguments += listOf("-DANDROID_STL=c++_static")
+                cppFlags += listOf("-std=c++17", "-O3", "-ffast-math", "-Wall")
+                arguments += listOf("-DANDROID_STL=c++_shared")
             }
         }
     }
@@ -157,6 +157,8 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.datasource.okhttp)
+    // LastWave's secret weapon for 24-bit FLAC & Atmos decoding:
+    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+2")
 
     // Navigation Compose
     implementation(libs.navigation.compose)

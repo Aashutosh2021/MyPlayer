@@ -13,7 +13,18 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.example.myplayer.data.preferences.AudioPlaybackState
+import com.example.myplayer.data.preferences.AudioPlaybackStore
+import com.example.myplayer.data.preferences.AudioSettingsRepository
+import com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor
+import com.example.myplayer.playback.dsp.MasterAudioDspProcessor
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -27,6 +38,26 @@ class MusicService : MediaSessionService() {
 
     @Inject
     lateinit var playbackEventBus: PlaybackEventBus
+
+    @Inject
+    lateinit var audioSettingsRepository: AudioSettingsRepository
+
+    @Inject
+    lateinit var lastWaveDspProcessor: LastWaveDspAudioProcessor
+
+    @Inject
+    lateinit var audioPlaybackStore: AudioPlaybackStore
+
+    @Inject
+    lateinit var audioFeatureManagers: AudioFeatureManagers
+
+    @Inject
+    lateinit var masterAudioDspProcessor: MasterAudioDspProcessor
+
+    @Volatile private var currentAudioPlaybackState = AudioPlaybackState()
+
+    private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -164,7 +195,72 @@ class MusicService : MediaSessionService() {
                 getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
                     .edit().putBoolean("playback_shuffle_mode", shuffleModeEnabled).apply()
             }
+
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                super.onAudioSessionIdChanged(audioSessionId)
+                if (currentAudioPlaybackState.systemAudioEffects) {
+                    audioFeatureManagers.toggleSystemAudioEffects(audioSessionId, true)
+                }
+                serviceScope.launch {
+                    val config = audioSettingsRepository.configFlow.firstOrNull()
+                    if (config != null) {
+                        updateLoudnessEnhancer(config.loudnessNormalize, config.loudnessGainMb)
+                    }
+                }
+            }
         })
+
+        // Master Audio & Playback Feature Integration:
+        // 1. Crossfade engine monitor
+        audioFeatureManagers.attachCrossfadeMonitor(
+            scope = serviceScope,
+            exoPlayer = player,
+            isEnabled = { currentAudioPlaybackState.crossfadeEnabled },
+            crossfadeDurationSec = currentAudioPlaybackState.crossfadeSeconds
+        )
+
+        // 2. Observe Master Audio & Playback Preferences (15-Band EQ, Studio Master Clarity, -14 LUFS, Bit-Perfect)
+        serviceScope.launch {
+            audioPlaybackStore.stateFlow.collect { state ->
+                currentAudioPlaybackState = state
+                masterAudioDspProcessor.updateState(state)
+                audioFeatureManagers.toggleSystemAudioEffects(player.audioSessionId, state.systemAudioEffects)
+            }
+        }
+
+        // 3. Observe Legacy/Simple Audio Settings (Skip Silence, Clarity Presets, True-Dolby Spatial)
+        serviceScope.launch {
+            audioSettingsRepository.configFlow.collect { config ->
+                try {
+                    player.skipSilenceEnabled = config.skipSilence
+                } catch (e: Exception) {
+                    android.util.Log.w("MusicService", "Failed to set skipSilenceEnabled", e)
+                }
+
+                lastWaveDspProcessor.updateDspConfig(
+                    preset = config.clarityPreset,
+                    dolby = config.trueDolbySpatial,
+                    width = config.spatialWidth
+                )
+
+                updateLoudnessEnhancer(config.loudnessNormalize, config.loudnessGainMb)
+            }
+        }
+    }
+
+    private fun updateLoudnessEnhancer(enabled: Boolean, gainMb: Int) {
+        val sessionId = player.audioSessionId
+        if (sessionId != C.AUDIO_SESSION_ID_UNSET && sessionId != 0) {
+            try {
+                if (loudnessEnhancer == null) {
+                    loudnessEnhancer = android.media.audiofx.LoudnessEnhancer(sessionId)
+                }
+                loudnessEnhancer?.setTargetGain(if (enabled) gainMb else 0)
+                loudnessEnhancer?.enabled = enabled
+            } catch (e: Exception) {
+                android.util.Log.w("MusicService", "Failed to update LoudnessEnhancer", e)
+            }
+        }
     }
 
     private fun acquireLocks() {
@@ -220,6 +316,11 @@ class MusicService : MediaSessionService() {
 
     override fun onDestroy() {
         releaseLocks()
+        try {
+            loudnessEnhancer?.release()
+            loudnessEnhancer = null
+        } catch (_: Exception) {}
+        serviceScope.cancel()
         mediaSession?.run {
             player.release()
             release()
