@@ -151,7 +151,19 @@ object SongContextClassifier {
     private val GENRE_CLASSICAL = norm("classical", "sitar", "tabla", "raga", "ghazal", "qawwali", "sufi", "carnatic")
     private val GENRE_ACOUSTIC = norm("acoustic", "unplugged", "folk", "singer-songwriter")
     private val GENRE_BLUES = norm("blues", "jazz", "soul", "r&b", "rhythm & blues")
-    private val GENRE_DEVOTIONAL = norm("devotional", "bhajan", "bhakti", "gurbani", "bhajan mandir")
+    private val GENRE_DEVOTIONAL = norm(
+        "devotional", "bhajan", "bhakti", "gurbani", "bhajan mandir", "shabad", "kirtan", "satsang",
+        "aarti", "mantra", "chalisa", "jaap",
+        "naat", "naat sharif", "nasheed", "nasheeds", "hamd", "qasida", "manqabat", "noha", "marsiya",
+        "milad", "islamic", "muslim", "allah", "muhammad", "mohammad", "madina", "madine", "ya ali",
+        "ya hussain", "muharram", "ramzan", "ramadan", "azan", "quran", "surah", "tilawat"
+    )
+
+    /** Artists whose catalogue is (almost) entirely religious. */
+    private val RELIGIOUS_ARTISTS = listOf(
+        "maher zain", "sami yusuf", "junaid jamshed", "owais raza qadri", "muhammad owais raza qadri",
+        "hafiz tahir qadri", "amjad sabri", "sabri brothers", "mishary rashid", "alafasy", "anuradha paudwal"
+    )
 
     // ---- public API ----
 
@@ -169,13 +181,16 @@ object SongContextClassifier {
         return SongContext(
             language = languageOf(title, artist, album),
             mood = moodOf(all),
-            genre = genreOf(all)
+            genre = genreOf(all, artist)
         )
     }
 
     /** True when both songs have a language and they share none (e.g. Bollywood vs Hollywood). */
     fun languageConflict(a: SongContext, b: SongContext): Boolean =
         a.language.isNotEmpty() && b.language.isNotEmpty() && a.language.intersect(b.language).isEmpty()
+
+    /** Religious / devotional content (naat, nasheed, bhajan, aarti, gurbani ...). */
+    fun isDevotional(c: SongContext): Boolean = "devotional" in c.genre
 
     /** True when one side is clearly upbeat and the other clearly slow/sad (happy -> sad shift). */
     fun moodOpposes(a: Set<String>, b: Set<String>): Boolean {
@@ -251,8 +266,9 @@ object SongContextClassifier {
         }
     }
 
-    private fun genreOf(text: String): Set<String> {
+    private fun genreOf(text: String, artist: String = ""): Set<String> {
         val p = padded(text)
+        val artistPadded = padded(artist)
         return buildSet {
             if (hits(p, GENRE_FILMY)) add("filmy")
             if (hits(p, GENRE_POP)) add("pop")
@@ -262,7 +278,7 @@ object SongContextClassifier {
             if (hits(p, GENRE_CLASSICAL)) add("indian classical")
             if (hits(p, GENRE_ACOUSTIC)) add("acoustic")
             if (hits(p, GENRE_BLUES)) add("blues/soul")
-            if (hits(p, GENRE_DEVOTIONAL)) add("devotional")
+            if (hits(p, GENRE_DEVOTIONAL) || RELIGIOUS_ARTISTS.any { artistPadded.contains(" $it ") }) add("devotional")
         }
     }
 }

@@ -309,6 +309,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val isDownloading by viewModel.isCurrentSongDownloading.collectAsStateWithLifecycle()
                 val currentAudioQuality by viewModel.currentAudioQuality.collectAsStateWithLifecycle()
                 val positionState = viewModel.currentPosition.collectAsStateWithLifecycle()
+                val queue by viewModel.playbackQueue.collectAsStateWithLifecycle()
                 NowPlayingScreen(
                     canDownload = canDownload,
                     isDownloaded = isDownloaded,
@@ -336,7 +337,9 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onToggleShuffle = { viewModel.toggleShuffle() },
                     repeatMode = repeatMode,
                     onCycleRepeatMode = { viewModel.cycleRepeatMode() },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                    queue = queue,
+                    onPlayQueueIndex = { viewModel.playQueueIndex(it) }
                 )
             }
             composable(Screen.Settings.route) {

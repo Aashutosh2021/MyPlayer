@@ -961,6 +961,43 @@ class MusicController @Inject constructor(
         playOnlineQueueIndex(clampedIndex)
     }
 
+    /**
+     * Replaces everything AFTER the currently playing online song with [upcoming] without touching
+     * ExoPlayer or the playing track (MusicController's _songQueue alone decides what plays next).
+     * Does nothing if the user already moved on to another song in the meantime.
+     */
+    fun replaceUpcomingOnlineQueue(currentVideoId: String, upcoming: List<OnlineSong>) {
+        if (upcoming.isEmpty()) return
+        val idx = _songQueue.indexOfFirst { it.videoId == currentVideoId || it.id == currentVideoId }
+        if (idx == -1 || idx != currentQueueIndex) return
+
+        val kept = _songQueue.subList(0, idx + 1).toList()
+        val keptIds = kept.map { it.videoId ?: it.id }.toSet()
+        val tail = upcoming
+            .filter { it.videoId !in keptIds }
+            .distinctBy { it.videoId }
+            .map { s ->
+                val artUrl = s.thumbnailUrl.ifBlank { "https://img.youtube.com/vi/${s.videoId}/hqdefault.jpg" }
+                SongEntity(
+                    id = s.videoId,
+                    title = s.title,
+                    artist = s.artist,
+                    album = "Online",
+                    duration = s.durationMs,
+                    path = s.streamUrl ?: "online://${s.videoId}",
+                    albumArt = artUrl,
+                    dateAdded = System.currentTimeMillis(),
+                    videoId = s.videoId
+                )
+            }
+        if (tail.isEmpty()) return
+
+        _songQueue.clear()
+        _songQueue.addAll(kept)
+        _songQueue.addAll(tail)
+        _playbackQueue.value = _songQueue.toList()
+    }
+
     fun playOnlineQueueIndex(index: Int) {
         if (index !in _songQueue.indices) return
         cancelActiveRecovery("playOnlineQueueIndex")

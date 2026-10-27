@@ -4,27 +4,24 @@ import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.strategy.SongContextClassifier
 
 /**
- * Builds the playback queue for a song the user taps in SEARCH RESULTS, so the next track
+ * Builds the playback queue for a song the user taps in SEARCH RESULTS so the next track
  * continues the same vibe instead of walking the raw YouTube search order.
  *
- * Rules (selected = the tapped song, always index 0):
- *  1. LANGUAGE GATE (hard): a candidate whose language is known and shares nothing with the
- *     selected song's language is DROPPED (Bollywood -> Hollywood never reaches the queue).
- *  2. MOOD: an explicitly opposite mood (happy/party/workout vs sad/chill/focus) is demoted out
- *     of the main list; it is only used as a last resort filler.
- *  3. Same-title covers / versions are pushed back (the next track must be a different song).
- *  4. Unknown-language candidates (no signal at all) only fill the queue up to [MIN_FILL];
- *     they are never trusted over confirmed matches.
- *  5. When the matched list is short, the queue simply ends sooner and the existing autoplay
- *     (YouTube radio + SmartRankingStrategy) continues the vibe, which is far better than
- *     appending random search results.
+ * Two stages:
+ *  1. [compose]          : instant queue from the search list (language + devotional gate,
+ *                          opposite-mood / same-title demotion). Used while playback starts.
+ *  2. [composeRadioTail] : a moment later the upcoming part of the queue is REPLACED by
+ *                          YouTube Music's own radio for the selected song (same engine that makes
+ *                          "Aaj Ki Raat" -> other Bollywood party tracks), vetted by the same gates.
  *
- * If the selected song's language cannot be detected at all, the gate is skipped and only the
- * soft ordering (mood / genre / artist / same-title) is applied.
+ * Why stage 2: search results are matched on words, not on vibe. A search for "aaj ki raat"
+ * also returns naats, qawwalis and old songs that merely contain those words, all of them
+ * "Hindi/Urdu", so no language rule can tell them apart from a Stree 2 party track.
  */
 object SearchQueueComposer {
 
     private const val MIN_FILL = 5
+    private const val MIN_RADIO_TAIL = 8
 
     private data class Scored(
         val song: OnlineSong,
@@ -32,6 +29,18 @@ object SearchQueueComposer {
         val index: Int,
         val opposite: Boolean
     )
+
+    /** True when [cand] must never follow [seed]. */
+    private fun mustNotFollow(
+        seed: SongContextClassifier.SongContext,
+        cand: SongContextClassifier.SongContext
+    ): Boolean {
+        // Bollywood -> Hollywood (or any known language shift)
+        if (SongContextClassifier.languageConflict(seed, cand)) return true
+        // Non-religious seed -> naat / nasheed / bhajan / aarti ... never.
+        if (SongContextClassifier.isDevotional(cand) && !SongContextClassifier.isDevotional(seed)) return true
+        return false
+    }
 
     fun compose(selected: OnlineSong, context: List<OnlineSong>): Pair<List<OnlineSong>, Int> {
         if (context.size < 2) {
@@ -55,8 +64,8 @@ object SearchQueueComposer {
         rest.forEachIndexed { originalIndex, song ->
             val cand = SongContextClassifier.analyzeSong(song.title, song.artist)
 
-            // 1. Hard language gate
-            if (seedLanguageKnown && SongContextClassifier.languageConflict(seed, cand)) return@forEachIndexed
+            // 1. Hard gates (language, religious content)
+            if (mustNotFollow(seed, cand)) return@forEachIndexed
 
             var score = 0
             if (seedLanguageKnown && cand.language.isNotEmpty()) score += 18
@@ -80,7 +89,7 @@ object SearchQueueComposer {
         val result = mutableListOf<OnlineSong>()
 
         if (!seedLanguageKnown) {
-            // No language gate possible: keep everything, just soft-ordered.
+            // No language gate possible: keep everything that passed the other gates, soft-ordered.
             confirmed.forEach { result += it.song }
             return (listOf(head) + result) to 0
         }
@@ -93,6 +102,42 @@ object SearchQueueComposer {
         if (result.size < MIN_FILL) weak.take(MIN_FILL - result.size).forEach { result += it.song }
 
         return (listOf(head) + result) to 0
+    }
+
+    /**
+     * Upcoming queue built from YouTube Music's radio for [selected].
+     * Radio order is kept (it is YouTube's own vibe ranking); we only strip what must not follow:
+     * the song itself, other versions of the same title, language shifts and religious tracks.
+     * Only if the radio gives fewer than [MIN_RADIO_TAIL] usable songs, the already-vetted
+     * search items ([vettedSearch]) are appended as backup.
+     */
+    fun composeRadioTail(
+        selected: OnlineSong,
+        radio: List<OnlineSong>,
+        vettedSearch: List<OnlineSong>
+    ): List<OnlineSong> {
+        val seed = SongContextClassifier.analyzeSong(selected.title, selected.artist)
+        val selectedNorm = normalizeTitle(selected.title)
+        val seen = mutableSetOf(selected.videoId)
+        val out = mutableListOf<OnlineSong>()
+
+        for (song in radio) {
+            if (song.videoId in seen) continue
+            if (isSameNamed(selectedNorm, song.title)) continue
+            val cand = SongContextClassifier.analyzeSong(song.title, song.artist)
+            if (mustNotFollow(seed, cand)) continue
+            seen += song.videoId
+            out += song
+        }
+
+        if (out.size < MIN_RADIO_TAIL) {
+            for (song in vettedSearch) {
+                if (song.videoId in seen) continue
+                seen += song.videoId
+                out += song
+            }
+        }
+        return out
     }
 
     private fun isSameNamed(selectedNorm: String, otherTitle: String): Boolean {

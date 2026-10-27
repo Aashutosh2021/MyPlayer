@@ -219,8 +219,10 @@ class OnlineSearchViewModel @Inject constructor(
                             if (s.videoId == song.videoId) playableSong else s
                         }
                         musicController.playOnlineSongs(playlist, index)
+                        extendQueueWithRadio(song, orderedList.drop(1))
                     } else {
                         musicController.playOnlineSong(playableSong)
+                        extendQueueWithRadio(song, emptyList())
                     }
                 } else {
                     _errorMessage.value = "Could not resolve stream URL for '${song.title}'"
@@ -232,6 +234,24 @@ class OnlineSearchViewModel @Inject constructor(
                 _errorMessage.value = "Streaming failed: ${e.message}"
             } finally {
                 _isLoadingStream.value = null
+            }
+        }
+    }
+
+    /**
+     * After playback has started, swap the upcoming part of the queue for YouTube Music's radio of
+     * the selected song (vibe-matched by YouTube), vetted by [SearchQueueComposer]. The first song
+     * is never delayed by this; on any failure the search-based queue simply stays.
+     */
+    private fun extendQueueWithRadio(seed: OnlineSong, vettedSearch: List<OnlineSong>) {
+        viewModelScope.launch {
+            try {
+                val radio = withContext(Dispatchers.IO) { innertubeApi.getNextRadioTracks(seed.videoId) }
+                if (radio.isEmpty()) return@launch
+                val tail = SearchQueueComposer.composeRadioTail(seed, radio, vettedSearch)
+                if (tail.isNotEmpty()) musicController.replaceUpcomingOnlineQueue(seed.videoId, tail)
+            } catch (e: Exception) {
+                Log.w("OnlineSearchViewModel", "Radio queue extension failed", e)
             }
         }
     }

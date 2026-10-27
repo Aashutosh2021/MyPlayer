@@ -71,18 +71,25 @@ fun NowPlayingScreen(
     onDownloadClick: () -> Unit = {},
     onRemoveDownloadClick: () -> Unit = {},
     audioQuality: AudioQualityInfo = AudioQualityInfo(),
-    lyricsViewModel: LyricsViewModel = hiltViewModel()
+    lyricsViewModel: LyricsViewModel = hiltViewModel(),
+    queue: List<com.example.myplayer.data.local.entity.SongEntity> = emptyList(),
+    onPlayQueueIndex: (Int) -> Unit = {}
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
     var showQualityDetails by remember { mutableStateOf(false) }
     var showCustomLyricsDialog by remember { mutableStateOf(false) }
     var showMoreSheet by remember { mutableStateOf(false) }
+    var showLyricsDialog by remember { mutableStateOf(false) }
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(0L)
 
     val positionMs = positionState.value
+
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isTabletLayout = configuration.screenWidthDp >= 600 ||
+        configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     if (showSleepTimer) {
         SleepTimerDialog(
@@ -91,6 +98,32 @@ fun NowPlayingScreen(
             onStart = { minutes -> onStartSleepTimer(minutes); showSleepTimer = false },
             onCancel = { onCancelSleepTimer(); showSleepTimer = false }
         )
+    }
+
+    if (showLyricsDialog) {
+        val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+        val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+        ModalBottomSheet(
+            onDismissRequest = { showLyricsDialog = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                LyricsTab(
+                    lyricsState = lyricsState,
+                    positionMs = lyricsPositionState,
+                    onSeek = onSeek,
+                    onAddCustomLyrics = { showCustomLyricsDialog = true },
+                    onRetryLyrics = { lyricsViewModel.retryLyrics() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(480.dp)
+                )
+            }
+        }
     }
 
     if (showRemoveConfirm) {
@@ -162,40 +195,68 @@ fun NowPlayingScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NowPlayingVisual(
-            title = title,
-            artist = artist,
-            artUri = artUri,
-            durationMs = duration,
-            positionMs = positionMs,
-            isPlaying = isPlaying,
-            isFavorite = isFavorite,
-            isShuffleEnabled = isShuffleOn,
-            repeatMode = repeatMode,
-            onPlayPause = onPlayPauseClick,
-            onPrevious = onPreviousClick,
-            onNext = onNextClick,
-            onSeek = onSeek,
-            onFavorite = onToggleFavorite,
-            onShuffle = onToggleShuffle,
-            onRepeat = onCycleRepeatMode,
-            onBack = onBackClick,
-            onOptions = { showMoreSheet = true },
-            lyricsContent = {
-                val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
-                val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
-                LyricsTab(
-                    lyricsState = lyricsState,
-                    positionMs = lyricsPositionState,
-                    onSeek = onSeek,
-                    onAddCustomLyrics = { showCustomLyricsDialog = true },
-                    onRetryLyrics = { lyricsViewModel.retryLyrics() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(450.dp)
-                )
-            }
-        )
+        if (isTabletLayout) {
+            TabletPlayerScreen(
+                title = title,
+                artist = artist,
+                artUri = artUri,
+                durationMs = duration,
+                positionMs = positionMs,
+                isPlaying = isPlaying,
+                isFavorite = isFavorite,
+                isShuffleOn = isShuffleOn,
+                repeatMode = repeatMode,
+                queue = queue,
+                onPlayPauseClick = onPlayPauseClick,
+                onNextClick = onNextClick,
+                onPreviousClick = onPreviousClick,
+                onSeek = onSeek,
+                onBackClick = onBackClick,
+                onToggleFavorite = onToggleFavorite,
+                onToggleShuffle = onToggleShuffle,
+                onCycleRepeatMode = onCycleRepeatMode,
+                onPlayQueueIndex = onPlayQueueIndex,
+                onSleepTimerClick = { showSleepTimer = true },
+                onAudioQualityClick = { showQualityDetails = true },
+                onOptionsClick = { showMoreSheet = true },
+                onLyricsClick = { showLyricsDialog = true }
+            )
+        } else {
+            NowPlayingVisual(
+                title = title,
+                artist = artist,
+                artUri = artUri,
+                durationMs = duration,
+                positionMs = positionMs,
+                isPlaying = isPlaying,
+                isFavorite = isFavorite,
+                isShuffleEnabled = isShuffleOn,
+                repeatMode = repeatMode,
+                onPlayPause = onPlayPauseClick,
+                onPrevious = onPreviousClick,
+                onNext = onNextClick,
+                onSeek = onSeek,
+                onFavorite = onToggleFavorite,
+                onShuffle = onToggleShuffle,
+                onRepeat = onCycleRepeatMode,
+                onBack = onBackClick,
+                onOptions = { showMoreSheet = true },
+                lyricsContent = {
+                    val lyricsState by lyricsViewModel.lyricsState.collectAsStateWithLifecycle()
+                    val lyricsPositionState = lyricsViewModel.currentPosition.collectAsStateWithLifecycle()
+                    LyricsTab(
+                        lyricsState = lyricsState,
+                        positionMs = lyricsPositionState,
+                        onSeek = onSeek,
+                        onAddCustomLyrics = { showCustomLyricsDialog = true },
+                        onRetryLyrics = { lyricsViewModel.retryLyrics() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(450.dp)
+                    )
+                }
+            )
+        }
 
         // Options Dropdown Menu anchored at top right
         if (showMoreSheet) {
