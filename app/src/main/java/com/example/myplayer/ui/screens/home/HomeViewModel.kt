@@ -59,6 +59,45 @@ class HomeViewModel @Inject constructor(
     val isSpotifySyncing = spotifyManager.isSyncing
     private var aiTrainingJob: Job? = null
 
+    private val _showTasteOnboarding = MutableStateFlow(!aiModel.hasCompletedTasteOnboarding())
+    val showTasteOnboarding: StateFlow<Boolean> = _showTasteOnboarding.asStateFlow()
+
+    private val _selectedLanguages = MutableStateFlow(aiModel.getSelectedLanguages())
+    val selectedLanguages: StateFlow<Set<String>> = _selectedLanguages.asStateFlow()
+
+    private val _selectedGenres = MutableStateFlow(aiModel.getSelectedGenres())
+    val selectedGenres: StateFlow<Set<String>> = _selectedGenres.asStateFlow()
+
+    private val _selectedArtists = MutableStateFlow(aiModel.getSelectedArtists())
+    val selectedArtists: StateFlow<Set<String>> = _selectedArtists.asStateFlow()
+
+    fun openTasteSelector() {
+        _selectedLanguages.value = aiModel.getSelectedLanguages()
+        _selectedGenres.value = aiModel.getSelectedGenres()
+        _selectedArtists.value = aiModel.getSelectedArtists()
+        _showTasteOnboarding.value = true
+    }
+
+    fun dismissTasteSelector() {
+        _showTasteOnboarding.value = false
+    }
+
+    fun saveUserTastePreferences(
+        languages: Set<String>,
+        genres: Set<String>,
+        artists: Set<String>
+    ) {
+        _selectedLanguages.value = languages
+        _selectedGenres.value = genres
+        _selectedArtists.value = artists
+        _showTasteOnboarding.value = false
+        viewModelScope.launch(Dispatchers.IO) {
+            aiModel.saveUserTasteProfile(languages, genres, artists)
+            _categoryRecommendations.value = emptyMap()
+            refreshAiRecommendations()
+        }
+    }
+
     private val _categoryRecommendations = MutableStateFlow<Map<String, List<RecommendationSong>>>(emptyMap())
 
     private val _aiRecommendations = MutableStateFlow<List<RecommendationSong>>(emptyList())

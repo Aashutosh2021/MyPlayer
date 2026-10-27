@@ -214,11 +214,55 @@ class OnDeviceMusicAiModel @Inject constructor(
         saveHistoryEntries(entries)
     }
 
+    // ── User Taste Onboarding (Languages, Genres & Favorite Artists) ──────────
+    fun hasCompletedTasteOnboarding(): Boolean = prefs.getBoolean("taste_onboarding_done", false)
+    fun getSelectedLanguages(): Set<String> = prefs.getStringSet("taste_languages", emptySet()) ?: emptySet()
+    fun getSelectedGenres(): Set<String> = prefs.getStringSet("taste_genres", emptySet()) ?: emptySet()
+    fun getSelectedArtists(): Set<String> = prefs.getStringSet("taste_artists", emptySet()) ?: emptySet()
+
     /**
-     * Generates 100% personalized recommendations by combining:
-     * 1. Collaborative Graph Radio on top affinity seeds
-     * 2. Learned Artist & Style Keyword clusters
-     * 3. 128-D Neural Cosine Similarity + Time-of-Day Contextual Bandit ranking
+     * Saves user's chosen Languages, Genres & Artists and immediately imprints them
+     * into the 128-D Neural User Vector so recommendations update in <1s!
+     */
+    @Synchronized
+    fun saveUserTasteProfile(
+        languages: Set<String>,
+        genres: Set<String>,
+        artists: Set<String>
+    ) {
+        prefs.edit()
+            .putStringSet("taste_languages", languages)
+            .putStringSet("taste_genres", genres)
+            .putStringSet("taste_artists", artists)
+            .putBoolean("taste_onboarding_done", true)
+            .apply()
+
+        // Imprint chosen artists & genres directly into the 128-D taste vector
+        artists.forEach { artist ->
+            val vec = embedSong(title = genres.joinToString(" "), artist = artist, durationMs = 210_000L)
+            for (i in 0 until DIM) {
+                globalUserVector[i] += 0.45f * vec[i]
+            }
+        }
+        genres.forEach { genre ->
+            val vec = embedSong(title = "$genre ${languages.joinToString(" ")}", artist = "", durationMs = 210_000L)
+            for (i in 0 until DIM) {
+                globalUserVector[i] += 0.30f * vec[i]
+            }
+        }
+        globalUserVector = l2Normalize(globalUserVector)
+        saveVector("vec_global", globalUserVector)
+
+        // Clear cached recommendations so feed regenerates immediately
+        cachedRecos = emptyList()
+        lastRecoTimeMs = 0L
+    }
+
+    /**
+     * Generates personalized recommendations driven by:
+     * 1. User's explicitly selected Artists, Languages & Genres (Spotify-style onboarding)
+     * 2. Spotify-synced seeds & listening history
+     * 3. 128-D Neural Cosine Similarity + Max 2 songs per artist diversification
      */
     suspend fun generateRecommendations(
         limit: Int = 45,
@@ -230,113 +274,127 @@ class OnDeviceMusicAiModel @Inject constructor(
         }
 
         val entries = loadHistoryEntries()
-        // Separate Spotify seeds (22-char IDs / "spotify:" prefix) from local YouTube history (11-char IDs)
         val youtubeIdRegex = Regex("^[a-zA-Z0-9_-]{11}$")
+        val chosenLanguages = getSelectedLanguages().toList()
+        val chosenGenres = getSelectedGenres().toList()
+        val chosenArtists = getSelectedArtists().toList()
+
         val rankedEntries = entries.sortedByDescending { e ->
             val ageHours = ((now - e.timestamp).coerceAtLeast(0L) / (1000.0 * 3600.0))
             val recency = exp(-ageHours / 96.0).coerceIn(0.30, 1.0)
             val isSpotifySeed = !e.videoId.matches(youtubeIdRegex)
-            // Boost Spotify seeds by 1.35x so recently played local songs don't bury Spotify taste!
-            val sourceMultiplier = if (isSpotifySeed) 1.35 else 1.0
-            e.score * recency * sourceMultiplier
+            e.score * recency * (if (isSpotifySeed) 1.35 else 1.0)
         }
 
-        // Top 2 YouTube seeds
         val topSeeds = rankedEntries
             .map { it.videoId }
             .filter { it.matches(youtubeIdRegex) }
             .distinct()
             .take(2)
 
-        // Top 8 Spotify seeds (increased from 2 -> 8 so Spotify taste strongly drives the feed!)
         val topSpotifyTracks = rankedEntries
             .filter { !it.videoId.matches(youtubeIdRegex) && it.title.isNotBlank() }
             .distinctBy { "${it.title.lowercase().trim()}_${it.artist.lowercase().trim()}" }
-            .take(8)
+            .take(6)
 
-        // Learn artist affinities, giving extra weight to Spotify artists
         val artistScores = mutableMapOf<String, Double>()
-        val spotifyArtists = mutableSetOf<String>()
+        // Give user's explicitly selected artists the highest base affinity!
+        chosenArtists.forEach { art -> artistScores[art] = 12.0 }
         rankedEntries.forEach { e ->
             if (e.score <= 0f) return@forEach
-            val isSpotifySeed = !e.videoId.matches(youtubeIdRegex)
             e.artist.split(",", "&", "feat.", "ft.", "|", "/")
                 .map { it.replace(Regex("(?i)-\\s*topic"), "").trim() }
-                .filter { it.length >= 2 && !it.equals("Unknown Artist", true) && !it.equals("YouTube Music", true) }
+                .filter { it.length >= 2 && !it.equals("Unknown Artist", true) }
                 .forEachIndexed { idx, art ->
-                    val w = (if (idx == 0) e.score.toDouble() else e.score * 0.5) * (if (isSpotifySeed) 1.4 else 0.8)
+                    val w = if (idx == 0) e.score.toDouble() else e.score * 0.5
                     artistScores[art] = (artistScores[art] ?: 0.0) + w
-                    if (isSpotifySeed) spotifyArtists.add(art)
                 }
         }
 
-        // Prefer Spotify-seeded artists + mix with top overall artists
-        val topArtists = (spotifyArtists.take(3) + artistScores.entries.sortedByDescending { it.value }.map { it.key })
+        // Mix user-selected artists (shuffled for fresh variety every refresh) + learned top artists
+        val queryArtists = (chosenArtists.shuffled().take(4) + artistScores.entries.sortedByDescending { it.value }.map { it.key })
             .distinct()
-            .take(4)
+            .take(5)
+
+        // Build Language + Genre discovery queries from user's explicit selection
+        val tasteDiscoveryQueries = buildList {
+            if (chosenLanguages.isNotEmpty() && chosenGenres.isNotEmpty()) {
+                chosenLanguages.shuffled().take(2).forEach { lang ->
+                    chosenGenres.shuffled().take(2).forEach { genre ->
+                        add("Best $lang $genre songs hits")
+                    }
+                }
+            } else if (chosenLanguages.isNotEmpty()) {
+                chosenLanguages.shuffled().take(3).forEach { lang ->
+                    add("Top $lang trending songs")
+                }
+            } else if (chosenGenres.isNotEmpty()) {
+                chosenGenres.shuffled().take(3).forEach { genre ->
+                    add("Top $genre songs hits")
+                }
+            }
+        }.take(4)
 
         val candidatePool = java.util.concurrent.ConcurrentHashMap<String, OnlineSong>()
         val graphBonusMap = java.util.concurrent.ConcurrentHashMap<String, Float>()
-        val spotifyMatchedIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-        fun registerCandidate(song: OnlineSong, graphBonus: Float, isFromSpotify: Boolean = false) {
+        fun registerCandidate(song: OnlineSong, graphBonus: Float) {
             if (song.videoId.isBlank()) return
             candidatePool.putIfAbsent(song.videoId, song)
             graphBonusMap[song.videoId] = (graphBonusMap[song.videoId] ?: 0f) + graphBonus
-            if (isFromSpotify) spotifyMatchedIds.add(song.videoId)
         }
 
         coroutineScope {
             val jobs = buildList {
-                // 1. Directly resolve Spotify tracks AND fetch YouTube Radio from top 2 Spotify tracks!
+                // 1. User-Selected Artists + Learned Artists
+                queryArtists.forEachIndexed { idx, artist ->
+                    add(async {
+                        try {
+                            val isChosen = chosenArtists.any { it.equals(artist, ignoreCase = true) }
+                            val langHint = chosenLanguages.firstOrNull() ?: ""
+                            val q = if (isChosen) "$artist best songs" else "$artist $langHint songs".trim()
+                            val tracks = innertubeApi.search(q, filtered = true).songs
+                            val baseWeight = if (isChosen) 11.5f else (6.0f / (idx + 1))
+                            tracks.take(8).forEachIndexed { rankIdx, track ->
+                                registerCandidate(track, baseWeight * (1.0f - rankIdx * 0.06f))
+                            }
+                        } catch (_: Exception) {}
+                    })
+                }
+
+                // 2. User-Selected Language + Genre mixes
+                tasteDiscoveryQueries.forEachIndexed { idx, query ->
+                    add(async {
+                        try {
+                            val tracks = innertubeApi.search(query, filtered = true).songs
+                            tracks.take(10).forEachIndexed { rankIdx, track ->
+                                registerCandidate(track, (9.0f - idx) * (1.0f - rankIdx * 0.05f))
+                            }
+                        } catch (_: Exception) {}
+                    })
+                }
+
+                // 3. Spotify-seeded tracks
                 topSpotifyTracks.forEachIndexed { idx, spEntry ->
                     add(async {
                         try {
                             val query = "${spEntry.title} ${spEntry.artist}".trim()
-                            val searchSongs = innertubeApi.search(query, filtered = true).songs
-                            val matchedSong = searchSongs.firstOrNull()
+                            val matchedSong = innertubeApi.search(query, filtered = true).songs.firstOrNull()
                             if (matchedSong != null) {
-                                val spotifyBonus = (14.0f - (idx * 0.8f)).coerceAtLeast(6.0f)
-                                registerCandidate(matchedSong, spotifyBonus, isFromSpotify = true)
-                                // Also add 2 related songs from search results for variety
-                                searchSongs.drop(1).take(2).forEachIndexed { rIdx, related ->
-                                    registerCandidate(related, 6.5f - rIdx, isFromSpotify = true)
-                                }
-                                // Expand top 2 Spotify seeds via InnerTube UpNext Radio!
-                                if (idx < 2) {
-                                    val spotifyRadio = innertubeApi.getUpNext(matchedSong.videoId)
-                                    spotifyRadio.take(15).forEachIndexed { rankIdx, track ->
-                                        val posFactor = 1.0f - (rankIdx / 20.0f)
-                                        registerCandidate(track, 9.5f * posFactor, isFromSpotify = true)
-                                    }
-                                }
+                                registerCandidate(matchedSong, (12.0f - idx).coerceAtLeast(5.0f))
                             }
                         } catch (_: Exception) {}
                     })
                 }
 
-                // 2. Collaborative Graph Radio for local YouTube seeds (moderate weight so it doesn't overpower Spotify)
+                // 4. Collaborative Radio on top played seeds
                 topSeeds.forEachIndexed { idx, seedId ->
                     add(async {
                         try {
                             val radio = innertubeApi.getUpNext(seedId)
-                            val seedWeight = 6.0f / (idx + 1)
-                            radio.take(15).forEachIndexed { rankIdx, track ->
-                                val posFactor = (1.0f - (rankIdx.coerceAtMost(15) / 20.0f))
-                                registerCandidate(track, seedWeight * posFactor)
-                            }
-                        } catch (_: Exception) {}
-                    })
-                }
-
-                // 3. Artist mix queries (search "Artist mix" instead of just dumping 12 tracks of the same artist)
-                topArtists.forEachIndexed { idx, artist ->
-                    add(async {
-                        try {
-                            val tracks = innertubeApi.search("$artist hits mix", filtered = true).songs
-                            val artWeight = 4.5f / (idx + 1)
-                            tracks.take(6).forEachIndexed { rankIdx, track ->
-                                registerCandidate(track, artWeight * (1.0f - rankIdx * 0.08f))
+                            val seedWeight = 6.5f / (idx + 1)
+                            radio.take(12).forEachIndexed { rankIdx, track ->
+                                registerCandidate(track, seedWeight * (1.0f - rankIdx / 16.0f))
                             }
                         } catch (_: Exception) {}
                     })
@@ -347,40 +405,47 @@ class OnDeviceMusicAiModel @Inject constructor(
 
         if (candidatePool.isEmpty()) {
             try {
-                innertubeApi.search("Top Trending Songs Hits", filtered = true).songs.forEachIndexed { i, track ->
+                val fallbackQuery = if (chosenLanguages.isNotEmpty()) {
+                    "Top ${chosenLanguages.first()} songs hits"
+                } else {
+                    "Trending Songs Hits"
+                }
+                innertubeApi.search(fallbackQuery, filtered = true).songs.forEachIndexed { i, track ->
                     registerCandidate(track, 1.0f - i * 0.02f)
                 }
             } catch (_: Exception) {}
         }
 
-        val recentlyPlayedIds = entries
-            .sortedByDescending { it.timestamp }
-            .take(8)
-            .map { it.videoId }
-            .toSet()
+        val recentlyPlayedIds = entries.sortedByDescending { it.timestamp }.take(8).map { it.videoId }.toSet()
 
-        // Score candidates (Capped artistBoost so one artist never dominates!)
         val scoredCandidates = candidatePool.values
             .map { cand ->
                 val neuralSim = predictAffinityScore(cand)
                 val graphScore = graphBonusMap[cand.videoId] ?: 0f
-                var artistBoost = 0f
+
+                // Extra boost if candidate matches user's explicitly chosen artists
+                val matchesChosenArtist = chosenArtists.any {
+                    cand.artist.contains(it, ignoreCase = true) || cand.title.contains(it, ignoreCase = true)
+                }
+                val chosenArtistBoost = if (matchesChosenArtist) 6.5f else 0f
+
+                var learnedArtistBoost = 0f
                 for ((art, w) in artistScores) {
                     if (cand.artist.contains(art, ignoreCase = true)) {
-                        artistBoost += (ln(w + 1.0) * 1.2).toFloat()
+                        learnedArtistBoost += (ln(w + 1.0) * 1.2).toFloat()
                     }
                 }
-                // Cap artistBoost at max 3.5f so recently played artists don't flood the top!
-                artistBoost = artistBoost.coerceAtMost(3.5f)
-                var totalScore = (neuralSim * 8.0f) + graphScore + artistBoost
+                learnedArtistBoost = learnedArtistBoost.coerceAtMost(3.5f)
+
+                var totalScore = (neuralSim * 8.0f) + graphScore + chosenArtistBoost + learnedArtistBoost
                 if (cand.videoId in recentlyPlayedIds) {
-                    totalScore *= 0.25f // Heavily penalize songs the user just played!
+                    totalScore *= 0.25f
                 }
                 cand to totalScore
             }
             .sortedByDescending { it.second }
 
-        // Meld-Style Artist Diversification: Max 2 songs per artist in the primary pass!
+        // Diversify: Max 2 songs per primary artist so the feed stays rich & varied!
         val diversified = mutableListOf<OnlineSong>()
         val overflow = mutableListOf<OnlineSong>()
         val artistCount = mutableMapOf<String, Int>()
@@ -411,7 +476,7 @@ class OnDeviceMusicAiModel @Inject constructor(
                     artist = online.artist,
                     thumbnailUrl = online.thumbnailUrl,
                     durationMs = online.durationMs,
-                    source = if (online.videoId in spotifyMatchedIds) "spotify_ai" else "on_device_ai"
+                    source = "on_device_ai"
                 )
             }
 
@@ -423,34 +488,28 @@ class OnDeviceMusicAiModel @Inject constructor(
     }
 
     /**
-     * Generates Mood/Category songs (e.g. Sad, Chill, Happy, Romance) tailored to the
-     * user's learned artists and ranked by the 128-D AI Taste Vector.
+     * Mood / Category / Hotlist recommendations tailored to User's Chosen Languages & Artists!
      */
     suspend fun generateCategoryRecommendations(category: String, limit: Int = 35): List<RecommendationSong> = withContext(Dispatchers.IO) {
-        val entries = loadHistoryEntries()
-        val youtubeIdRegex = Regex("^[a-zA-Z0-9_-]{11}$")
-
-        // Prefer Spotify-seeded artists + top overall artists (max 2)
-        val topArtists = entries
-            .filter { it.score > 0f }
-            .sortedByDescending { if (!it.videoId.matches(youtubeIdRegex)) it.score * 1.5f else it.score }
-            .map { it.artist.split(",", "&", "feat.", "ft.").first().trim() }
-            .filter { it.length >= 2 && !it.equals("Unknown Artist", true) }
-            .distinct()
-            .take(2)
-
-        // Category discovery queries so Hotlist/Categories don't just repeat 1 artist!
-        val categoryQueries = buildList {
-            add("Top $category songs hits")
-            add("Best $category music playlist")
-            topArtists.forEach { artist ->
+        val chosenLanguages = getSelectedLanguages().toList()
+        val chosenArtists = getSelectedArtists().shuffled().take(2)
+        val queries = buildList {
+            if (chosenLanguages.isNotEmpty()) {
+                chosenLanguages.take(3).forEach { lang ->
+                    add("$lang $category songs hits")
+                }
+            } else {
+                add("Top $category songs hits")
+                add("Best $category music playlist")
+            }
+            chosenArtists.forEach { artist ->
                 add("$artist $category songs")
             }
         }
 
         val collected = mutableListOf<OnlineSong>()
         coroutineScope {
-            categoryQueries.map { q ->
+            queries.map { q ->
                 async {
                     try {
                         innertubeApi.search(q, filtered = true).songs.take(12)
@@ -461,7 +520,6 @@ class OnDeviceMusicAiModel @Inject constructor(
             }.awaitAll().forEach { collected.addAll(it) }
         }
 
-        // Diversify category results (max 2 songs per artist)
         val artistCount = mutableMapOf<String, Int>()
         collected
             .distinctBy { it.videoId }

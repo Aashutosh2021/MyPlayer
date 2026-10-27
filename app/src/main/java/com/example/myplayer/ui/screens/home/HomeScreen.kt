@@ -54,6 +54,23 @@ fun HomeScreen(
         (mostPlayed.ifEmpty { recentSongs.ifEmpty { allSongs } }).take(8)
     }
 
+    val showTasteOnboarding by viewModel.showTasteOnboarding.collectAsStateWithLifecycle()
+    val selectedLanguages by viewModel.selectedLanguages.collectAsStateWithLifecycle()
+    val selectedGenres by viewModel.selectedGenres.collectAsStateWithLifecycle()
+    val selectedArtists by viewModel.selectedArtists.collectAsStateWithLifecycle()
+
+    if (showTasteOnboarding) {
+        TasteOnboardingDialog(
+            initialLanguages = selectedLanguages,
+            initialGenres = selectedGenres,
+            initialArtists = selectedArtists,
+            onDismiss = { viewModel.dismissTasteSelector() },
+            onSave = { langs, genres, artists ->
+                viewModel.saveUserTastePreferences(langs, genres, artists)
+            }
+        )
+    }
+
     var showEditNameDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf("") }
 
@@ -235,8 +252,30 @@ fun HomeScreen(
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 8.dp)
             ) {
+                item {
+                    AssistChip(
+                        onClick = { viewModel.openTasteSelector() },
+                        label = { Text("Music Taste", fontWeight = FontWeight.SemiBold) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.AutoAwesome,
+                                contentDescription = "Customize Music Taste",
+                                tint = NeonLimePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = BorderStroke(1.dp, CardBorderOlive),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                }
+
                 items(categories) { category ->
                     val isSelected = category == selectedCategory
                     val pillBg by animateColorAsState(
