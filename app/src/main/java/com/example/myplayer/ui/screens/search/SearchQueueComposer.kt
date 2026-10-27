@@ -4,18 +4,34 @@ import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.recommendation.strategy.SongContextClassifier
 
 /**
- * Reorders a search-results queue so autoplay continues in the selected song's
- * language/mood/genre instead of walking the raw YouTube search order
- * (which parks same-title covers/versions and unrelated ranks right after the click).
+ * Builds the playback queue for a song the user taps in SEARCH RESULTS, so the next track
+ * continues the same vibe instead of walking the raw YouTube search order.
  *
- * Composition rule:
- *  1. The song the user clicked always plays first (index 0).
- *  2. Everything else is scored with [SongContextClassifier] continuity
- *     (language +18/-20, mood +12/-6, genre +8).
- *  3. Same-title versions (covers/remixes "(...)" edits) are demoted (-40) to the
- *     back so the NEXT different track is a different vibe, not another version.
+ * Rules (selected = the tapped song, always index 0):
+ *  1. LANGUAGE GATE (hard): a candidate whose language is known and shares nothing with the
+ *     selected song's language is DROPPED (Bollywood -> Hollywood never reaches the queue).
+ *  2. MOOD: an explicitly opposite mood (happy/party/workout vs sad/chill/focus) is demoted out
+ *     of the main list; it is only used as a last resort filler.
+ *  3. Same-title covers / versions are pushed back (the next track must be a different song).
+ *  4. Unknown-language candidates (no signal at all) only fill the queue up to [MIN_FILL];
+ *     they are never trusted over confirmed matches.
+ *  5. When the matched list is short, the queue simply ends sooner and the existing autoplay
+ *     (YouTube radio + SmartRankingStrategy) continues the vibe, which is far better than
+ *     appending random search results.
+ *
+ * If the selected song's language cannot be detected at all, the gate is skipped and only the
+ * soft ordering (mood / genre / artist / same-title) is applied.
  */
 object SearchQueueComposer {
+
+    private const val MIN_FILL = 5
+
+    private data class Scored(
+        val song: OnlineSong,
+        val score: Int,
+        val index: Int,
+        val opposite: Boolean
+    )
 
     fun compose(selected: OnlineSong, context: List<OnlineSong>): Pair<List<OnlineSong>, Int> {
         if (context.size < 2) {
@@ -26,36 +42,57 @@ object SearchQueueComposer {
         val head = context.firstOrNull { it.videoId == selected.videoId } ?: selected
         val rest = context.filterNot { it.videoId == selected.videoId }
 
-        val seed = SongContextClassifier.analyze(head.title, head.artist)
+        val seed = SongContextClassifier.analyzeSong(head.title, head.artist)
         if (seed.isEmpty) return (listOf(head) + rest) to 0
 
+        val seedLanguageKnown = seed.language.isNotEmpty()
         val selectedNorm = normalizeTitle(head.title)
-        val orderedRest = rest
-            .mapIndexed { originalIndex, song ->
-                val candidate = SongContextClassifier.analyze(song.title, song.artist)
-                var score = 0
+        val seedArtist = head.artist.trim().lowercase()
 
-                if (seed.language.isNotEmpty() && candidate.language.isNotEmpty()) {
-                    score += if (seed.language.intersect(candidate.language).isNotEmpty()) 18 else -20
-                }
-                if (seed.mood.isNotEmpty() && candidate.mood.isNotEmpty()) {
-                    score += if (seed.mood.intersect(candidate.mood).isNotEmpty()) 12 else -6
-                }
-                if (seed.genre.isNotEmpty() && candidate.genre.isNotEmpty() &&
-                    seed.genre.intersect(candidate.genre).isNotEmpty()
-                ) {
-                    score += 8
-                }
+        val confirmed = mutableListOf<Scored>()   // language known and matching (or no gate)
+        val unknown = mutableListOf<Scored>()     // gate active, candidate has no language signal
 
-                // Same-title covers/versions queue ke peeche — next alag vibe pe ho.
-                if (isSameNamed(selectedNorm, song.title)) score -= 40
+        rest.forEachIndexed { originalIndex, song ->
+            val cand = SongContextClassifier.analyzeSong(song.title, song.artist)
 
-                Triple(song, score, originalIndex)
-            }
-            .sortedWith(compareByDescending<Triple<OnlineSong, Int, Int>> { it.second }.thenBy { it.third })
-            .map { it.first }
+            // 1. Hard language gate
+            if (seedLanguageKnown && SongContextClassifier.languageConflict(seed, cand)) return@forEachIndexed
 
-        return (listOf(head) + orderedRest) to 0
+            var score = 0
+            if (seedLanguageKnown && cand.language.isNotEmpty()) score += 18
+
+            val opposite = SongContextClassifier.moodOpposes(seed.mood, cand.mood)
+            if (seed.mood.isNotEmpty() && cand.mood.isNotEmpty() && seed.mood.intersect(cand.mood).isNotEmpty()) score += 12
+            if (opposite) score -= 30
+
+            if (seed.genre.isNotEmpty() && cand.genre.isNotEmpty() && seed.genre.intersect(cand.genre).isNotEmpty()) score += 8
+            if (seedArtist.isNotEmpty() && song.artist.trim().lowercase() == seedArtist) score += 6
+            if (isSameNamed(selectedNorm, song.title)) score -= 40
+
+            val item = Scored(song, score, originalIndex, opposite)
+            if (seedLanguageKnown && cand.language.isEmpty()) unknown += item else confirmed += item
+        }
+
+        val byScore = compareByDescending<Scored> { it.score }.thenBy { it.index }
+        confirmed.sortWith(byScore)
+        unknown.sortWith(byScore)
+
+        val result = mutableListOf<OnlineSong>()
+
+        if (!seedLanguageKnown) {
+            // No language gate possible: keep everything, just soft-ordered.
+            confirmed.forEach { result += it.song }
+            return (listOf(head) + result) to 0
+        }
+
+        val good = confirmed.filter { it.score >= 0 && !it.opposite }
+        val weak = confirmed.filter { it.score < 0 || it.opposite }
+
+        good.forEach { result += it.song }
+        if (result.size < MIN_FILL) unknown.take(MIN_FILL - result.size).forEach { result += it.song }
+        if (result.size < MIN_FILL) weak.take(MIN_FILL - result.size).forEach { result += it.song }
+
+        return (listOf(head) + result) to 0
     }
 
     private fun isSameNamed(selectedNorm: String, otherTitle: String): Boolean {

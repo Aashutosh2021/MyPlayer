@@ -93,8 +93,9 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
                     score += 18
                     reasons.add("Language Match")
                 } else {
-                    // Bollywood seed + Hollywood candidate (or vice versa) demotion.
-                    score -= 20
+                    // Bollywood seed + Hollywood candidate (or vice versa): effectively banned
+                    // (also removed by the gate below whenever enough on-vibe songs exist).
+                    score -= 80
                     reasons.add("Language Shift")
                 }
             }
@@ -107,6 +108,11 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
                     // Happy seed me sad/actor track bahut neeche.
                     score -= 6
                     reasons.add("Mood Shift")
+                }
+                if (SongContextClassifier.moodOpposes(seedContext.mood, candidateContext.mood)) {
+                    // Clearly opposite energy (upbeat <-> sad/slow): push far down.
+                    score -= 25
+                    reasons.add("Mood Opposite")
                 }
             }
 
@@ -152,8 +158,14 @@ class SmartRankingStrategy @Inject constructor() : RecommendationStrategy {
             )
         }.sortedByDescending { it.recommendationScore }
 
+        // Continuity gate: a clear language shift (Bollywood -> Hollywood) is removed outright
+        // while at least 5 on-vibe candidates remain; otherwise keep it (ranked last) so the
+        // queue never runs dry.
+        val onVibe = scoredList.filterNot { it.reason.contains("Language Shift") }
+        val pool = if (onVibe.size >= 5) onVibe else scoredList
+
         // 5. Diversity Interleaving: Enforce Artist and Album Caps
-        return applyDiversityCaps(scoredList)
+        return applyDiversityCaps(pool)
     }
 
     /**
