@@ -40,8 +40,24 @@ fun TrendingScreen(
     bottomPadding: Dp = 100.dp,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingRecommendations.collectAsStateWithLifecycle()
+    val recommendations by viewModel.hotlistSongs.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingHotlist.collectAsStateWithLifecycle()
+    val selectedLanguages by viewModel.selectedLanguages.collectAsStateWithLifecycle()
+    val selectedGenres by viewModel.selectedGenres.collectAsStateWithLifecycle()
+    val selectedArtists by viewModel.selectedArtists.collectAsStateWithLifecycle()
+    val showTasteOnboarding by viewModel.showTasteOnboarding.collectAsStateWithLifecycle()
+
+    if (showTasteOnboarding) {
+        com.example.myplayer.ui.screens.home.TasteOnboardingDialog(
+            initialLanguages = selectedLanguages,
+            initialGenres = selectedGenres,
+            initialArtists = selectedArtists,
+            onDismiss = { viewModel.dismissTasteSelector() },
+            onSave = { langs, genres, artists ->
+                viewModel.saveUserTastePreferences(langs, genres, artists)
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -99,6 +115,31 @@ fun TrendingScreen(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+
+        val tasteSummary = remember(selectedLanguages, selectedGenres) {
+            val parts = (selectedLanguages.take(2) + selectedGenres.take(2))
+            if (parts.isEmpty()) "Global Viral • All Languages" else "World Trending • ${parts.joinToString(" • ")}"
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = tasteSummary,
+                style = MaterialTheme.typography.labelMedium,
+                color = NeonLimePrimary
+            )
+            Text(
+                text = "Change Taste",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { viewModel.openTasteSelector() }
+            )
         }
 
         if (isLoading && recommendations.isEmpty()) {

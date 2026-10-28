@@ -546,6 +546,135 @@ class OnDeviceMusicAiModel @Inject constructor(
     }
 
     /**
+     * Generates the "Hotlist" (World Trending Songs tailored to User's Set Taste):
+     * Combines Global Viral Charts + Trending Charts in User's Selected Languages & Genres
+     * + Latest Viral Hits from User's Favorite Artists.
+     */
+    suspend fun generateWorldTrendingHotlist(limit: Int = 50): List<RecommendationSong> = withContext(Dispatchers.IO) {
+        val chosenLanguages = getSelectedLanguages().toList()
+        val chosenGenres = getSelectedGenres().toList()
+        val chosenArtists = getSelectedArtists().toList()
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+
+        // If user hasn't picked artists in onboarding yet, fallback to top 2 learned artists from history
+        val historyArtists = loadHistoryEntries()
+            .filter { it.score > 0f }
+            .sortedByDescending { it.score }
+            .map { it.artist.split(",", "&", "feat.", "ft.").first().trim() }
+            .filter { it.length >= 2 && !it.equals("Unknown Artist", true) }
+            .distinct()
+            .take(2)
+
+        val effectiveArtists = (chosenArtists.shuffled().take(3) + historyArtists).distinct().take(3)
+
+        // Build World + Taste-Matched Trending Queries
+        // Pair(query, baseChartWeight)
+        val trendingQueries = buildList<Pair<String, Float>> {
+            // 1. Language-Specific World Trending & Viral Charts (Highest Priority)
+            if (chosenLanguages.isNotEmpty()) {
+                chosenLanguages.shuffled().take(3).forEachIndexed { idx, lang ->
+                    add("Top Trending $lang Songs $currentYear Viral Hits" to (14.0f - idx))
+                    add("$lang Top 50 Chart Hits Right Now" to (12.5f - idx))
+                }
+            }
+
+            // 2. Language + Genre Trending Charts (e.g., "Trending Punjabi Hip-Hop Hits 2026")
+            if (chosenLanguages.isNotEmpty() && chosenGenres.isNotEmpty()) {
+                val lang = chosenLanguages.random()
+                chosenGenres.shuffled().take(2).forEach { genre ->
+                    add("Trending $lang $genre Songs $currentYear" to 12.0f)
+                }
+            } else if (chosenGenres.isNotEmpty()) {
+                chosenGenres.shuffled().take(2).forEach { genre ->
+                    add("World Top Trending $genre Songs $currentYear" to 11.5f)
+                }
+            }
+
+            // 3. Latest Trending / Viral Releases from User's Favorite Artists
+            effectiveArtists.forEachIndexed { idx, artist ->
+                add("$artist latest trending hit song $currentYear" to (11.0f - idx))
+            }
+
+            // 4. Global / Worldwide Viral Charts (So global monster hits are always included)
+            add("Global Top 50 Trending Songs Worldwide $currentYear" to 10.5f)
+            add("Viral Hits Worldwide Top Music Chart $currentYear" to 9.5f)
+        }.take(8) // Cap parallel queries at 8 for fast loading
+
+        val candidatePool = java.util.concurrent.ConcurrentHashMap<String, OnlineSong>()
+        val trendingBonusMap = java.util.concurrent.ConcurrentHashMap<String, Float>()
+
+        fun registerTrendingCandidate(song: OnlineSong, chartBonus: Float) {
+            if (song.videoId.isBlank()) return
+            candidatePool.putIfAbsent(song.videoId, song)
+            // If a song appears in multiple trending charts, its viral score stacks!
+            trendingBonusMap[song.videoId] = (trendingBonusMap[song.videoId] ?: 0f) + chartBonus
+        }
+
+        coroutineScope {
+            trendingQueries.map { (query, baseWeight) ->
+                async {
+                    try {
+                        val tracks = innertubeApi.search(query, filtered = true).songs
+                        tracks.take(12).forEachIndexed { rankIdx, track ->
+                            val rankFactor = (1.0f - (rankIdx * 0.055f)).coerceAtLeast(0.3f)
+                            registerTrendingCandidate(track, baseWeight * rankFactor)
+                        }
+                    } catch (_: Exception) {}
+                }
+            }.awaitAll()
+        }
+
+        // Rank by (Trending Chart Viral Score + 128-D User Taste Affinity + Chosen Taste Match)
+        val scored = candidatePool.values
+            .map { cand ->
+                val chartScore = trendingBonusMap[cand.videoId] ?: 0f
+                val tasteSim = predictAffinityScore(cand) // -1.0f to +1.0f
+                val matchesChosenArtist = chosenArtists.any {
+                    cand.artist.contains(it, ignoreCase = true) || cand.title.contains(it, ignoreCase = true)
+                }
+                val artistMatchBonus = if (matchesChosenArtist) 4.0f else 0f
+                val totalHotlistScore = chartScore + (tasteSim * 6.0f) + artistMatchBonus
+                cand to totalHotlistScore
+            }
+            .sortedByDescending { it.second }
+
+        // Artist Diversification: Max 2 songs per artist so Hotlist looks like a real Top 50 Chart!
+        val diversified = mutableListOf<OnlineSong>()
+        val overflow = mutableListOf<OnlineSong>()
+        val artistCount = mutableMapOf<String, Int>()
+
+        for ((cand, _) in scored) {
+            val primaryArtist = cand.artist
+                .split(",", "&", "feat.", "ft.", "|", "/")
+                .firstOrNull()
+                ?.replace(Regex("(?i)-\\s*topic"), "")
+                ?.trim()
+                ?.lowercase() ?: cand.artist.lowercase()
+
+            val c = artistCount[primaryArtist] ?: 0
+            if (c < 2) {
+                diversified.add(cand)
+                artistCount[primaryArtist] = c + 1
+            } else {
+                overflow.add(cand)
+            }
+        }
+
+        (diversified + overflow)
+            .take(limit)
+            .map { online ->
+                RecommendationSong(
+                    videoId = online.videoId,
+                    title = online.title,
+                    artist = online.artist,
+                    thumbnailUrl = online.thumbnailUrl,
+                    durationMs = online.durationMs,
+                    source = "world_hotlist_taste"
+                )
+            }
+    }
+
+    /**
      * Embeds (title, artist, duration) into a 128-D L2-normalized vector.
      */
     fun embedSong(title: String, artist: String, durationMs: Long = 0L): FloatArray {

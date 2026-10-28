@@ -94,7 +94,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             aiModel.saveUserTasteProfile(languages, genres, artists)
             _categoryRecommendations.value = emptyMap()
-            refreshAiRecommendations()
+            // Refresh BOTH Home feed and World Trending Hotlist according to new taste!
+            launch { refreshAiRecommendations() }
+            launch { refreshTrendingMusic() }
         }
     }
 
@@ -117,6 +119,12 @@ class HomeViewModel @Inject constructor(
 
     private val _isLoadingRecommendations = MutableStateFlow(true)
     val isLoadingRecommendations: StateFlow<Boolean> = _isLoadingRecommendations.asStateFlow()
+
+    private val _hotlistSongs = MutableStateFlow<List<RecommendationSong>>(emptyList())
+    val hotlistSongs: StateFlow<List<RecommendationSong>> = _hotlistSongs.asStateFlow()
+
+    private val _isLoadingHotlist = MutableStateFlow(true)
+    val isLoadingHotlist: StateFlow<Boolean> = _isLoadingHotlist.asStateFlow()
 
     val userName: StateFlow<String> = settingsDataStore.userName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
@@ -178,13 +186,17 @@ class HomeViewModel @Inject constructor(
     val isPlaying = musicController.isPlaying
 
     init {
-        // 1. Load initial recommendations first
+        // 1. Load initial Home recommendations & World Trending Hotlist in parallel
         viewModelScope.launch(Dispatchers.IO) {
-            refreshAiRecommendations()
-            // Prefetch top 2 recommended songs in background so clicking them is 0ms instant!
-            val topIds = _aiRecommendations.value.take(2).map { it.videoId }
-            if (topIds.isNotEmpty()) {
-                innertubeApi.prefetchVisibleStreams(topIds)
+            launch {
+                refreshAiRecommendations()
+                val topIds = _aiRecommendations.value.take(2).map { it.videoId }
+                if (topIds.isNotEmpty()) {
+                    innertubeApi.prefetchVisibleStreams(topIds)
+                }
+            }
+            launch {
+                refreshTrendingMusic()
             }
         }
 
@@ -285,8 +297,18 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refreshTrendingMusic() {
-        viewModelScope.launch {
-            refreshAiRecommendations()
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingHotlist.value = true
+            try {
+                val worldTrending = aiModel.generateWorldTrendingHotlist(limit = 50)
+                if (worldTrending.isNotEmpty()) {
+                    _hotlistSongs.value = worldTrending
+                    // Prefetch top 2 Hotlist songs so tapping Play on Hotlist is 0ms instant!
+                    innertubeApi.prefetchVisibleStreams(worldTrending.take(2).map { it.videoId })
+                }
+            } finally {
+                _isLoadingHotlist.value = false
+            }
         }
     }
 

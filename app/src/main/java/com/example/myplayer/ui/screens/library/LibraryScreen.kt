@@ -37,18 +37,35 @@ import androidx.compose.ui.res.painterResource
 import com.example.myplayer.R
 import com.example.myplayer.ui.common.AlbumArtImage
 import com.example.myplayer.ui.theme.*
+import com.example.myplayer.ui.mochy.*
 
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit,
     onPlaySong: (List<PlayableSong>, Int) -> Unit,
     onNavigateToSettings: () -> Unit = {},
+    mochyState: MochyUiStateHolder? = null,
+    onOpenCustomizeStyles: () -> Unit = {},
+    onOpenAudioLab: () -> Unit = {},
+    onOpenAppearance: () -> Unit = {},
     bottomPadding: Dp = 100.dp,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
     val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
+
+    var showProfileSheet by remember { mutableStateOf(false) }
+
+    if (showProfileSheet && mochyState != null) {
+        MochyProfileSheetDialog(
+            mochyState = mochyState,
+            totalListeningHours = (downloadedSongs.size * 3) / 60,
+            totalListeningMinutes = (downloadedSongs.size * 3) % 60,
+            onDismiss = { showProfileSheet = false },
+            onOpenSettings = onNavigateToSettings
+        )
+    }
 
     // Persisted across navigation (NavHost's rememberSaveableStateHolder):
     // previously a plain remember reset the section to Downloaded every time the
@@ -265,26 +282,49 @@ fun LibraryScreen(
                 }
             }
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
-                        .clickable(onClick = onNavigateToSettings),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    if (mochyState != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
+                                .clickable { showProfileSheet = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Badge,
+                                contentDescription = "Profile ID",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
+                            .clickable(onClick = onNavigateToSettings),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
         // ── Stitch Screen 8: Category Filter Chips ────────────────────────────
-        val categoryTabs = remember { listOf("Downloaded", "Playlists") }
+        val categoryTabs = remember { listOf("Downloaded", "Playlists", "Overview") }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -328,39 +368,41 @@ fun LibraryScreen(
             }
         }
 
-        // ── Stitch Screen 8: Sort & Action Row ────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        if (selectedTab != 2) {
+            // ── Stitch Screen 8: Sort & Action Row ────────────────────────────────
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { /* Toggle sort */ }
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Filled.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = if (selectedTab == 0) "Alphabetical" else "Recently Added",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
-                        .clickable { showCreatePlaylistDialog = true },
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { /* Toggle sort */ }
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "New Playlist", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (selectedTab == 0) "Alphabetical" else "Recently Added",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
+                            .clickable { showCreatePlaylistDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "New Playlist", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }
@@ -373,7 +415,7 @@ fun LibraryScreen(
                 onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
-            else -> PlaylistsTab(
+            1 -> PlaylistsTab(
                 playlists = playlists,
                 favoriteSongs = favoriteSongs,
                 onPlayFavoriteSongs = { onPlaySong(favoriteSongs, 0) },
@@ -384,6 +426,16 @@ fun LibraryScreen(
                     renameInput = playlist.name
                 },
                 onPlaylistClick = onPlaylistClick,
+                bottomPadding = bottomPadding
+            )
+            else -> MochyOverviewTab(
+                mochyState = mochyState,
+                downloadedCount = downloadedSongs.size,
+                favoriteCount = favoriteSongs.size,
+                onOpenCustomizeStyles = onOpenCustomizeStyles,
+                onOpenAudioLab = onOpenAudioLab,
+                onOpenAppearance = onOpenAppearance,
+                onOpenProfile = { showProfileSheet = true },
                 bottomPadding = bottomPadding
             )
         }
@@ -867,3 +919,173 @@ private fun formatDate(timestamp: Long): String {
 }
 
 
+
+@Composable
+fun MochyOverviewTab(
+    mochyState: MochyUiStateHolder?,
+    downloadedCount: Int,
+    favoriteCount: Int,
+    onOpenCustomizeStyles: () -> Unit,
+    onOpenAudioLab: () -> Unit,
+    onOpenAppearance: () -> Unit,
+    onOpenProfile: () -> Unit,
+    bottomPadding: Dp
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Metallic Profile ID Card
+        item {
+            MochyProfileIdCard(
+                username = mochyState?.username ?: "MyPlayer Audiophile",
+                profileId = "MP-2026",
+                joinedDate = "MAR 2026",
+                onEditClick = onOpenProfile,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenProfile() }
+            )
+        }
+
+        // Platform Counts Grid
+        item {
+            Text(
+                text = "PLATFORM SYNC & STATS",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(start = 4.dp, top = 6.dp)
+            )
+        }
+        item {
+            MochyPlatformCountGrid(
+                spotifyCount = favoriteCount,
+                youtubeCount = downloadedCount
+            )
+        }
+
+        // Mochy UI Actions
+        item {
+            Text(
+                text = "PLAYER & AUDIO ENGINE",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(start = 4.dp, top = 6.dp)
+            )
+        }
+
+        // 1. Customize Player Styles
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenCustomizeStyles)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Palette, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Customize Player Styles", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "Style: ${mochyState?.playerStyle?.title ?: "Radial (MyPlayer)"} • Tap to switch",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+
+        // 2. Audio Lab & 10-Band EQ
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenAudioLab)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Tune, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Audio Lab & Equalizer", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "10-Band Sweepable EQ • Rainbow Visualizer • Audio FX",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+
+        // 3. Mochy Appearance Settings
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenAppearance)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Appearance & Visuals", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "Bloom, Audio Format Badges, Blurs & Animations",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+    }
+}

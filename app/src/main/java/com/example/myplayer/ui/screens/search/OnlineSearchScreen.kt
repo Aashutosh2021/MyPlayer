@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
@@ -35,6 +36,7 @@ import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.local.entity.RecentSearchEntity
 import com.example.myplayer.data.local.entity.PlayedSongHistoryEntity
 import com.example.myplayer.ui.components.ClayIconButton
+import com.example.myplayer.ui.mochy.*
 import com.example.myplayer.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -273,48 +275,71 @@ fun SearchHistorySection(
         )
     }
 
-    if (playedHistory.isEmpty() && searches.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(90.dp)
-                        .clayConcave(borderRadius = 45.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.History,
-                        null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(44.dp)
-                    )
-                }
-                Spacer(Modifier.height(20.dp))
-                Text(
-                    "No Played Songs History",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Songs you play in the last 15 days (online or downloaded) will appear here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-        return
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // ── Mochy Moods & Moments ──────────────────────────────────────────
+        item {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Moods & Moments",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Mochy AI",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    items(MOCHY_MOODS.size) { idx ->
+                        val mood = MOCHY_MOODS[idx]
+                        MochyMoodGenreCard(
+                            item = mood,
+                            onClick = { onSearchClick(mood.title) },
+                            modifier = Modifier.width(160.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Mochy Explore Genres ───────────────────────────────────────────
+        item {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Text(
+                    text = "Explore Genres",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    items(MOCHY_GENRES.size) { idx ->
+                        val genre = MOCHY_GENRES[idx]
+                        MochyMoodGenreCard(
+                            item = genre,
+                            onClick = { onSearchClick(genre.title) },
+                            modifier = Modifier.width(160.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         if (playedHistory.isNotEmpty()) {
             item {
                 Row(

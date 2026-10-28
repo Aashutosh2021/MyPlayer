@@ -35,6 +35,7 @@ import com.example.myplayer.data.update.UpdateChecker
 import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.components.WhatsNewDialog
 import com.example.myplayer.ui.theme.*
+import com.example.myplayer.ui.mochy.*
 
 @Composable
 fun SettingsScreen(
@@ -42,6 +43,10 @@ fun SettingsScreen(
     onNavigateToDualBud: () -> Unit = {},
     onNavigateToSyncPlay: () -> Unit = {},
     onNavigateToAudioPlayback: (() -> Unit)? = null,
+    mochyState: MochyUiStateHolder? = null,
+    onNavigateToPlayerStyles: () -> Unit = {},
+    onNavigateToMochyAppearance: () -> Unit = {},
+    onNavigateToMochyAudioLab: () -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 120.dp,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -71,6 +76,17 @@ fun SettingsScreen(
     }
 
     var showNameDialog by remember { mutableStateOf(false) }
+    var showProfileSheet by remember { mutableStateOf(false) }
+
+    if (showProfileSheet && mochyState != null) {
+        MochyProfileSheetDialog(
+            mochyState = mochyState,
+            totalListeningHours = 12,
+            totalListeningMinutes = 45,
+            onDismiss = { showProfileSheet = false },
+            onOpenSettings = {}
+        )
+    }
     var editNameInput by remember { mutableStateOf("") }
     var showWhatsNewDialog by remember { mutableStateOf(false) }
 
@@ -457,6 +473,17 @@ fun SettingsScreen(
             )
         }
 
+        if (mochyState != null) {
+            item {
+                SettingsNavigationRow(
+                    icon = Icons.Filled.Badge,
+                    title = "Mochy Metallic ID & Stats Card",
+                    subtitle = "View your personalized VIP card & listening stats",
+                    onClick = { showProfileSheet = true }
+                )
+            }
+        }
+
         // Section: Appearance
         item { SettingsSectionHeader(title = "Appearance") }
 
@@ -469,6 +496,24 @@ fun SettingsScreen(
                 onCheckedChange = { enabled ->
                     ThemeState.setDark(enabled)
                 }
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Palette,
+                title = "Customize Player Styles",
+                subtitle = "Active: ${mochyState?.playerStyle?.title ?: "Radial (MyPlayer)"} • 6 Unique Styles",
+                onClick = onNavigateToPlayerStyles
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = "Mochy Visual & Audio Effects",
+                subtitle = "Bloom pass, Audio format badges, Glass blur & animations",
+                onClick = onNavigateToMochyAppearance
             )
         }
 
@@ -487,6 +532,15 @@ fun SettingsScreen(
                         showAudioPlaybackScreen = true
                     }
                 }
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Tune,
+                title = "Mochy Audio Lab & 10-Band EQ",
+                subtitle = "10-Band Sweepable EQ, Rainbow Visualizer, 3D Reverb & Dolby Atmos",
+                onClick = onNavigateToMochyAudioLab
             )
         }
 

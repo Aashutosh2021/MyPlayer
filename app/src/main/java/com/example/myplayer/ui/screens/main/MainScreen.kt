@@ -40,9 +40,16 @@ import com.example.myplayer.ui.screens.nowplaying.NowPlayingScreen
 import com.example.myplayer.ui.screens.search.SearchScreen
 import com.example.myplayer.ui.screens.settings.SettingsScreen
 import com.example.myplayer.ui.theme.CloudBlueBackground
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.myplayer.ui.mochy.*
 
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
+    val homeViewModel: com.example.myplayer.ui.screens.home.HomeViewModel = hiltViewModel()
+    val mochyState = rememberMochyUiStateHolder()
+    var showStylePicker by remember { mutableStateOf(false) }
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -81,8 +88,38 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.MochyAudioLab.route, Screen.MochyEqualizer.route, Screen.MochyAppearance.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
+
+    if (!mochyState.onboardingDone) {
+        MochyOnboardingFlow(
+            mochyState = mochyState,
+            onComplete = { username, selectedArtists ->
+                mochyState.completeOnboarding(username, selectedArtists)
+                homeViewModel.saveUserTastePreferences(
+                    setOf("Hindi", "Punjabi"),
+                    setOf("Bollywood", "Pop"),
+                    selectedArtists
+                )
+            }
+        )
+        return
+    }
+
+    if (showStylePicker) {
+        Dialog(
+            onDismissRequest = { showStylePicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            MochyPlayerStylesPickerScreen(
+                mochyState = mochyState,
+                previewTitle = displayTitle ?: "Khat",
+                previewArtist = displayArtist ?: "Navjot Ahuja",
+                previewArtUri = displayArt,
+                onBack = { showStylePicker = false }
+            )
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -258,6 +295,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route)
                     },
+                    mochyState = mochyState,
+                    onOpenCustomizeStyles = { showStylePicker = true },
+                    onOpenAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
+                    onOpenAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
                     bottomPadding = 16.dp
                 )
             }
@@ -310,37 +351,73 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val currentAudioQuality by viewModel.currentAudioQuality.collectAsStateWithLifecycle()
                 val positionState = viewModel.currentPosition.collectAsStateWithLifecycle()
                 val queue by viewModel.playbackQueue.collectAsStateWithLifecycle()
-                NowPlayingScreen(
-                    canDownload = canDownload,
-                    isDownloaded = isDownloaded,
-                    isDownloading = isDownloading,
-                    onDownloadClick = { viewModel.downloadCurrentSong() },
-                    onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
-                    audioQuality = currentAudioQuality,
-                    title = displayTitle,
-                    artist = displayArtist,
-                    artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
-                    durationMs = durationMs,
-                    isPlaying = isPlaying,
-                    positionState = positionState,
-                    onPlayPauseClick = { viewModel.playPause() },
-                    onNextClick = { viewModel.skipToNext() },
-                    onPreviousClick = { viewModel.skipToPrevious() },
-                    onSeek = { viewModel.seekTo(it) },
-                    onBackClick = { navController.popBackStack() },
-                    isFavorite = isFavorite,
-                    onToggleFavorite = { viewModel.toggleFavorite() },
-                    sleepTimerRemaining = sleepTimerRemaining,
-                    onStartSleepTimer = { viewModel.startSleepTimer(it) },
-                    onCancelSleepTimer = { viewModel.cancelSleepTimer() },
-                    isShuffleOn = isShuffleOn,
-                    onToggleShuffle = { viewModel.toggleShuffle() },
-                    repeatMode = repeatMode,
-                    onCycleRepeatMode = { viewModel.cycleRepeatMode() },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
-                    queue = queue,
-                    onPlayQueueIndex = { viewModel.playQueueIndex(it) }
-                )
+                val lyricsViewModel: com.example.myplayer.ui.screens.nowplaying.LyricsViewModel = hiltViewModel()
+
+                val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                val isTabletLayout = configuration.screenWidthDp >= 600 ||
+                    configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+                if (isTabletLayout) {
+                    NowPlayingScreen(
+                        canDownload = canDownload,
+                        isDownloaded = isDownloaded,
+                        isDownloading = isDownloading,
+                        onDownloadClick = { viewModel.downloadCurrentSong() },
+                        onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
+                        audioQuality = currentAudioQuality,
+                        title = displayTitle,
+                        artist = displayArtist,
+                        artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
+                        durationMs = durationMs,
+                        isPlaying = isPlaying,
+                        positionState = positionState,
+                        onPlayPauseClick = { viewModel.playPause() },
+                        onNextClick = { viewModel.skipToNext() },
+                        onPreviousClick = { viewModel.skipToPrevious() },
+                        onSeek = { viewModel.seekTo(it) },
+                        onBackClick = { navController.popBackStack() },
+                        isFavorite = isFavorite,
+                        onToggleFavorite = { viewModel.toggleFavorite() },
+                        sleepTimerRemaining = sleepTimerRemaining,
+                        onStartSleepTimer = { viewModel.startSleepTimer(it) },
+                        onCancelSleepTimer = { viewModel.cancelSleepTimer() },
+                        isShuffleOn = isShuffleOn,
+                        onToggleShuffle = { viewModel.toggleShuffle() },
+                        repeatMode = repeatMode,
+                        onCycleRepeatMode = { viewModel.cycleRepeatMode() },
+                        onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                        queue = queue,
+                        onPlayQueueIndex = { viewModel.playQueueIndex(it) }
+                    )
+                } else {
+                    MochyMultiStyleNowPlayingScreen(
+                        mochyState = mochyState,
+                        title = displayTitle,
+                        artist = displayArtist,
+                        artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
+                        durationMs = durationMs,
+                        isPlaying = isPlaying,
+                        positionState = positionState,
+                        onPlayPauseClick = { viewModel.playPause() },
+                        onNextClick = { viewModel.skipToNext() },
+                        onPreviousClick = { viewModel.skipToPrevious() },
+                        onSeek = { viewModel.seekTo(it) },
+                        onBackClick = { navController.popBackStack() },
+                        isFavorite = isFavorite,
+                        onToggleFavorite = { viewModel.toggleFavorite() },
+                        isShuffleOn = isShuffleOn,
+                        onToggleShuffle = { viewModel.toggleShuffle() },
+                        repeatMode = repeatMode,
+                        onCycleRepeatMode = { viewModel.cycleRepeatMode() },
+                        canDownload = canDownload,
+                        isDownloaded = isDownloaded,
+                        isDownloading = isDownloading,
+                        onDownloadClick = { viewModel.downloadCurrentSong() },
+                        audioQuality = currentAudioQuality,
+                        onOpenCustomizeStyles = { showStylePicker = true },
+                        lyricsViewModel = lyricsViewModel
+                    )
+                }
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
@@ -356,7 +433,32 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
                     onNavigateToSyncPlay = { navController.navigate(Screen.SyncPlay.route) { launchSingleTop = true } },
                     onNavigateToAudioPlayback = { navController.navigate(Screen.AudioPlayback.route) { launchSingleTop = true } },
+                    mochyState = mochyState,
+                    onNavigateToPlayerStyles = { showStylePicker = true },
+                    onNavigateToMochyAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
+                    onNavigateToMochyAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
                     bottomPadding = 16.dp
+                )
+            }
+            composable(Screen.MochyAudioLab.route) {
+                MochyAudioLabHubScreen(
+                    mochyState = mochyState,
+                    onOpenEqualizer = { navController.navigate(Screen.MochyEqualizer.route) { launchSingleTop = true } },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.MochyEqualizer.route) {
+                MochyEqualizerScreen(
+                    mochyState = mochyState,
+                    onApplyGainsToEngine = { _, _, _ -> },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.MochyAppearance.route) {
+                MochyAppearanceSettingsScreen(
+                    mochyState = mochyState,
+                    onOpenStylesPicker = { showStylePicker = true },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.DualBud.route) {
