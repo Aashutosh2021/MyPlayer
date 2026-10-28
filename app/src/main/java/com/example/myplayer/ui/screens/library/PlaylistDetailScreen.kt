@@ -83,7 +83,7 @@ fun PlaylistDetailScreen(
                         viewModel.deleteDownload(song.id)
                         songToRemoveDownload = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Remove") }
             },
             dismissButton = {
@@ -568,14 +568,14 @@ fun PlaylistSongRow(
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Remove", color = Color(0xFFBA1A1A)) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                    text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
                     onClick = { showMenu = false; onRemove() }
                 )
                 if (song is PlayableSong.Downloaded && onRemoveDownload != null) {
                     DropdownMenuItem(
-                        text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
-                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                        text = { Text("Remove Download", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
                         onClick = { showMenu = false; onRemoveDownload() }
                     )
                 }

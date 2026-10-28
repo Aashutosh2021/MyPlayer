@@ -55,7 +55,7 @@ fun DownloadsScreen(
                         viewModel.deleteSong(song)
                         songToDelete = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Remove") }
             },
             dismissButton = {
@@ -118,7 +118,7 @@ fun DownloadsScreen(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFECEFF4)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -317,8 +317,8 @@ fun DownloadedSongItem(
                     onClick = { showMenu = false; onPlayClick() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete", color = Color(0xFFBA1A1A)) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
                     onClick = { showMenu = false; onDeleteClick() }
                 )
             }

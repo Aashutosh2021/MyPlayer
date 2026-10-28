@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.ui.theme.CharcoalPrimary
+import com.example.myplayer.ui.theme.ThemeState
 import com.example.myplayer.ui.theme.PureWhite
 import com.example.myplayer.ui.theme.SlateSecondary
 import com.example.myplayer.ui.theme.SilverMuted
@@ -107,7 +108,7 @@ fun NowPlayingVisual(
         label = "radialProgress"
     )
 
-    val isDark = MaterialTheme.colorScheme.background == CharcoalPrimary
+    val isDark = ThemeState.isDarkMode
 
     val bgMain = if (isDark) PlayerBlack else PureWhite
     val textPrimary = if (isDark) PlayerWhite else CharcoalPrimary

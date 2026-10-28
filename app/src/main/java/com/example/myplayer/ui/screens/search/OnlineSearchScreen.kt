@@ -84,7 +84,7 @@ fun OnlineSearchScreen(
                         viewModel.deleteDownload(songToRemoveDownload!!.videoId)
                         songToRemoveDownload = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Remove") }
             },
             dismissButton = {
@@ -444,7 +444,7 @@ fun SearchHistorySection(
                             if (!song.isOnline) {
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFF2E7D32).copy(alpha = 0.15f)
+                                    color = if (ThemeState.isDarkMode) Color(0xFF66BB6A) else Color(0xFF2E7D32).copy(alpha = 0.15f)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -453,14 +453,14 @@ fun SearchHistorySection(
                                         Icon(
                                             imageVector = Icons.Filled.FileDownloadDone,
                                             contentDescription = null,
-                                            tint = Color(0xFF2E7D32),
+                                            tint = if (ThemeState.isDarkMode) Color(0xFF66BB6A) else Color(0xFF2E7D32),
                                             modifier = Modifier.size(11.dp)
                                         )
                                         Spacer(Modifier.width(2.dp))
                                         Text(
                                             text = "Downloaded",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                            color = Color(0xFF2E7D32),
+                                            color = if (ThemeState.isDarkMode) Color(0xFF66BB6A) else Color(0xFF2E7D32),
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -676,7 +676,7 @@ fun OnlineResultsList(
                     Spacer(Modifier.height(24.dp))
                     Text("Couldn't reach server", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(4.dp))
-                    Text(e.message ?: "Unknown error", style = MaterialTheme.typography.bodySmall, color = Color(0xFFBA1A1A))
+                    Text(e.message ?: "Unknown error", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { results.retry() }, colors = ButtonDefaults.buttonColors(containerColor = ClayPrimary)) { Text("Retry") }
                 }
@@ -878,8 +878,8 @@ fun OnlineSongCard(
                         )
                         if (isDownloaded) {
                             DropdownMenuItem(
-                                text = { Text("Remove Download", color = Color(0xFFBA1A1A)) },
-                                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFBA1A1A)) },
+                                text = { Text("Remove Download", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     showMenu = false
                                     onRemoveDownloadClick()

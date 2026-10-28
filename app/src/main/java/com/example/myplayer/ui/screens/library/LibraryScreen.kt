@@ -94,7 +94,7 @@ fun LibraryScreen(
                         viewModel.deleteDownload(song.id)
                         songToRemoveDownload = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Remove", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -212,7 +212,7 @@ fun LibraryScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF4F6F9))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                                     .clickable {
                                         viewModel.addSongToPlaylist(playlist.id, song)
                                         songToAddToPlaylist = null
@@ -663,8 +663,8 @@ fun HybridSongItem(
                     )
                     if (song is PlayableSong.Downloaded) {
                         DropdownMenuItem(
-                            text = { Text("Remove Download", color = Color(0xFFD32F2F)) },
-                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFD32F2F)) },
+                            text = { Text("Remove Download", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
                             onClick = { showMenu = false; onRemoveDownload() }
                         )
                     }
@@ -806,7 +806,7 @@ fun PlaylistsTab(
                             modifier = Modifier
                                 .size(80.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFECEFF4)),
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.AutoMirrored.Filled.QueueMusic, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -837,7 +837,7 @@ fun PlaylistsTab(
                                     onDeletePlaylist(playlist)
                                     showDeleteConfirm = false
                                 },
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFBA1A1A))
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) { Text("Delete", fontWeight = FontWeight.Bold) }
                         },
                         dismissButton = {

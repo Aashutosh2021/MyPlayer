@@ -101,7 +101,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF16181F)),
+                    .background(if (ThemeState.isDarkMode) Color(0xFF16181F) else Color(0xFFECEFF4)),
                 contentAlignment = Alignment.Center
             ) {
                 AlbumArtImage(

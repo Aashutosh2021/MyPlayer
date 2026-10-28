@@ -51,7 +51,7 @@ fun LyricsTab(
     onRetryLyrics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = MaterialTheme.colorScheme.background == CharcoalPrimary
+    val isDark = ThemeState.isDarkMode
     val textColor = if (isDark) Color.White else CharcoalPrimary
     val textMuted = if (isDark) Color.White.copy(alpha = 0.7f) else SlateSecondary
     val iconBg = if (isDark) Color.White.copy(alpha = 0.08f) else CharcoalPrimary.copy(alpha = 0.06f)
@@ -209,7 +209,7 @@ private fun SyncedLyricsView(
     positionMs: State<Long>,
     onSeek: (Long) -> Unit
 ) {
-    val isDark = MaterialTheme.colorScheme.background == CharcoalPrimary
+    val isDark = ThemeState.isDarkMode
     val baseColor = if (isDark) Color.White else CharcoalPrimary
 
     // Read positionMs.value INSIDE derivedStateOf so Compose tracks it as a
@@ -296,7 +296,7 @@ private fun SyncedLyricsView(
 
 @Composable
 private fun PlainLyricsView(text: String) {
-    val isDark = MaterialTheme.colorScheme.background == CharcoalPrimary
+    val isDark = ThemeState.isDarkMode
     val textColor = if (isDark) Color.White else CharcoalPrimary
 
     LazyColumn(

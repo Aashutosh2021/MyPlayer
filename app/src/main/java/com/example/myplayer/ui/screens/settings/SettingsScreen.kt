@@ -763,7 +763,7 @@ private fun MochySectionHeader(title: String) {
         color = Color(0xFF8E8E93),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, top = 22.dp, bottom = 6.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 6.dp)
     )
 }
 

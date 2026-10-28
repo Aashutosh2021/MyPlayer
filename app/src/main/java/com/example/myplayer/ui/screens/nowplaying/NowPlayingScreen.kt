@@ -139,7 +139,7 @@ fun NowPlayingScreen(
             confirmButton = {
                 TextButton(
                     onClick = { onRemoveDownloadClick(); showRemoveConfirm = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD32F2F))
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Remove") }
             },
             dismissButton = {
