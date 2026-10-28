@@ -248,6 +248,15 @@ class MasterAudioDspProcessor @Inject constructor() : BaseAudioProcessor() {
             }
         }
 
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.processBuffer(
+            outputBuffer,
+            positionBefore,
+            frameCount,
+            channelCount,
+            isFloat,
+            inputAudioFormat.sampleRate
+        )
+
         outputBuffer.position(positionBefore + remaining)
         outputBuffer.flip()
     }

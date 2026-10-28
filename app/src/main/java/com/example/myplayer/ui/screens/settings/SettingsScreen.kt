@@ -76,17 +76,6 @@ fun SettingsScreen(
     }
 
     var showNameDialog by remember { mutableStateOf(false) }
-    var showProfileSheet by remember { mutableStateOf(false) }
-
-    if (showProfileSheet && mochyState != null) {
-        MochyProfileSheetDialog(
-            mochyState = mochyState,
-            totalListeningHours = 12,
-            totalListeningMinutes = 45,
-            onDismiss = { showProfileSheet = false },
-            onOpenSettings = {}
-        )
-    }
     var editNameInput by remember { mutableStateOf("") }
     var showWhatsNewDialog by remember { mutableStateOf(false) }
 
@@ -473,16 +462,6 @@ fun SettingsScreen(
             )
         }
 
-        if (mochyState != null) {
-            item {
-                SettingsNavigationRow(
-                    icon = Icons.Filled.Badge,
-                    title = "Mochy Metallic ID & Stats Card",
-                    subtitle = "View your personalized VIP card & listening stats",
-                    onClick = { showProfileSheet = true }
-                )
-            }
-        }
 
         // Section: Appearance
         item { SettingsSectionHeader(title = "Appearance") }
@@ -525,6 +504,15 @@ fun SettingsScreen(
                         showAudioPlaybackScreen = true
                     }
                 }
+            )
+        }
+
+        item {
+            SettingsNavigationRow(
+                icon = Icons.Filled.Tune,
+                title = "Mochy Audio Lab & Effects",
+                subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
+                onClick = onNavigateToMochyAudioLab
             )
         }
 

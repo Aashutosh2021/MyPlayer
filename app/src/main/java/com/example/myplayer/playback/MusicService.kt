@@ -210,6 +210,11 @@ class MusicService : MediaSessionService() {
             }
         })
 
+        // Mochy Audio FX Speed & Pitch live bridge hook
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
+            player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
+        }
+
         // Master Audio & Playback Feature Integration:
         // 1. Crossfade engine monitor
         audioFeatureManagers.attachCrossfadeMonitor(
@@ -315,6 +320,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = null
         releaseLocks()
         try {
             loudnessEnhancer?.release()

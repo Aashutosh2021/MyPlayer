@@ -183,24 +183,12 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         currentRoute = currentRoute,
                         onNavigate = { route ->
                             if (route == currentRoute) return@FloatingNavBar
-                            if (route == Screen.Home.route) {
-                                val popped = navController.popBackStack(Screen.Home.route, inclusive = false)
-                                if (!popped) {
-                                    navController.navigate(Screen.Home.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            inclusive = false
-                                        }
-                                        launchSingleTop = true
-                                    }
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                            } else {
-                                navController.navigate(route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -256,7 +244,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route) { launchSingleTop = true }
                     },
-                    bottomPadding = 16.dp
+                    bottomPadding = 16.dp,
+                    // Reuse the instance created above: a second hiltViewModel() here would run
+                    // refreshAiRecommendations / trending / library sync a second time at startup.
+                    viewModel = homeViewModel
                 )
             }
             composable(Screen.Search.route) {
@@ -286,14 +277,14 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             composable(Screen.Library.route) {
                 LibraryScreen(
                     onPlaylistClick = { playlistId ->
-                        navController.navigate("playlist_detail/$playlistId")
+                        navController.navigate("playlist_detail/$playlistId") { launchSingleTop = true }
                     },
                     onPlaySong = { songs, index ->
                         viewModel.playPlaylist(songs, index)
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
                     onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
+                        navController.navigate(Screen.Settings.route) { launchSingleTop = true }
                     },
                     mochyState = mochyState,
                     onOpenCustomizeStyles = { showStylePicker = true },
@@ -351,81 +342,39 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val currentAudioQuality by viewModel.currentAudioQuality.collectAsStateWithLifecycle()
                 val positionState = viewModel.currentPosition.collectAsStateWithLifecycle()
                 val queue by viewModel.playbackQueue.collectAsStateWithLifecycle()
-                val lyricsViewModel: com.example.myplayer.ui.screens.nowplaying.LyricsViewModel = hiltViewModel()
-
-                val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-                val isTabletLayout = configuration.screenWidthDp >= 600 ||
-                    configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-
-                if (isTabletLayout) {
-                    NowPlayingScreen(
-                        canDownload = canDownload,
-                        isDownloaded = isDownloaded,
-                        isDownloading = isDownloading,
-                        onDownloadClick = { viewModel.downloadCurrentSong() },
-                        onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
-                        audioQuality = currentAudioQuality,
-                        title = displayTitle,
-                        artist = displayArtist,
-                        artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
-                        durationMs = durationMs,
-                        isPlaying = isPlaying,
-                        positionState = positionState,
-                        onPlayPauseClick = { viewModel.playPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        onPreviousClick = { viewModel.skipToPrevious() },
-                        onSeek = { viewModel.seekTo(it) },
-                        onBackClick = { navController.popBackStack() },
-                        isFavorite = isFavorite,
-                        onToggleFavorite = { viewModel.toggleFavorite() },
-                        sleepTimerRemaining = sleepTimerRemaining,
-                        onStartSleepTimer = { viewModel.startSleepTimer(it) },
-                        onCancelSleepTimer = { viewModel.cancelSleepTimer() },
-                        isShuffleOn = isShuffleOn,
-                        onToggleShuffle = { viewModel.toggleShuffle() },
-                        repeatMode = repeatMode,
-                        onCycleRepeatMode = { viewModel.cycleRepeatMode() },
-                        onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
-                        queue = queue,
-                        onPlayQueueIndex = { viewModel.playQueueIndex(it) }
-                    )
-                } else {
-                    MochyMultiStyleNowPlayingScreen(
-                        mochyState = mochyState,
-                        title = displayTitle,
-                        artist = displayArtist,
-                        artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
-                        durationMs = durationMs,
-                        isPlaying = isPlaying,
-                        positionState = positionState,
-                        onPlayPauseClick = { viewModel.playPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        onPreviousClick = { viewModel.skipToPrevious() },
-                        onSeek = { viewModel.seekTo(it) },
-                        onBackClick = { navController.popBackStack() },
-                        sleepTimerRemaining = sleepTimerRemaining,
-                        isFavorite = isFavorite,
-                        onToggleFavorite = { viewModel.toggleFavorite() },
-                        onStartSleepTimer = { viewModel.startSleepTimer(it) },
-                        onCancelSleepTimer = { viewModel.cancelSleepTimer() },
-                        isShuffleOn = isShuffleOn,
-                        onToggleShuffle = { viewModel.toggleShuffle() },
-                        repeatMode = repeatMode,
-                        onCycleRepeatMode = { viewModel.cycleRepeatMode() },
-                        onNavigateToSettings = {
-                            navController.navigate(Screen.Settings.route) {
-                                launchSingleTop = true
-                            }
-                        },
-                        canDownload = canDownload,
-                        isDownloaded = isDownloaded,
-                        isDownloading = isDownloading,
-                        onDownloadClick = { viewModel.downloadCurrentSong() },
-                        onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
-                        audioQuality = currentAudioQuality,
-                        onOpenCustomizeStyles = { showStylePicker = true }
-                    )
-                }
+                NowPlayingScreen(
+                    mochyState = mochyState,
+                    canDownload = canDownload,
+                    isDownloaded = isDownloaded,
+                    isDownloading = isDownloading,
+                    onDownloadClick = { viewModel.downloadCurrentSong() },
+                    onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
+                    audioQuality = currentAudioQuality,
+                    title = displayTitle,
+                    artist = displayArtist,
+                    artUri = currentSong?.albumArt ?: currentOnlineSong?.thumbnailUrl,
+                    durationMs = durationMs,
+                    isPlaying = isPlaying,
+                    positionState = positionState,
+                    onPlayPauseClick = { viewModel.playPause() },
+                    onNextClick = { viewModel.skipToNext() },
+                    onPreviousClick = { viewModel.skipToPrevious() },
+                    onSeek = { viewModel.seekTo(it) },
+                    onBackClick = { navController.popBackStack() },
+                    isFavorite = isFavorite,
+                    onToggleFavorite = { viewModel.toggleFavorite() },
+                    sleepTimerRemaining = sleepTimerRemaining,
+                    onStartSleepTimer = { viewModel.startSleepTimer(it) },
+                    onCancelSleepTimer = { viewModel.cancelSleepTimer() },
+                    isShuffleOn = isShuffleOn,
+                    onToggleShuffle = { viewModel.toggleShuffle() },
+                    repeatMode = repeatMode,
+                    onCycleRepeatMode = { viewModel.cycleRepeatMode() },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                    queue = queue,
+                    onPlayQueueIndex = { viewModel.playQueueIndex(it) },
+                    onOpenCustomizeStyles = { showStylePicker = true }
+                )
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(

@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.example.myplayer.playback.AudioQualityInfo
 import com.example.myplayer.ui.common.AlbumArtImage
+import com.example.myplayer.ui.mochy.*
 import com.example.myplayer.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +74,9 @@ fun NowPlayingScreen(
     audioQuality: AudioQualityInfo = AudioQualityInfo(),
     lyricsViewModel: LyricsViewModel = hiltViewModel(),
     queue: List<com.example.myplayer.data.local.entity.SongEntity> = emptyList(),
-    onPlayQueueIndex: (Int) -> Unit = {}
+    onPlayQueueIndex: (Int) -> Unit = {},
+    mochyState: MochyUiStateHolder = rememberMochyUiStateHolder(),
+    onOpenCustomizeStyles: () -> Unit = {}
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
@@ -81,6 +84,8 @@ fun NowPlayingScreen(
     var showCustomLyricsDialog by remember { mutableStateOf(false) }
     var showMoreSheet by remember { mutableStateOf(false) }
     var showLyricsDialog by remember { mutableStateOf(false) }
+
+
 
     val hasSong = !title.isNullOrBlank()
     val duration = durationMs.coerceAtLeast(0L)
@@ -194,8 +199,9 @@ fun NowPlayingScreen(
         )
     }
 
+    val showTabletRadial = isTabletLayout && mochyState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER
     Box(modifier = Modifier.fillMaxSize()) {
-        if (isTabletLayout) {
+        if (showTabletRadial) {
             TabletPlayerScreen(
                 title = title,
                 artist = artist,
@@ -221,7 +227,7 @@ fun NowPlayingScreen(
                 onOptionsClick = { showMoreSheet = true },
                 onLyricsClick = { showLyricsDialog = true }
             )
-        } else {
+        } else if (mochyState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER) {
             NowPlayingVisual(
                 title = title,
                 artist = artist,
@@ -255,6 +261,41 @@ fun NowPlayingScreen(
                             .height(450.dp)
                     )
                 }
+            )
+        } else {
+            // Saved Mochy style (Turntable/Poster/Timeline/Lyrics Stage/Default) —
+            // switches live the moment "Set Style" is pressed in the picker.
+            MochyMultiStyleNowPlayingScreen(
+                mochyState = mochyState,
+                title = title,
+                artist = artist,
+                artUri = artUri,
+                durationMs = duration,
+                isPlaying = isPlaying,
+                positionState = positionState,
+                onPlayPauseClick = onPlayPauseClick,
+                onNextClick = onNextClick,
+                onPreviousClick = onPreviousClick,
+                onSeek = onSeek,
+                onBackClick = onBackClick,
+                sleepTimerRemaining = sleepTimerRemaining,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onStartSleepTimer = onStartSleepTimer,
+                onCancelSleepTimer = onCancelSleepTimer,
+                isShuffleOn = isShuffleOn,
+                onToggleShuffle = onToggleShuffle,
+                repeatMode = repeatMode,
+                onCycleRepeatMode = onCycleRepeatMode,
+                onNavigateToSettings = onNavigateToSettings,
+                canDownload = canDownload,
+                isDownloaded = isDownloaded,
+                isDownloading = isDownloading,
+                onDownloadClick = onDownloadClick,
+                onRemoveDownloadClick = onRemoveDownloadClick,
+                audioQuality = audioQuality,
+                lyricsViewModel = lyricsViewModel,
+                onOpenCustomizeStyles = onOpenCustomizeStyles
             )
         }
 
