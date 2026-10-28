@@ -32,6 +32,7 @@ import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor
 import com.example.myplayer.playback.dsp.MasterAudioDspProcessor
+import com.example.myplayer.playback.dsp.SpatialAudioProcessor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -194,7 +195,8 @@ object PlayerModule {
         audioAttributes: AudioAttributes,
         cacheDataSourceFactory: CacheDataSource.Factory,
         lastWaveDspProcessor: LastWaveDspAudioProcessor,
-        masterAudioDspProcessor: MasterAudioDspProcessor
+        masterAudioDspProcessor: MasterAudioDspProcessor,
+        spatialAudioProcessor: SpatialAudioProcessor
     ): ExoPlayer {
         val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
@@ -299,7 +301,7 @@ object PlayerModule {
                     .setEnableFloatOutput(true)
                     .setEnableAudioTrackPlaybackParams(false)
                     .setAudioCapabilities(AudioCapabilities.getCapabilities(context))
-                    .setAudioProcessors(arrayOf(masterAudioDspProcessor))
+                    .setAudioProcessors(arrayOf(spatialAudioProcessor, masterAudioDspProcessor))
                     .build()
             }
         }.apply {

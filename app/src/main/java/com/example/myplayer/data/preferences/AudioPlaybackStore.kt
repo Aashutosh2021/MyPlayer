@@ -35,6 +35,11 @@ enum class LoudnessMode(val id: String, val title: String, val description: Stri
     ALBUM("album", "Album", "Keep intentional album dynamics (falls back to track tags)")
 }
 
+enum class SpatialMode(val title: String, val description: String) {
+    SPEAKERS("Virtual 3D Speakers", "Simulates external stereo speakers ±30° in front of you"),
+    CROSSFEED("BS2B Crossfeed", "Blends binaural channels to eliminate headphone fatigue")
+}
+
 enum class ClarityOutputPreset(
     val index: Int,
     val key: String,
@@ -82,7 +87,12 @@ data class AudioPlaybackState(
     val systemAudioEffects: Boolean = false,
     val studioMasterClarity: Boolean = true,
     val clarityOutputPreset: ClarityOutputPreset = ClarityOutputPreset.REFERENCE,
-    val claritySpatialBypass: Boolean = false
+    val claritySpatialBypass: Boolean = false,
+    val dolbySurroundAtmos: Boolean = false,
+    val spatialAudioEnabled: Boolean = false,
+    val spatialMode: SpatialMode = SpatialMode.SPEAKERS,
+    val spatialSpeakerAngle: Float = 30f,
+    val spatialAmount: Float = 1.0f
 )
 
 object AudioQualityFallbackHelper {
@@ -154,6 +164,11 @@ class AudioPlaybackStore @Inject constructor(
         val STUDIO_CLARITY = booleanPreferencesKey("studio_clarity")
         val CLARITY_PRESET = stringPreferencesKey("clarity_preset")
         val CLARITY_SPATIAL_BYPASS = booleanPreferencesKey("clarity_spatial_bypass")
+        val DOLBY_SURROUND_ATMOS = booleanPreferencesKey("dolby_surround_atmos")
+        val SPATIAL_AUDIO_ENABLED = booleanPreferencesKey("spatial_audio_enabled")
+        val SPATIAL_MODE = stringPreferencesKey("spatial_mode")
+        val SPATIAL_SPEAKER_ANGLE = androidx.datastore.preferences.core.floatPreferencesKey("spatial_speaker_angle")
+        val SPATIAL_AMOUNT = androidx.datastore.preferences.core.floatPreferencesKey("spatial_amount")
     }
 
     val stateFlow: Flow<AudioPlaybackState> = context.audioPlaybackDataStore.data.map { prefs ->
@@ -178,7 +193,12 @@ class AudioPlaybackStore @Inject constructor(
             systemAudioEffects = prefs[Keys.SYSTEM_FX] ?: false,
             studioMasterClarity = prefs[Keys.STUDIO_CLARITY] ?: true,
             clarityOutputPreset = runCatching { ClarityOutputPreset.valueOf(prefs[Keys.CLARITY_PRESET] ?: "REFERENCE") }.getOrDefault(ClarityOutputPreset.REFERENCE),
-            claritySpatialBypass = prefs[Keys.CLARITY_SPATIAL_BYPASS] ?: false
+            claritySpatialBypass = prefs[Keys.CLARITY_SPATIAL_BYPASS] ?: false,
+            dolbySurroundAtmos = prefs[Keys.DOLBY_SURROUND_ATMOS] ?: false,
+            spatialAudioEnabled = prefs[Keys.SPATIAL_AUDIO_ENABLED] ?: false,
+            spatialMode = runCatching { SpatialMode.valueOf(prefs[Keys.SPATIAL_MODE] ?: "SPEAKERS") }.getOrDefault(SpatialMode.SPEAKERS),
+            spatialSpeakerAngle = prefs[Keys.SPATIAL_SPEAKER_ANGLE] ?: 30f,
+            spatialAmount = prefs[Keys.SPATIAL_AMOUNT] ?: 1.0f
         )
     }
 
@@ -223,4 +243,9 @@ class AudioPlaybackStore @Inject constructor(
     suspend fun setStudioMasterClarity(enabled: Boolean) = update { it[Keys.STUDIO_CLARITY] = enabled }
     suspend fun setClarityOutputPreset(preset: ClarityOutputPreset) = update { it[Keys.CLARITY_PRESET] = preset.name }
     suspend fun setClaritySpatialBypass(enabled: Boolean) = update { it[Keys.CLARITY_SPATIAL_BYPASS] = enabled }
+    suspend fun setDolbySurroundAtmos(enabled: Boolean) = update { it[Keys.DOLBY_SURROUND_ATMOS] = enabled }
+    suspend fun setSpatialAudioEnabled(enabled: Boolean) = update { it[Keys.SPATIAL_AUDIO_ENABLED] = enabled }
+    suspend fun setSpatialMode(mode: SpatialMode) = update { it[Keys.SPATIAL_MODE] = mode.name }
+    suspend fun setSpatialSpeakerAngle(angle: Float) = update { it[Keys.SPATIAL_SPEAKER_ANGLE] = angle.coerceIn(15f, 60f) }
+    suspend fun setSpatialAmount(amount: Float) = update { it[Keys.SPATIAL_AMOUNT] = amount.coerceIn(0f, 1f) }
 }

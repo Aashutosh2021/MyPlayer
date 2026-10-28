@@ -201,6 +201,15 @@ class MasterAudioDspProcessor @Inject constructor() : BaseAudioProcessor() {
         )
     }
 
+    /** Seek / track change: drop reverb tails and filter memory of the Audio Lab chain. */
+    override fun onFlush() {
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.reset()
+    }
+
+    override fun onReset() {
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.reset()
+    }
+
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return

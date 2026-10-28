@@ -48,6 +48,8 @@ import com.example.myplayer.ui.mochy.*
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val homeViewModel: com.example.myplayer.ui.screens.home.HomeViewModel = hiltViewModel()
     val mochyState = rememberMochyUiStateHolder()
+    // Audio Lab -> real DSP for the whole UI lifetime (restores saved settings at app start).
+    MochyAudioLabEngineSync(mochyState)
     var showStylePicker by remember { mutableStateOf(false) }
 
     val navController = rememberNavController()
@@ -407,7 +409,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             composable(Screen.MochyEqualizer.route) {
                 MochyEqualizerScreen(
                     mochyState = mochyState,
-                    onApplyGainsToEngine = { _, _, _ -> },
+                    onApplyGainsToEngine = { enabled, gains, preamp -> MochyAudioFxDspBridge.setEq(enabled, gains, preamp) },
                     onBack = { navController.popBackStack() }
                 )
             }

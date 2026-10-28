@@ -18,6 +18,8 @@ import com.example.myplayer.data.preferences.AudioPlaybackStore
 import com.example.myplayer.data.preferences.AudioSettingsRepository
 import com.example.myplayer.playback.dsp.LastWaveDspAudioProcessor
 import com.example.myplayer.playback.dsp.MasterAudioDspProcessor
+import com.example.myplayer.playback.dsp.SpatialAudioProcessor
+import com.example.myplayer.playback.dsp.SpatialParams
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,8 @@ class MusicService : MediaSessionService() {
 
     @Inject
     lateinit var masterAudioDspProcessor: MasterAudioDspProcessor
+    @Inject
+    lateinit var spatialAudioProcessor: SpatialAudioProcessor
 
     @Volatile private var currentAudioPlaybackState = AudioPlaybackState()
 
@@ -230,6 +234,23 @@ class MusicService : MediaSessionService() {
                 currentAudioPlaybackState = state
                 masterAudioDspProcessor.updateState(state)
                 audioFeatureManagers.toggleSystemAudioEffects(player.audioSessionId, state.systemAudioEffects)
+                spatialAudioProcessor.updateParams(
+                    SpatialParams(
+                        enabled = state.spatialAudioEnabled,
+                        mode = state.spatialMode,
+                        speakerAngle = state.spatialSpeakerAngle,
+                        amount = state.spatialAmount,
+                        surround = state.dolbySurroundAtmos
+                    )
+                )
+            }
+        }
+
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
+            try {
+                player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
+            } catch (e: Exception) {
+                android.util.Log.w("MusicService", "Failed to set playbackParameters", e)
             }
         }
 

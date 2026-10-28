@@ -225,6 +225,108 @@ class MochyUiStateHolder(context: Context) {
     var enablePauseFade by mutableStateOf(true)
     var pauseFadeLengthSec by mutableFloatStateOf(2f)
 
+    init {
+        // All property initialisers above have run; restore the saved Audio Lab settings.
+        loadAudioLabFromPrefs()
+    }
+
+    /** Every Audio Lab value that must reach the engine / be saved. snapshotFlow watches this. */
+    fun audioLabSignature(): List<Any?> = listOf(
+        eqEnabled, eqPreset, eqBands, preampDb, autoPreamp, selectedAutoEqModel,
+        reverbEnabled, reverbPreset, reverbMix, reverbRoomSize, reverbDamping, reverbWet,
+        loudnessEnabled, evenOutSongs, replayGainMode, replayGainPreampDb,
+        spatialAudioEnabled, spatialMode, spatialPreset, headShadowHz, crossfeedDb, spatialAmount,
+        monoAudio, dolbyAtmosSurround,
+        playbackSpeedMode, playbackSpeed, preservePitch, pitchSemitones, exponentialVolume,
+        autoCrossfade, manualCrossfade, crossfadeLengthSec, keepGaplessAlbums, enablePauseFade, pauseFadeLengthSec
+    )
+
+    private fun loadAudioLabFromPrefs() {
+        eqEnabled = prefs.getBoolean("mochy_eq_enabled", eqEnabled)
+        prefs.getString("al_eq_preset", null)?.let { n ->
+            MochyEqPreset.values().firstOrNull { it.name == n }?.let { eqPreset = it }
+        }
+        prefs.getString("al_eq_bands", null)?.split(",")?.mapNotNull { it.toFloatOrNull() }
+            ?.takeIf { it.size == 10 }?.let { eqBands = it }
+        preampDb = prefs.getFloat("al_preamp", preampDb)
+        autoPreamp = prefs.getBoolean("al_auto_preamp", autoPreamp)
+        selectedAutoEqModel = prefs.getString("al_autoeq_model", selectedAutoEqModel)
+
+        reverbEnabled = prefs.getBoolean("al_reverb_on", reverbEnabled)
+        reverbPreset = prefs.getString("al_reverb_preset", reverbPreset) ?: reverbPreset
+        reverbMix = prefs.getFloat("al_reverb_mix", reverbMix)
+        reverbRoomSize = prefs.getFloat("al_reverb_room", reverbRoomSize)
+        reverbDamping = prefs.getFloat("al_reverb_damp", reverbDamping)
+        reverbWet = prefs.getFloat("al_reverb_wet", reverbWet)
+
+        loudnessEnabled = prefs.getBoolean("al_loud_on", loudnessEnabled)
+        evenOutSongs = prefs.getBoolean("al_even_out", evenOutSongs)
+        replayGainMode = prefs.getString("al_rg_mode", replayGainMode) ?: replayGainMode
+        replayGainPreampDb = prefs.getFloat("al_rg_preamp", replayGainPreampDb)
+
+        spatialAudioEnabled = prefs.getBoolean("al_spatial_on", spatialAudioEnabled)
+        spatialMode = prefs.getString("al_spatial_mode", spatialMode) ?: spatialMode
+        spatialPreset = prefs.getString("al_spatial_preset", spatialPreset) ?: spatialPreset
+        headShadowHz = prefs.getFloat("al_head_shadow", headShadowHz)
+        crossfeedDb = prefs.getFloat("al_crossfeed_db", crossfeedDb)
+        spatialAmount = prefs.getFloat("al_spatial_amount", spatialAmount)
+        monoAudio = prefs.getBoolean("al_mono", monoAudio)
+        dolbyAtmosSurround = prefs.getBoolean("al_dolby", dolbyAtmosSurround)
+
+        playbackSpeedMode = prefs.getString("al_speed_mode", playbackSpeedMode) ?: playbackSpeedMode
+        playbackSpeed = prefs.getFloat("al_speed", playbackSpeed)
+        preservePitch = prefs.getBoolean("al_preserve_pitch", preservePitch)
+        pitchSemitones = prefs.getFloat("al_pitch_semis", pitchSemitones)
+        exponentialVolume = prefs.getBoolean("al_exp_volume", exponentialVolume)
+
+        autoCrossfade = prefs.getBoolean("al_auto_xfade", autoCrossfade)
+        manualCrossfade = prefs.getBoolean("al_manual_xfade", manualCrossfade)
+        crossfadeLengthSec = prefs.getFloat("al_xfade_len", crossfadeLengthSec)
+        keepGaplessAlbums = prefs.getBoolean("al_gapless", keepGaplessAlbums)
+        enablePauseFade = prefs.getBoolean("al_pause_fade", enablePauseFade)
+        pauseFadeLengthSec = prefs.getFloat("al_pause_fade_len", pauseFadeLengthSec)
+    }
+
+    fun saveAudioLabToPrefs() {
+        prefs.edit()
+            .putBoolean("mochy_eq_enabled", eqEnabled)
+            .putString("al_eq_preset", eqPreset.name)
+            .putString("al_eq_bands", eqBands.joinToString(","))
+            .putFloat("al_preamp", preampDb)
+            .putBoolean("al_auto_preamp", autoPreamp)
+            .putString("al_autoeq_model", selectedAutoEqModel)
+            .putBoolean("al_reverb_on", reverbEnabled)
+            .putString("al_reverb_preset", reverbPreset)
+            .putFloat("al_reverb_mix", reverbMix)
+            .putFloat("al_reverb_room", reverbRoomSize)
+            .putFloat("al_reverb_damp", reverbDamping)
+            .putFloat("al_reverb_wet", reverbWet)
+            .putBoolean("al_loud_on", loudnessEnabled)
+            .putBoolean("al_even_out", evenOutSongs)
+            .putString("al_rg_mode", replayGainMode)
+            .putFloat("al_rg_preamp", replayGainPreampDb)
+            .putBoolean("al_spatial_on", spatialAudioEnabled)
+            .putString("al_spatial_mode", spatialMode)
+            .putString("al_spatial_preset", spatialPreset)
+            .putFloat("al_head_shadow", headShadowHz)
+            .putFloat("al_crossfeed_db", crossfeedDb)
+            .putFloat("al_spatial_amount", spatialAmount)
+            .putBoolean("al_mono", monoAudio)
+            .putBoolean("al_dolby", dolbyAtmosSurround)
+            .putString("al_speed_mode", playbackSpeedMode)
+            .putFloat("al_speed", playbackSpeed)
+            .putBoolean("al_preserve_pitch", preservePitch)
+            .putFloat("al_pitch_semis", pitchSemitones)
+            .putBoolean("al_exp_volume", exponentialVolume)
+            .putBoolean("al_auto_xfade", autoCrossfade)
+            .putBoolean("al_manual_xfade", manualCrossfade)
+            .putFloat("al_xfade_len", crossfadeLengthSec)
+            .putBoolean("al_gapless", keepGaplessAlbums)
+            .putBoolean("al_pause_fade", enablePauseFade)
+            .putFloat("al_pause_fade_len", pauseFadeLengthSec)
+            .apply()
+    }
+
     fun completeOnboarding(name: String, artists: Set<String>) {
         username = name.ifBlank { "Aashutosh" }
         pickedArtists = artists
@@ -3890,339 +3992,6 @@ enum class MochyLoudnessPreset(val label: String, val boostDb: Float, val compre
     MAX("Max", 8.0f, 0.50f)
 }
 
-/**
- * Real-Time Lock-Free DSP Processor Bridge for Mochy Audio FX:
- * Processes:
- * 1) Freeverb Stereo Reverb (Pre-delay + Low-cut IIR + 4 Comb Filters + 2 Allpass Filters + Stereo Width)
- * 2) Dynamic Range Compressor + Loudness Boost + ReplayGain Preamp
- * 3) Spatial Audio:
- *    - Crossfeed Mode (Bauer bs2b IIR filter)
- *    - Speakers Mode (Brown & Duda Spherical Head Model + Woodworth ITD Delay)
- * 4) Mono Audio downmix
- * 5) Dolby Atmos & 3D Surround Binaural Virtualizer
- * 6) Exponential Volume Curve
- * 7) Live ExoPlayer PlaybackParameters (Speed + Pitch + Slowed + Reverb + Nightcore)
- */
-object MochyAudioFxDspBridge {
-    @Volatile var sampleRate: Int = 48000
-
-    // 1. Reverb Parameters
-    @Volatile var reverbEnabled: Boolean = false
-    @Volatile var reverbMix: Float = 0.50f
-    @Volatile var reverbRoomSize: Float = 0.55f
-    @Volatile var reverbDamping: Float = 0.45f
-    @Volatile var reverbWet: Float = 0.60f
-    @Volatile var reverbDry: Float = 1.00f
-    @Volatile var reverbWidth: Float = 1.00f
-    @Volatile var reverbPreDelayMs: Float = 12f
-    @Volatile var reverbLowCutHz: Float = 180f
-
-    // 2. Loudness & ReplayGain Parameters
-    @Volatile var loudnessEnabled: Boolean = false
-    @Volatile var loudnessBoostDb: Float = 4.0f
-    @Volatile var loudnessCompression: Float = 0.30f
-    @Volatile var evenOutSongs: Boolean = true
-    @Volatile var replayGainPreampDb: Float = 3.0f
-
-    // 3. Spatial Audio Parameters
-    @Volatile var spatialEnabled: Boolean = false
-    @Volatile var spatialIsSpeakersMode: Boolean = false
-    @Volatile var headShadowHz: Float = 700f
-    @Volatile var crossfeedDb: Float = -4.5f // stored as negative dB (-4.5, -6.0, -9.5)
-    @Volatile var speakerAngleDeg: Float = 30f
-    @Volatile var spatialAmount: Float = 1.0f
-
-    // 4. Mono & Dolby Surround
-    @Volatile var monoEnabled: Boolean = false
-    @Volatile var dolbySurroundEnabled: Boolean = false
-
-    // 5. Exponential Volume
-    @Volatile var exponentialVolumeEnabled: Boolean = false
-
-    // Optional callback to update ExoPlayer's PlaybackParameters (Speed & Pitch) on Main thread
-    var onUpdatePlaybackSpeedPitch: ((speed: Float, pitch: Float) -> Unit)? = null
-
-    // ── Internal DSP State Buffers (Freeverb + BS2B + Woodworth ITD + Compressor) ──
-    private const val MAX_PREDELAY_SAMPLES = 9600 // up to 200ms at 48kHz
-    private val preDelayBufL = FloatArray(MAX_PREDELAY_SAMPLES)
-    private val preDelayBufR = FloatArray(MAX_PREDELAY_SAMPLES)
-    private var preDelayWriteIdx = 0
-
-    // 4 Parallel Comb Filters per channel
-    private val combLengthsL = intArrayOf(1116, 1188, 1277, 1356)
-    private val combLengthsR = intArrayOf(1116 + 23, 1188 + 23, 1277 + 23, 1356 + 23)
-    private val combBufL = Array(4) { FloatArray(combLengthsL[it]) }
-    private val combBufR = Array(4) { FloatArray(combLengthsR[it]) }
-    private val combIdxL = IntArray(4)
-    private val combIdxR = IntArray(4)
-    private val combFilterStoreL = FloatArray(4)
-    private val combFilterStoreR = FloatArray(4)
-
-    // 2 Series Allpass Filters per channel
-    private val allpassLengthsL = intArrayOf(556, 441)
-    private val allpassLengthsR = intArrayOf(556 + 23, 441 + 23)
-    private val allpassBufL = Array(2) { FloatArray(allpassLengthsL[it]) }
-    private val allpassBufR = Array(2) { FloatArray(allpassLengthsR[it]) }
-    private val allpassIdxL = IntArray(2)
-    private val allpassIdxR = IntArray(2)
-
-    private var reverbLowCutStateL = 0f
-    private var reverbLowCutStateR = 0f
-
-    // Compressor Envelope
-    private var compEnvelope = 0.001f
-
-    // BS2B Crossfeed Filter States
-    private var bs2bLoL = 0f
-    private var bs2bLoR = 0f
-    private var bs2bHiInL = 0f
-    private var bs2bHiInR = 0f
-    private var bs2bHiOutL = 0f
-    private var bs2bHiOutR = 0f
-
-    // Virtual Speaker ITD Delay Buffers (up to 64 samples per ear)
-    private val speakerDelayL = FloatArray(128)
-    private val speakerDelayR = FloatArray(128)
-    private var speakerDelayIdx = 0
-    private var speakerShadowL = 0f
-    private var speakerShadowR = 0f
-
-    // Dolby Surround Haass Delay Buffer
-    private val surroundDelayBuf = FloatArray(1024)
-    private var surroundIdx = 0
-
-    fun syncFromUiState(state: MochyUiStateHolder, loudnessPreset: MochyLoudnessPreset = MochyLoudnessPreset.PUNCHY) {
-        reverbEnabled = state.reverbEnabled
-        reverbMix = state.reverbMix
-        reverbRoomSize = state.reverbRoomSize
-        reverbDamping = state.reverbDamping
-        reverbWet = state.reverbWet
-
-        loudnessEnabled = state.loudnessEnabled
-        evenOutSongs = state.evenOutSongs
-        replayGainPreampDb = state.replayGainPreampDb
-
-        spatialEnabled = state.spatialAudioEnabled
-        spatialIsSpeakersMode = (state.spatialMode == "Speakers")
-        headShadowHz = state.headShadowHz
-        crossfeedDb = state.crossfeedDb
-        spatialAmount = state.spatialAmount
-
-        monoEnabled = state.monoAudio
-        dolbySurroundEnabled = state.dolbyAtmosSurround
-        exponentialVolumeEnabled = state.exponentialVolume
-
-        // Compute effective pitch & speed for ExoPlayer
-        val spd = state.playbackSpeed.coerceIn(0.25f, 3.0f)
-        val effPitch = if (state.preservePitch) {
-            2.0f.pow(state.pitchSemitones / 12.0f)
-        } else {
-            spd
-        }
-        onUpdatePlaybackSpeedPitch?.invoke(spd, effPitch.coerceIn(0.25f, 3.0f))
-    }
-
-    /**
-     * Call this inside `MasterAudioDspProcessor.processStereoFrame` to process every stereo frame
-     * with Mochy's complete Audio FX chain!
-     */
-        fun isActive(): Boolean = reverbEnabled || loudnessEnabled || spatialEnabled ||
-        monoEnabled || dolbySurroundEnabled || exponentialVolumeEnabled ||
-        (evenOutSongs && kotlin.math.abs(replayGainPreampDb) > 0.05f)
-
-    fun processBuffer(buf: java.nio.ByteBuffer, byteOffset: Int, frames: Int, channels: Int, isFloat: Boolean, sr: Int) {
-        if (!isActive() || channels < 2) return
-        val bytesPer = if (isFloat) 4 else 2
-        val stride = channels * bytesPer
-        var p = byteOffset
-        for (f in 0 until frames) {
-            val atL = p
-            val atR = p + bytesPer
-            if (isFloat) {
-                val inL = buf.getFloat(atL)
-                val inR = buf.getFloat(atR)
-                val (outL, outR) = processStereoSample(inL, inR, sr)
-                buf.putFloat(atL, outL)
-                buf.putFloat(atR, outR)
-            } else {
-                val inL = buf.getShort(atL) / 32768.0f
-                val inR = buf.getShort(atR) / 32768.0f
-                val (outL, outR) = processStereoSample(inL, inR, sr)
-                buf.putShort(atL, (outL * 32767.0f).toInt().coerceIn(-32768, 32767).toShort())
-                buf.putShort(atR, (outR * 32767.0f).toInt().coerceIn(-32768, 32767).toShort())
-            }
-            p += stride
-        }
-    }
-
-    fun processStereoSample(inL: Float, inR: Float, sr: Int = sampleRate): Pair<Float, Float> {
-        if (sr > 8000 && sr != sampleRate) sampleRate = sr
-        var l = inL
-        var r = inR
-
-        // 1. ReplayGain / Even Out Songs Preamp
-        if (evenOutSongs && abs(replayGainPreampDb) > 0.05f) {
-            val rgGain = 10.0f.pow((replayGainPreampDb * 0.45f) / 20.0f)
-            l *= rgGain
-            r *= rgGain
-        }
-
-        // 2. Loudness Dynamic Range Compressor (Mochy-Music exact formula)
-        if (loudnessEnabled) {
-            val peak = max(abs(l), abs(r))
-            val attack = 0.015f
-            val release = 0.0008f
-            compEnvelope += if (peak > compEnvelope) attack * (peak - compEnvelope) else release * (peak - compEnvelope)
-            val comp = loudnessCompression.coerceIn(0f, 1f)
-            val thresholdDb = -10f - 24f * comp
-            val slope = 1f - (1f / (1f + 3f * comp))
-            val makeupDb = if (comp > 0f) -thresholdDb * slope * 0.5f else 0f
-            val levelDb = 20f * log10(max(compEnvelope, 1e-6f))
-            val reductionDb = if (levelDb > thresholdDb) (thresholdDb - levelDb) * slope else 0f
-            val totalDb = (loudnessBoostDb + makeupDb + reductionDb).coerceIn(-12f, 18f)
-            val gain = 10.0f.pow(totalDb / 20.0f)
-            l *= gain
-            r *= gain
-        }
-
-        // 3. Spatial Audio (Bauer bs2b Crossfeed OR Virtual Speakers with ITD & Head Shadow)
-        if (spatialEnabled && spatialAmount > 0.01f) {
-            val amt = spatialAmount.coerceIn(0f, 1f)
-            if (!spatialIsSpeakersMode) {
-                // Bauer BS2B Binaural Crossfeed
-                val fc = headShadowHz.coerceIn(300f, 2000f)
-                val fd = abs(crossfeedDb).coerceIn(1f, 15f)
-                val xLo = exp((-2.0 * Math.PI * fc / sampleRate).toFloat())
-                val feedGain = 10.0f.pow((-fd) / 20.0f) * 0.45f
-                bs2bLoL = (1f - xLo) * l + xLo * bs2bLoL
-                bs2bLoR = (1f - xLo) * r + xLo * bs2bLoR
-                val crossL = l + feedGain * bs2bLoR
-                val crossR = r + feedGain * bs2bLoL
-                val norm = 1f / (1f + feedGain * 0.6f)
-                l = l + (crossL * norm - l) * amt
-                r = r + (crossR * norm - r) * amt
-            } else {
-                // Virtual Speakers Mode (Woodworth ITD delay + Head Shadow LP on far ear)
-                val angleFactor = (speakerAngleDeg / 60f).coerceIn(0.15f, 1.0f)
-                val itdSamples = (angleFactor * (sampleRate * 0.00045f)).toInt().coerceIn(2, 64)
-                speakerDelayL[speakerDelayIdx] = l
-                speakerDelayR[speakerDelayIdx] = r
-                val delayedIdx = (speakerDelayIdx - itdSamples + 128) % 128
-                val farFromLeft = speakerDelayL[delayedIdx]
-                val farFromRight = speakerDelayR[delayedIdx]
-                speakerDelayIdx = (speakerDelayIdx + 1) % 128
-
-                val shadowAlpha = 0.28f
-                speakerShadowL += shadowAlpha * (farFromRight - speakerShadowL)
-                speakerShadowR += shadowAlpha * (farFromLeft - speakerShadowR)
-
-                val crossMix = 0.32f * angleFactor
-                val spkL = (l * 0.85f) + (speakerShadowL * crossMix)
-                val spkR = (r * 0.85f) + (speakerShadowR * crossMix)
-                l = l + (spkL - l) * amt
-                r = r + (spkR - r) * amt
-            }
-        }
-
-        // 4. Dolby Atmos & 3D Surround Binaural Expander
-        if (dolbySurroundEnabled) {
-            val mid = (l + r) * 0.5f
-            val side = (l - r) * 0.5f
-            surroundDelayBuf[surroundIdx] = side
-            val haasIdx = (surroundIdx - 384 + 1024) % 1024
-            val delayedSide = surroundDelayBuf[haasIdx]
-            surroundIdx = (surroundIdx + 1) % 1024
-
-            val wideSide = side * 1.42f + delayedSide * 0.35f
-            l = (mid * 1.05f) + wideSide
-            r = (mid * 1.05f) - wideSide
-        }
-
-        // 5. Freeverb / Schroeder Stereo Reverb
-        if (reverbEnabled && reverbMix > 0.01f) {
-            val preDelaySamples = ((reverbPreDelayMs / 1000f) * sampleRate).toInt().coerceIn(0, MAX_PREDELAY_SAMPLES - 1)
-            preDelayBufL[preDelayWriteIdx] = l
-            preDelayBufR[preDelayWriteIdx] = r
-            val readIdx = (preDelayWriteIdx - preDelaySamples + MAX_PREDELAY_SAMPLES) % MAX_PREDELAY_SAMPLES
-            val delayedL = preDelayBufL[readIdx]
-            val delayedR = preDelayBufR[readIdx]
-            preDelayWriteIdx = (preDelayWriteIdx + 1) % MAX_PREDELAY_SAMPLES
-
-            // 1st-order Low-Cut High-Pass Filter before Reverb Tank
-            val lcCoeff = exp((-2.0 * Math.PI * reverbLowCutHz.coerceIn(20f, 1000f) / sampleRate).toFloat())
-            reverbLowCutStateL = (1f - lcCoeff) * delayedL + lcCoeff * reverbLowCutStateL
-            reverbLowCutStateR = (1f - lcCoeff) * delayedR + lcCoeff * reverbLowCutStateR
-            val inputMono = ((delayedL - reverbLowCutStateL) + (delayedR - reverbLowCutStateR)) * 0.015f
-
-            val feedback = (0.70f + reverbRoomSize.coerceIn(0f, 1f) * 0.27f)
-            val damp1 = reverbDamping.coerceIn(0.02f, 0.95f) * 0.45f
-            val damp2 = 1f - damp1
-
-            var outCombL = 0f
-            var outCombR = 0f
-            for (c in 0 until 4) {
-                val idxL = combIdxL[c]
-                val bufOutL = combBufL[c][idxL]
-                combFilterStoreL[c] = (bufOutL * damp2) + (combFilterStoreL[c] * damp1)
-                combBufL[c][idxL] = inputMono + (combFilterStoreL[c] * feedback)
-                combIdxL[c] = (idxL + 1) % combLengthsL[c]
-                outCombL += bufOutL
-
-                val idxR = combIdxR[c]
-                val bufOutR = combBufR[c][idxR]
-                combFilterStoreR[c] = (bufOutR * damp2) + (combFilterStoreR[c] * damp1)
-                combBufR[c][idxR] = inputMono + (combFilterStoreR[c] * feedback)
-                combIdxR[c] = (idxR + 1) % combLengthsR[c]
-                outCombR += bufOutR
-            }
-
-            // Series All-Pass Diffusion
-            for (a in 0 until 2) {
-                val idxL = allpassIdxL[a]
-                val bufOutL = allpassBufL[a][idxL]
-                val inLPass = outCombL
-                outCombL = -inLPass + bufOutL
-                allpassBufL[a][idxL] = inLPass + (bufOutL * 0.5f)
-                allpassIdxL[a] = (idxL + 1) % allpassLengthsL[a]
-
-                val idxR = allpassIdxR[a]
-                val bufOutR = allpassBufR[a][idxR]
-                val inRPass = outCombR
-                outCombR = -inRPass + bufOutR
-                allpassBufR[a][idxR] = inRPass + (bufOutR * 0.5f)
-                allpassIdxR[a] = (idxR + 1) % allpassLengthsR[a]
-            }
-
-            val wet1 = reverbWet * (reverbWidth * 0.5f + 0.5f) * 2.4f
-            val wet2 = reverbWet * ((1f - reverbWidth) * 0.5f) * 2.4f
-            val tankL = outCombL * wet1 + outCombR * wet2
-            val tankR = outCombR * wet1 + outCombL * wet2
-
-            val dryLevel = reverbDry.coerceIn(0f, 1f)
-            val mixLevel = reverbMix.coerceIn(0f, 1f)
-            l = (l * dryLevel) + (tankL * mixLevel)
-            r = (r * dryLevel) + (tankR * mixLevel)
-        }
-
-        // 6. Mono Audio Downmix
-        if (monoEnabled) {
-            val mono = (l + r) * 0.5f
-            l = mono
-            r = mono
-        }
-
-        // 7. Exponential Volume Shaping
-        if (exponentialVolumeEnabled) {
-            val signL = if (l < 0f) -1f else 1f
-            val signR = if (r < 0f) -1f else 1f
-            l = signL * abs(l).pow(1.25f)
-            r = signR * abs(r).pow(1.25f)
-        }
-
-        return Pair(l, r)
-    }
-}
-
 @Composable
 fun MochyAudioLabHubScreen(
     mochyState: MochyUiStateHolder,
@@ -4357,13 +4126,14 @@ fun MochyAudioFxScreen(
 ) {
     var selectedReverbPreset by remember { mutableStateOf(MochyReverbPreset.ROOM) }
     var selectedLoudnessPreset by remember { mutableStateOf(MochyLoudnessPreset.PUNCHY) }
-    var loudnessBoostDb by remember { mutableFloatStateOf(4.0f) }
-    var loudnessCompression by remember { mutableFloatStateOf(0.30f) }
-    var reverbDry by remember { mutableFloatStateOf(1.00f) }
-    var reverbWidth by remember { mutableFloatStateOf(1.00f) }
-    var reverbPreDelayMs by remember { mutableFloatStateOf(12f) }
-    var reverbLowCutHz by remember { mutableFloatStateOf(180f) }
-    var speakerAngleDeg by remember { mutableFloatStateOf(30f) }
+    val fxContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    var loudnessBoostDb by remember { mutableFloatStateOf(MochyAudioFxDspBridge.loudnessBoostDb) }
+    var loudnessCompression by remember { mutableFloatStateOf(MochyAudioFxDspBridge.loudnessCompression) }
+    var reverbDry by remember { mutableFloatStateOf(MochyAudioFxDspBridge.reverbDry) }
+    var reverbWidth by remember { mutableFloatStateOf(MochyAudioFxDspBridge.reverbWidth) }
+    var reverbPreDelayMs by remember { mutableFloatStateOf(MochyAudioFxDspBridge.reverbPreDelayMs) }
+    var reverbLowCutHz by remember { mutableFloatStateOf(MochyAudioFxDspBridge.reverbLowCutHz) }
+    var speakerAngleDeg by remember { mutableFloatStateOf(MochyAudioFxDspBridge.speakerAngleDeg) }
 
     // Sync any state change straight into the real-time DSP bridge!
     LaunchedEffect(
@@ -4384,6 +4154,7 @@ fun MochyAudioFxScreen(
         MochyAudioFxDspBridge.loudnessCompression = loudnessCompression
         MochyAudioFxDspBridge.speakerAngleDeg = speakerAngleDeg
         MochyAudioFxDspBridge.syncFromUiState(mochyState, selectedLoudnessPreset)
+        MochyAudioFxDspBridge.saveFineTune(fxContext)
     }
 
     val activeFxNames = remember(
