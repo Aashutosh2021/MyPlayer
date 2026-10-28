@@ -61,8 +61,8 @@ android {
         applicationId = "com.example.myplayer"
         minSdk = 28
         targetSdk = 36
-        versionCode = 17
-        versionName = "5.5"
+        versionCode = 18
+        versionName = "5.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

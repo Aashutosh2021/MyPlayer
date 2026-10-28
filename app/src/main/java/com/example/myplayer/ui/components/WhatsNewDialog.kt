@@ -10,7 +10,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.SurroundSound
@@ -53,29 +55,14 @@ object WhatsNewRepository {
 
     fun getCurrentFeatures(): List<WhatsNewFeature> = listOf(
         WhatsNewFeature(
-            icon = Icons.Filled.Waves,
-            title = "Studio Master Clarity (C++17 DSP)",
-            description = "8-stage psychoacoustic mastering chain: dynamic sub-bass foundation, low-mid decongestion, vocal presence lift, 1.22x stereo widener & analog air exciter."
+            icon = Icons.Filled.Backup,
+            title = "ACTION REQUIRED: Take a backup now",
+            description = "The next major update (v6.0) moves MyPlayer to a new app package (com.myplayer.app) and installs as a separate app — your library, playlists and settings will NOT carry over automatically. Open Settings → Backup & Restore → Create Backup and save the backup file somewhere safe (Google Drive or local storage)."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.SurroundSound,
-            title = "Dolby Atmos & Hardware Spatial Audio",
-            description = "Dedicated hardware spatializer renderer for E-AC-3 JOC Dolby Atmos with hardware dialogue normalization and Jellyfin FFmpeg 32-bit Float decoding."
-        ),
-        WhatsNewFeature(
-            icon = Icons.Filled.GraphicEq,
-            title = "15-Band Studio Equalizer",
-            description = "15 ISO 2/3-octave center frequencies (25Hz - 16kHz) with real-time frequency curve canvas, haptic tactile faders, and 12 acoustic presets."
-        ),
-        WhatsNewFeature(
-            icon = Icons.AutoMirrored.Filled.VolumeUp,
-            title = "ReplayGain & -14 LUFS Normalization",
-            description = "Automatic Vorbis & ID3 TXXX tag loudness normalization with Dolby Atmos +6 dB compensation and true-peak protection."
-        ),
-        WhatsNewFeature(
-            icon = Icons.Filled.Tune,
-            title = "Redesigned Audio & Playback Hub",
-            description = "Full Light & Dark mode support with tactile clay styling, Bit-Perfect direct DAC output, and background playback protection."
+            icon = Icons.Filled.SettingsBackupRestore,
+            title = "How to upgrade to v6.0 safely",
+            description = "When v6.0 is released: 1) Create a backup in v5.6. 2) Uninstall MyPlayer (the old app). 3) Install the new MyPlayer v6.0. 4) Open Settings → Backup & Restore → Restore Backup and select your saved file — your library, playlists, settings and downloaded songs will be restored."
         )
     )
 }
@@ -150,7 +137,7 @@ fun WhatsNewDialog(
                 Spacer(Modifier.height(12.dp))
 
                 Text(
-                    text = "What's New in MyPlayer",
+                    text = "Important Notice",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
@@ -161,7 +148,7 @@ fun WhatsNewDialog(
                 Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = "Here's what just got improved and added to your music experience.",
+                    text = "Please read this before installing the next update (v6.0).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -235,7 +222,7 @@ fun WhatsNewDialog(
                     )
                 ) {
                     Text(
-                        text = "Awesome, Got It!",
+                        text = "Got It!",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp

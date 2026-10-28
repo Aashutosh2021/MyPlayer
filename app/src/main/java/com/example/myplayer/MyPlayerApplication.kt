@@ -14,6 +14,7 @@ import com.example.myplayer.util.AudioAlbumArtFetcher
 
 import com.example.myplayer.data.artwork.ArtworkRepository
 import com.example.myplayer.data.artwork.coil.ArtworkFetcher
+import com.example.myplayer.data.backupreminder.BackupReminderScheduler
 import com.example.myplayer.data.update.UpdateCheckScheduler
 import javax.inject.Provider
 
@@ -40,6 +41,9 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
 
         // Background update checking
         UpdateCheckScheduler.schedulePeriodicCheck(this)
+
+        // v5.6 package-change warning: backup reminder every 3 hours
+        BackupReminderScheduler.schedule(this)
     }
 
     override val workManagerConfiguration: Configuration
