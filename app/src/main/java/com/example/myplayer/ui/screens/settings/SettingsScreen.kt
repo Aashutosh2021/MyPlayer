@@ -9,10 +9,12 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,21 +23,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.foundation.Image
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import com.example.myplayer.R
 import com.example.myplayer.data.update.UpdateChecker
-import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.components.WhatsNewDialog
-import com.example.myplayer.ui.theme.*
 import com.example.myplayer.ui.mochy.*
+import com.example.myplayer.ui.theme.ThemeState
 
 @Composable
 fun SettingsScreen(
@@ -170,28 +173,30 @@ fun SettingsScreen(
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("Set Display Name", fontWeight = FontWeight.Bold) },
+            containerColor = Color(0xFF1C1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFD1D1D6),
+            shape = RoundedCornerShape(24.dp),
+            icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White) },
+            title = { Text("Set Display Name", fontWeight = FontWeight.Bold, color = Color.White) },
             text = {
                 Column {
-                    Text("Enter your name to show on the Home Screen:")
+                    Text("Enter your name to show on the Home Screen:", color = Color(0xFF8E8E93))
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = editNameInput,
                         onValueChange = { editNameInput = it },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = CardBorderOlive,
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            cursorColor = MaterialTheme.colorScheme.primary
+                            focusedBorderColor = Color.White,
+                            unfocusedBorderColor = Color(0xFF3A3A3C),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color.White
                         ),
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Your Name", color = TextMuted) }
+                        placeholder = { Text("Your Name", color = Color(0xFF636366)) },
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
@@ -204,8 +209,8 @@ fun SettingsScreen(
                         showNameDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = Color.White,
+                        contentColor = Color.Black
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -215,7 +220,7 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showNameDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8E8E93))
                 ) {
                     Text("Cancel")
                 }
@@ -231,19 +236,20 @@ fun SettingsScreen(
                     viewModel.resetStates()
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            containerColor = Color(0xFF1C1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFD1D1D6),
+            shape = RoundedCornerShape(24.dp),
             title = {
-                Text(if (isLoadingDialog) "Please Wait" else "Backup & Restore")
+                Text(if (isLoadingDialog) "Please Wait" else "Backup & Restore", color = Color.White, fontWeight = FontWeight.Bold)
             },
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isLoadingDialog) {
-                        CircularProgressIndicator(color = ClayPrimary)
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(16.dp))
                     }
-                    Text(showDialogText!!)
+                    Text(showDialogText!!, color = Color(0xFFD1D1D6))
                 }
             },
             confirmButton = {
@@ -253,9 +259,9 @@ fun SettingsScreen(
                             showDialogText = null
                             viewModel.resetStates()
                         },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
                     ) {
-                        Text("OK")
+                        Text("OK", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -267,15 +273,16 @@ fun SettingsScreen(
         ManualUpdateState.Checking -> {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = { Text("Checking for Updates") },
+                containerColor = Color(0xFF1C1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFD1D1D6),
+                shape = RoundedCornerShape(24.dp),
+                title = { Text("Checking for Updates", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(color = ClayPrimary)
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(16.dp))
-                        Text("Connecting to GitHub...")
+                        Text("Connecting to GitHub...", color = Color(0xFFD1D1D6))
                     }
                 },
                 confirmButton = {}
@@ -284,29 +291,30 @@ fun SettingsScreen(
         is ManualUpdateState.Available -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = { Text("Update Available") },
+                containerColor = Color(0xFF1C1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFD1D1D6),
+                shape = RoundedCornerShape(24.dp),
+                title = { Text("Update Available", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
                         Text(
                             "A newer version (${state.updateInfo.versionName}) is available!",
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = Color.White
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Visit our official website to download the latest update.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF8E8E93)
                         )
                         if (state.updateInfo.releaseNotes.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 state.updateInfo.releaseNotes.take(300),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = Color(0xFF8E8E93)
                             )
                         }
                     }
@@ -315,17 +323,17 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             viewModel.resetUpdateState()
-                            val intent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
                                 Uri.parse(state.updateInfo.releaseUrl)
                             ).apply {
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             context.startActivity(intent)
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = Color.White,
+                            contentColor = Color.Black
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -335,7 +343,7 @@ fun SettingsScreen(
                 dismissButton = {
                     TextButton(
                         onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8E8E93))
                     ) {
                         Text("Later")
                     }
@@ -345,19 +353,23 @@ fun SettingsScreen(
         ManualUpdateState.UpToDate -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = { Text("Up to Date") },
+                containerColor = Color(0xFF1C1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFD1D1D6),
+                shape = RoundedCornerShape(24.dp),
+                title = { Text("Up to Date", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
-                    Text("You're using the latest version of MyPlayer (v${com.example.myplayer.BuildConfig.VERSION_NAME}).")
+                    Text(
+                        "You're using the latest version of MyPlayer (v${com.example.myplayer.BuildConfig.VERSION_NAME}).",
+                        color = Color(0xFFD1D1D6)
+                    )
                 },
                 confirmButton = {
                     TextButton(
                         onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
                     ) {
-                        Text("OK")
+                        Text("OK", fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -365,27 +377,28 @@ fun SettingsScreen(
         is ManualUpdateState.NoInternet -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                containerColor = Color(0xFF1C1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFD1D1D6),
+                shape = RoundedCornerShape(24.dp),
                 icon = {
                     Icon(
                         Icons.Filled.CloudOff,
                         contentDescription = null,
-                        tint = ClayPrimary,
+                        tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                title = { Text("No Internet Connection") },
+                title = { Text("No Internet Connection", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(state.message)
+                    Text(state.message, color = Color(0xFFD1D1D6))
                 },
                 confirmButton = {
                     TextButton(
                         onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
                     ) {
-                        Text("OK")
+                        Text("OK", fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -393,19 +406,20 @@ fun SettingsScreen(
         is ManualUpdateState.Error -> {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUpdateState() },
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                title = { Text("Update Check") },
+                containerColor = Color(0xFF1C1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color(0xFFD1D1D6),
+                shape = RoundedCornerShape(24.dp),
+                title = { Text("Update Check", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(state.message)
+                    Text(state.message, color = Color(0xFFD1D1D6))
                 },
                 confirmButton = {
                     TextButton(
                         onClick = { viewModel.resetUpdateState() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ClayPrimary)
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
                     ) {
-                        Text("OK")
+                        Text("OK", fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -415,284 +429,359 @@ fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFF0A0A0C))
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)
+        contentPadding = PaddingValues(bottom = bottomPadding + 32.dp)
     ) {
-        // Header
+        // Mochy Style Top Header
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
- 
-                Spacer(Modifier.width(14.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1C1C1E))
+                        .clickable(onClick = onBack),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.inside_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(30.dp)
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp, end = 8.dp)
+                ) {
+                    Text(
+                        text = "MYPLAYER",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp
+                        ),
+                        color = Color(0xFF8E8E93)
                     )
                     Text(
-                        "Settings",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "Settings",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-0.5).sp
+                        ),
+                        color = Color.White
                     )
+                }
+
+                // Floating Status Card (Screenshot Matching)
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF16161A)),
+                    modifier = Modifier.size(width = 92.dp, height = 74.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "v${com.example.myplayer.BuildConfig.VERSION_NAME}",
+                                color = Color(0xFF8E8E93),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "1 of 1",
+                                color = Color(0xFF636366),
+                                fontSize = 9.sp
+                            )
+                        }
+                        Text(
+                            text = "MYPLAYER",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.5.sp
+                        )
+                        Canvas(modifier = Modifier.fillMaxWidth().height(16.dp)) {
+                            val barWidth = 3.dp.toPx()
+                            val count = 7
+                            val gap = (size.width - (count * barWidth)) / (count - 1).toFloat()
+                            val heights = listOf(0.4f, 0.75f, 0.5f, 1.0f, 0.65f, 0.85f, 0.45f)
+                            heights.forEachIndexed { index, fraction ->
+                                val x = index * (barWidth + gap)
+                                val barHeight = size.height * fraction
+                                val y = size.height - barHeight
+                                drawRoundRect(
+                                    color = Color(0xFF8E8E93),
+                                    topLeft = Offset(x, y),
+                                    size = Size(barWidth, barHeight),
+                                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Section: User Profile
-        item { SettingsSectionHeader(title = "Profile") }
-
+        // Section: Profile
+        item { MochySectionHeader(title = "Profile") }
         item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Person,
-                title = "Display Name",
-                subtitle = userName,
-                onClick = {
-                    editNameInput = userName
-                    showNameDialog = true
-                }
-            )
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Person,
+                    title = "Display Name",
+                    subtitle = userName,
+                    onClick = {
+                        editNameInput = userName
+                        showNameDialog = true
+                    }
+                )
+            }
         }
-
 
         // Section: Appearance
-        item { SettingsSectionHeader(title = "Appearance") }
-
+        item { MochySectionHeader(title = "Appearance") }
         item {
-            SettingsToggleRow(
-                icon = if (ThemeState.isDarkMode) Icons.Filled.DarkMode else Icons.Filled.LightMode,
-                title = "Dark Mode",
-                subtitle = if (ThemeState.isDarkMode) "Dark theme active" else "Light theme active",
-                checked = ThemeState.isDarkMode,
-                onCheckedChange = { enabled ->
-                    ThemeState.setDark(enabled)
-                }
-            )
-        }
-
-        if (mochyState != null) {
-            item {
-                SettingsNavigationRow(
+            MochySettingsCard {
+                MochySettingsToggleRow(
+                    icon = Icons.Filled.DarkMode,
+                    title = "Dark Mode",
+                    subtitle = if (ThemeState.isDarkMode) "Dark theme active" else "Light theme active",
+                    checked = ThemeState.isDarkMode,
+                    onCheckedChange = { enabled ->
+                        ThemeState.setDark(enabled)
+                    }
+                )
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
                     icon = Icons.Filled.Palette,
                     title = "Customize Player Styles",
-                    subtitle = "Active: ${mochyState.playerStyle.title} • Switch between Radial, Turntable, Poster & more",
+                    subtitle = "Active: ${mochyState?.playerStyle?.title ?: "Radial (MyPlayer)"} • 6 unique styles",
                     onClick = onNavigateToPlayerStyles
                 )
             }
         }
 
-        // Section: Playback (ONLY ONE Audio & Equalizer Screen — No Duplicates!)
-        item { SettingsSectionHeader(title = "Playback") }
-
+        // Section: Playback
+        item { MochySectionHeader(title = "Playback & Audio") }
         item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.GraphicEq,
-                title = "Audio & Playback Engine",
-                subtitle = "15-Band EQ, 7 Quality Tiers, Studio Clarity & Bit-Perfect",
-                onClick = {
-                    if (onNavigateToAudioPlayback != null) {
-                        onNavigateToAudioPlayback()
-                    } else {
-                        showAudioPlaybackScreen = true
-                    }
-                }
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Tune,
-                title = "Mochy Audio Lab & Effects",
-                subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
-                onClick = onNavigateToMochyAudioLab
-            )
-        }
-
-        item {
-            SettingsToggleRow(
-                icon = Icons.Filled.AutoAwesome,
-                title = "Autoplay Recommendations",
-                subtitle = "Automatically play similar songs when the queue ends",
-                checked = isAutoplayEnabled,
-                onCheckedChange = { viewModel.setAutoplayEnabled(it) }
-            )
-        }
-
-        // Section: Spotify & AI Taste
-        item { SettingsSectionHeader(title = "Spotify & AI Taste") }
-
-        item {
-            if (!isSpotifyLoggedIn) {
-                SettingsNavigationRow(
-                    icon = Icons.Filled.MusicNote,
-                    title = "Connect Spotify",
-                    subtitle = "Import your Liked Songs & Top Tracks into MyPlayer",
-                    onClick = { showSpotifyDialog = true }
-                )
-            } else {
-                SettingsNavigationRow(
-                    icon = Icons.Filled.CheckCircle,
-                    title = "Spotify Connected (${spotifyUsername ?: "User"})",
-                    subtitle = if (isSpotifySyncing) "Syncing playlists & library into MyPlayer..." else "Tap to sync all Spotify Playlists & Library",
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.GraphicEq,
+                    title = "Audio & Playback Engine",
+                    subtitle = "15-Band EQ, 7 Quality Tiers, Studio Clarity & Bit-Perfect",
                     onClick = {
-                        if (!isSpotifySyncing) {
-                            viewModel.syncSpotify()
-                            showDialogText = "Syncing all Spotify Playlists and Library songs into MyPlayer..."
+                        if (onNavigateToAudioPlayback != null) {
+                            onNavigateToAudioPlayback()
+                        } else {
+                            showAudioPlaybackScreen = true
                         }
                     }
                 )
-                SettingsNavigationRow(
-                    icon = Icons.Filled.Delete,
-                    title = "Disconnect Spotify",
-                    subtitle = "Clear Spotify session cookies and tokens",
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Tune,
+                    title = "Mochy Audio Lab & Effects",
+                    subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
+                    onClick = onNavigateToMochyAudioLab
+                )
+                MochySettingsDivider()
+                MochySettingsToggleRow(
+                    icon = Icons.Filled.AutoAwesome,
+                    title = "Autoplay Recommendations",
+                    subtitle = "Automatically play similar songs when the queue ends",
+                    checked = isAutoplayEnabled,
+                    onCheckedChange = { viewModel.setAutoplayEnabled(it) }
+                )
+            }
+        }
+
+        // Section: Spotify & AI Taste
+        item { MochySectionHeader(title = "Spotify & AI Taste") }
+        item {
+            MochySettingsCard {
+                if (!isSpotifyLoggedIn) {
+                    MochySettingsNavigationRow(
+                        icon = Icons.Filled.MusicNote,
+                        title = "Connect Spotify",
+                        subtitle = "Import your Spotify top tracks & taste profile",
+                        onClick = { showSpotifyDialog = true }
+                    )
+                } else {
+                    MochySettingsInfoRow(
+                        icon = Icons.Filled.CheckCircle,
+                        title = "Spotify Connected",
+                        subtitle = "Logged in as @$spotifyUsername • AI Taste Profile Synced"
+                    )
+                    MochySettingsDivider()
+                    MochySettingsNavigationRow(
+                        icon = Icons.Filled.Delete,
+                        title = "Disconnect Spotify",
+                        subtitle = "Clear Spotify session cookies and tokens",
+                        onClick = {
+                            viewModel.logoutSpotify()
+                            showDialogText = "Disconnected from Spotify."
+                        }
+                    )
+                }
+            }
+        }
+
+        // Section: Backup & Restore
+        item { MochySectionHeader(title = "Backup & Restore") }
+        item {
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Backup,
+                    title = "Create Backup",
+                    subtitle = "Export your library, playlists, and settings to JSON",
+                    onClick = { backupLauncher.launch("myplayer_backup.json") }
+                )
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.SettingsBackupRestore,
+                    title = "Restore Backup",
+                    subtitle = "Import playlists and auto-restore downloaded music",
+                    onClick = { restoreLauncher.launch(arrayOf("application/json")) }
+                )
+            }
+        }
+
+        // Section: Experimental Features
+        item { MochySectionHeader(title = "Experimental Features") }
+        item {
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.GroupWork,
+                    title = "Sync Play",
+                    subtitle = "Synchronize playback with nearby phones over local Wi-Fi",
+                    onClick = onNavigateToSyncPlay
+                )
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Headphones,
+                    title = "Dual Bud Mode",
+                    subtitle = "Play two independent songs simultaneously in left & right earbuds",
+                    onClick = onNavigateToDualBud
+                )
+            }
+        }
+
+        // Section: Contact Developer
+        item { MochySectionHeader(title = "Contact Developer") }
+        item {
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Feedback,
+                    title = "Complaint & Bug Report",
+                    subtitle = "Send complaints, bugs, or feedback to $DEVELOPER_EMAIL",
                     onClick = {
-                        viewModel.logoutSpotify()
-                        showDialogText = "Disconnected from Spotify."
+                        sendEmail(
+                            context = context,
+                            recipient = DEVELOPER_EMAIL,
+                            subject = "[MyPlayer Complaint / Bug Report] v${com.example.myplayer.BuildConfig.VERSION_NAME}",
+                            body = """
+                                Hi Developer,
+
+                                --- Complaint / Bug Details ---
+                                [Please describe your complaint, bug, or feedback here]
+
+                                --- Device & System Diagnostics ---
+                                App Version: ${com.example.myplayer.BuildConfig.VERSION_NAME} (${com.example.myplayer.BuildConfig.VERSION_CODE})
+                                Device: ${Build.MANUFACTURER} ${Build.MODEL}
+                                Android Version: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
+                            """.trimIndent()
+                        )
                     }
                 )
             }
         }
 
-        // Section: Backup & Restore
-        item { SettingsSectionHeader(title = "Backup & Restore") }
-
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Backup,
-                title = "Create Backup",
-                subtitle = "Export your library, playlists, and settings to JSON",
-                onClick = { backupLauncher.launch("myplayer_backup.json") }
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.SettingsBackupRestore,
-                title = "Restore Backup",
-                subtitle = "Import playlists and auto-restore downloaded music",
-                onClick = { restoreLauncher.launch(arrayOf("application/json")) }
-            )
-        }
-
-        // Section: Experimental Features
-        item { SettingsSectionHeader(title = "Experimental Features") }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.GroupWork,
-                title = "Sync Play",
-                subtitle = "Synchronize playback with nearby phones over local Wi-Fi",
-                onClick = onNavigateToSyncPlay
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Headphones,
-                title = "Dual Bud Mode",
-                subtitle = "Play two independent songs simultaneously in left & right earbuds",
-                onClick = onNavigateToDualBud
-            )
-        }
-
-        // Section: Contact Developer
-        item { SettingsSectionHeader(title = "Contact Developer") }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Feedback,
-                title = "Complaint & Bug Report",
-                subtitle = "Send complaints, bugs, or feedback to $DEVELOPER_EMAIL",
-                onClick = {
-                    sendEmail(
-                        context = context,
-                        recipient = DEVELOPER_EMAIL,
-                        subject = "[MyPlayer Complaint / Bug Report] v${com.example.myplayer.BuildConfig.VERSION_NAME}",
-                        body = """
-                            Hi Developer,
-
-                            --- Complaint / Bug Details ---
-                            [Please describe your complaint, bug, or feedback here]
-
-                            --- Device & System Diagnostics ---
-                            App Version: ${com.example.myplayer.BuildConfig.VERSION_NAME} (${com.example.myplayer.BuildConfig.VERSION_CODE})
-                            Device: ${Build.MANUFACTURER} ${Build.MODEL}
-                            Android Version: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
-                        """.trimIndent()
-                    )
-                }
-            )
-        }
-
         // Section: About
-        item { SettingsSectionHeader(title = "About") }
-
+        item { MochySectionHeader(title = "About") }
         item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.SystemUpdate,
-                title = "Check for Updates",
-                subtitle = "Check official website & GitHub for updates",
-                onClick = { viewModel.checkForUpdates() }
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Language,
-                title = "Official Website",
-                subtitle = UpdateChecker.UPDATE_WEBSITE_URL,
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.UPDATE_WEBSITE_URL)).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            MochySettingsCard {
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.SystemUpdate,
+                    title = "Check for Updates",
+                    subtitle = "Check official website & GitHub for updates",
+                    onClick = { viewModel.checkForUpdates() }
+                )
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Language,
+                    title = "Official Website",
+                    subtitle = UpdateChecker.UPDATE_WEBSITE_URL,
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.UPDATE_WEBSITE_URL)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
                     }
-                    context.startActivity(intent)
-                }
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Info,
-                title = "What's New in v${com.example.myplayer.BuildConfig.VERSION_NAME}",
-                subtitle = "See new features and improvements in this release",
-                onClick = { showWhatsNewDialog = true }
-            )
-        }
-
-        item {
-            SettingsInfoRow(
-                icon = Icons.Filled.MusicNote,
-                title = "Powered By",
-                subtitle = "FlexFly Company Pvt Ltd"
-            )
+                )
+                MochySettingsDivider()
+                MochySettingsNavigationRow(
+                    icon = Icons.Filled.Info,
+                    title = "What's New in v${com.example.myplayer.BuildConfig.VERSION_NAME}",
+                    subtitle = "See new features and improvements in this release",
+                    onClick = { showWhatsNewDialog = true }
+                )
+                MochySettingsDivider()
+                MochySettingsInfoRow(
+                    icon = Icons.Filled.MusicNote,
+                    title = "Powered By",
+                    subtitle = "FlexFly Company Pvt Ltd"
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
+private fun MochySectionHeader(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        color = MaterialTheme.colorScheme.primary,
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp
+        ),
+        color = Color(0xFF8E8E93),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-            .padding(top = 8.dp)
+            .padding(horizontal = 24.dp, top = 22.dp, bottom = 6.dp)
     )
 }
 
 @Composable
-private fun SettingsToggleRow(
+private fun MochySettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF16161A),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun MochySettingsToggleRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -702,9 +791,6 @@ private fun SettingsToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .slidePopIn()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -712,33 +798,46 @@ private fun SettingsToggleRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF222228)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White
+            )
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF8E8E93),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         Spacer(Modifier.width(8.dp))
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                checkedThumbColor = Color(0xFF16161A),
+                checkedTrackColor = Color.White,
+                uncheckedThumbColor = Color(0xFF636366),
+                uncheckedTrackColor = Color(0xFF2C2C32),
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
             )
         )
     }
 }
 
 @Composable
-private fun SettingsNavigationRow(
+private fun MochySettingsNavigationRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -747,33 +846,46 @@ private fun SettingsNavigationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .slidePopIn()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
-            .bouncyPopClick(onClick = onClick)
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF222228)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White
+            )
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF8E8E93),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = Color(0xFF636366),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
 @Composable
-private fun SettingsInfoRow(
+private fun MochySettingsInfoRow(
     icon: ImageVector,
     title: String,
     subtitle: String
@@ -781,27 +893,42 @@ private fun SettingsInfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .slidePopIn()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .claySurface(borderRadius = 20.dp, backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clayConcave(borderRadius = 12.dp, backgroundColor = MaterialTheme.colorScheme.surface),
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF222228)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = Color(0xFF8E8E93), modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White
+            )
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF8E8E93)
+            )
         }
     }
+}
+
+@Composable
+private fun MochySettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 70.dp, end = 16.dp),
+        color = Color(0xFF222228),
+        thickness = 0.8.dp
+    )
 }
 
 private const val DEVELOPER_EMAIL = "flexflycompany.in@gmail.com"
@@ -842,6 +969,3 @@ private fun sendEmail(
         }
     }
 }
-
-
-
