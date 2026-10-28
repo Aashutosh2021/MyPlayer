@@ -491,7 +491,7 @@ fun SettingsScreen(
             SettingsToggleRow(
                 icon = if (ThemeState.isDarkMode) Icons.Filled.DarkMode else Icons.Filled.LightMode,
                 title = "Dark Mode",
-                subtitle = if (ThemeState.isDarkMode) "Dark theme enabled" else "Light theme enabled",
+                subtitle = if (ThemeState.isDarkMode) "Dark theme active" else "Light theme active",
                 checked = ThemeState.isDarkMode,
                 onCheckedChange = { enabled ->
                     ThemeState.setDark(enabled)
@@ -499,25 +499,18 @@ fun SettingsScreen(
             )
         }
 
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Palette,
-                title = "Customize Player Styles",
-                subtitle = "Active: ${mochyState?.playerStyle?.title ?: "Radial (MyPlayer)"} • 6 Unique Styles",
-                onClick = onNavigateToPlayerStyles
-            )
+        if (mochyState != null) {
+            item {
+                SettingsNavigationRow(
+                    icon = Icons.Filled.Palette,
+                    title = "Customize Player Styles",
+                    subtitle = "Active: ${mochyState.playerStyle.title} • Switch between Radial, Turntable, Poster & more",
+                    onClick = onNavigateToPlayerStyles
+                )
+            }
         }
 
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.AutoAwesome,
-                title = "Mochy Visual & Audio Effects",
-                subtitle = "Bloom pass, Audio format badges, Glass blur & animations",
-                onClick = onNavigateToMochyAppearance
-            )
-        }
-
-        // Section: Playback
+        // Section: Playback (ONLY ONE Audio & Equalizer Screen — No Duplicates!)
         item { SettingsSectionHeader(title = "Playback") }
 
         item {
@@ -532,15 +525,6 @@ fun SettingsScreen(
                         showAudioPlaybackScreen = true
                     }
                 }
-            )
-        }
-
-        item {
-            SettingsNavigationRow(
-                icon = Icons.Filled.Tune,
-                title = "Mochy Audio Lab & 10-Band EQ",
-                subtitle = "10-Band Sweepable EQ, Rainbow Visualizer, 3D Reverb & Dolby Atmos",
-                onClick = onNavigateToMochyAudioLab
             )
         }
 

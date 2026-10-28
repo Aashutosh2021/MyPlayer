@@ -53,11 +53,16 @@ import com.example.myplayer.data.local.entity.SongEntity
 import com.example.myplayer.data.recommendation.model.RecommendationSong
 import com.example.myplayer.playback.AudioQualityInfo
 import com.example.myplayer.ui.common.AlbumArtImage
-import com.example.myplayer.ui.screens.nowplaying.LyricsTab
-import com.example.myplayer.ui.screens.nowplaying.LyricsViewModel
-import com.example.myplayer.ui.screens.nowplaying.NowPlayingVisual
-import com.example.myplayer.ui.theme.NeonLimePrimary
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player
+import com.example.myplayer.ui.screens.nowplaying.CustomLyricsDialog
+import com.example.myplayer.ui.screens.nowplaying.NowPlayingVisual
+import com.example.myplayer.ui.screens.nowplaying.LyricsTab
+import com.example.myplayer.ui.screens.nowplaying.LyricsUiState
+import com.example.myplayer.ui.screens.nowplaying.LyricsViewModel
+import com.example.myplayer.ui.screens.nowplaying.SleepTimerDialog
+import com.example.myplayer.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -86,69 +91,9 @@ enum class PlayerStyleMode(val title: String, val subtitle: String) {
     RADIAL_MYPLAYER("Radial (MyPlayer)", "Signature Neon Radial Dial + 3D Tilt Art + Synced Lyrics"),
     DEFAULT("Default", "Full-bleed gradient cover, format badge & bottom lyrics pill"),
     TURNTABLE("Turntable", "Spinning vinyl LP record with realistic tonearm & floating controls"),
-    IPOD("iPod Classic", "Retro click wheel with tactile click feel & classic LCD display"),
     POSTER("Poster", "Editorial full-bleed poster with curved wave seek arc"),
     TIMELINE("Timeline", "Minimalist split-screen giant timer card"),
     LYRICS_STAGE("Lyrics stage", "Immersive synced lyrics stage with split timer")
-}
-
-enum class CoverStyleMode(val title: String, val desc: String) {
-    RADIAL_3D("Radial 3D Dome", "Spherical dome with dynamic 3D tilt"),
-    ROUNDED_SQUARE("Rounded Card", "Modern floating album art card"),
-    CIRCLE_DISC("Floating Disc", "Circular disc with depth drop shadow"),
-    VINYL_LP("Vinyl LP Record", "Grooved vinyl with realistic shine & center label"),
-    CASSETTE("Retro Cassette", "Vintage tape cassette with spinning reels"),
-    CD_JEWEL("Jewel CD Case", "Clear crystal case with light refraction"),
-    POSTER_BLEED("Full Poster", "Edge-to-edge cinematic bleed")
-}
-
-enum class ControlButtonStyleMode(val title: String, val desc: String) {
-    DEFAULT("Modern Minimal", "Clean high-contrast transport controls"),
-    PILL_DOCK("Pill Floating Dock", "Unified pill background for transport buttons"),
-    NEUMORPHIC("Neumorphic 3D", "Soft tactile embossed physical buttons"),
-    NEON_GLOW("Neon Ring Glow", "Signature Cyan & Lime luminous glow rings"),
-    MINIMAL_LIGHT("Ultra Wireframe", "Featherlight high-contrast outline glyphs")
-}
-
-enum class SeekbarStyleMode(val title: String, val desc: String) {
-    DEFAULT("Linear Bar", "Smooth gradient track with rounded thumb"),
-    WAVY("Animated Sine Wave", "Rippling sine wave in sync with music playback"),
-    SQUIGGLY("Squiggly Wave", "Playful expressive audio waveform"),
-    DISC_ARM("Tonearm Needle", "Realistic turntable needle tracking the record"),
-    CIRCULAR_ARC("Radial Arc Dial", "270° neon curved progress dial")
-}
-
-enum class BottomBarStyleMode(val title: String, val desc: String) {
-    CARD_STACK("Card Deck Stack", "Stacked cards: Up Next queue preview + Lyrics pill"),
-    VOLUME_BAR("Volume Slider Dock", "Integrated volume control slider with icon"),
-    MINIMAL_BAR("Minimalist Bar", "Subtle compact navigation handle pill")
-}
-
-enum class TimestampStyleMode(val title: String, val desc: String) {
-    DURATION("Song Duration", "Total length format (e.g. 03:45)"),
-    REMAINING("Remaining Countdown", "Time left format (e.g. -01:20)"),
-    CLOCK_TIME("Wall Clock End Time", "Calculated end time (e.g. Ends at 5:42 PM)")
-}
-
-enum class BackgroundAtmosphereMode(val title: String, val desc: String) {
-    ALBUM_COLOR_GRADIENT("Artwork Gradient", "Dynamic extracted vibrant color palette"),
-    FROSTED_GLASS_BLUR("Frosted Glass Blur", "Deep 25px gaussian glass blur"),
-    OLED_BLACK("OLED Pitch Black", "True black #000000 for contrast & battery saving"),
-    RADIAL_GLOW("Luminous Radial Bloom", "Centered soft ambient bloom light"),
-    NEON_CYAN_LIME("Cyberpunk Neon Glow", "Signature MyPlayer Cyan & Neon Lime aura")
-}
-
-enum class IpodThemeMode(val title: String, val desc: String) {
-    SILVER("Classic Silver", "Original white faceplate with polished steel"),
-    BLACK("Stealth Black", "Deep space grey fading to matte black"),
-    U2_EDITION("U2 Special Edition", "Jet black body with bold red click wheel"),
-    TRUE_DARK("True Dark", "Monochrome midnight edition")
-}
-
-enum class TurntableArmColorMode(val title: String) {
-    CHROME_SILVER("Chrome Silver"),
-    BRASS_GOLD("Brass Gold"),
-    MATTE_BLACK("Matte Black")
 }
 
 //Rainbow 10-band colors matching video (02:49 - 03:33)
@@ -226,70 +171,6 @@ class MochyUiStateHolder(context: Context) {
     var blurStrengthPx by mutableFloatStateOf(prefs.getFloat("blur_strength", 25f))
     var smoothAnimations by mutableStateOf(prefs.getBoolean("smooth_animations", true))
 
-    // Mochy Player Customizer Options (Full studio controls)
-    var coverStyle by mutableStateOf(
-        runCatching { CoverStyleMode.valueOf(prefs.getString("cover_style", CoverStyleMode.RADIAL_3D.name)!!) }.getOrDefault(CoverStyleMode.RADIAL_3D)
-    )
-    var controlButtonStyle by mutableStateOf(
-        runCatching { ControlButtonStyleMode.valueOf(prefs.getString("control_button_style", ControlButtonStyleMode.DEFAULT.name)!!) }.getOrDefault(ControlButtonStyleMode.DEFAULT)
-    )
-    var seekbarStyle by mutableStateOf(
-        runCatching { SeekbarStyleMode.valueOf(prefs.getString("seekbar_style", SeekbarStyleMode.DEFAULT.name)!!) }.getOrDefault(SeekbarStyleMode.DEFAULT)
-    )
-    var bottomBarStyle by mutableStateOf(
-        runCatching { BottomBarStyleMode.valueOf(prefs.getString("bottom_bar_style", BottomBarStyleMode.CARD_STACK.name)!!) }.getOrDefault(BottomBarStyleMode.CARD_STACK)
-    )
-    var timestampStyle by mutableStateOf(
-        runCatching { TimestampStyleMode.valueOf(prefs.getString("timestamp_style", TimestampStyleMode.DURATION.name)!!) }.getOrDefault(TimestampStyleMode.DURATION)
-    )
-    var backgroundAtmosphere by mutableStateOf(
-        runCatching { BackgroundAtmosphereMode.valueOf(prefs.getString("background_atmosphere", BackgroundAtmosphereMode.ALBUM_COLOR_GRADIENT.name)!!) }.getOrDefault(BackgroundAtmosphereMode.ALBUM_COLOR_GRADIENT)
-    )
-    var ipodTheme by mutableStateOf(
-        runCatching { IpodThemeMode.valueOf(prefs.getString("ipod_theme", IpodThemeMode.SILVER.name)!!) }.getOrDefault(IpodThemeMode.SILVER)
-    )
-    var turntableArmColor by mutableStateOf(
-        runCatching { TurntableArmColorMode.valueOf(prefs.getString("turntable_arm_color", TurntableArmColorMode.CHROME_SILVER.name)!!) }.getOrDefault(TurntableArmColorMode.CHROME_SILVER)
-    )
-    var turntableRpm by mutableIntStateOf(prefs.getInt("turntable_rpm", 33))
-
-    fun updateCoverStyle(style: CoverStyleMode) {
-        coverStyle = style
-        prefs.edit().putString("cover_style", style.name).apply()
-    }
-    fun updateControlButtonStyle(style: ControlButtonStyleMode) {
-        controlButtonStyle = style
-        prefs.edit().putString("control_button_style", style.name).apply()
-    }
-    fun updateSeekbarStyle(style: SeekbarStyleMode) {
-        seekbarStyle = style
-        prefs.edit().putString("seekbar_style", style.name).apply()
-    }
-    fun updateBottomBarStyle(style: BottomBarStyleMode) {
-        bottomBarStyle = style
-        prefs.edit().putString("bottom_bar_style", style.name).apply()
-    }
-    fun updateTimestampStyle(style: TimestampStyleMode) {
-        timestampStyle = style
-        prefs.edit().putString("timestamp_style", style.name).apply()
-    }
-    fun updateBackgroundAtmosphere(style: BackgroundAtmosphereMode) {
-        backgroundAtmosphere = style
-        prefs.edit().putString("background_atmosphere", style.name).apply()
-    }
-    fun updateIpodTheme(theme: IpodThemeMode) {
-        ipodTheme = theme
-        prefs.edit().putString("ipod_theme", theme.name).apply()
-    }
-    fun updateTurntableArmColor(arm: TurntableArmColorMode) {
-        turntableArmColor = arm
-        prefs.edit().putString("turntable_arm_color", arm.name).apply()
-    }
-    fun updateTurntableRpm(rpm: Int) {
-        turntableRpm = rpm
-        prefs.edit().putInt("turntable_rpm", rpm).apply()
-    }
-
     // General & Playback Settings
     var disableUpdateNotice by mutableStateOf(prefs.getBoolean("disable_update_notice", false))
     var offlineMode by mutableStateOf(prefs.getBoolean("offline_mode", false))
@@ -356,7 +237,9 @@ class MochyUiStateHolder(context: Context) {
 
     fun updatePlayerStyle(style: PlayerStyleMode) {
         playerStyle = style
-        prefs.edit().putString("player_style", style.name).apply()
+        try {
+            prefs.edit().putString("player_style", style.name).apply()
+        } catch (_: Exception) {}
     }
 }
 
@@ -1276,16 +1159,16 @@ fun CrossfadeWaveformGraphic(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. MULTI-STYLE NOW PLAYING SCREEN & CUSTOMIZE PLAYER CAROUSEL (01:10, 01:38-01:59)
-//    Includes:
-//    1) RADIAL (MYPLAYER SIGNATURE)
-//    2) DEFAULT
-//    3) TURNTABLE (Spinning Vinyl + Tonearm)
-//    4) POSTER (Curved Wave Seek Arc)
-//    5) TIMELINE (Split Timer)
-//    6) LYRICS STAGE (Split Synced Lyrics + Timer)
+// 4. MULTI-STYLE NOW PLAYING SCREEN & CUSTOMIZE PLAYER CAROUSEL (FIXED!)
+//    - Fixed: No button on NowPlayingScreen ever opens Customize Styles unexpectedly!
+//    - Fixed: Real Synced Lyrics (`LyricsViewModel` + `LyricsTab` + `CustomLyricsDialog`)
+//      work across ALL styles (Radial, Default, Turntable, Poster, Lyrics Stage)!
+//    - Fixed: Vinyl LP & Album Art center alignment on Turntable + Poster layout bounds
+//    - Fixed: `styleOverride` in `MochyPlayerStylesPickerScreen` so each card in the
+//      HorizontalPager previews its own distinct style!
 // ═════════════════════════════════════════════════════════════════════════════
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MochyMultiStyleNowPlayingScreen(
     mochyState: MochyUiStateHolder,
@@ -1300,306 +1183,442 @@ fun MochyMultiStyleNowPlayingScreen(
     onPreviousClick: () -> Unit,
     onSeek: (Long) -> Unit,
     onBackClick: () -> Unit,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
-    isShuffleOn: Boolean,
-    onToggleShuffle: () -> Unit,
-    repeatMode: Int,
-    onCycleRepeatMode: () -> Unit,
-    canDownload: Boolean,
-    isDownloaded: Boolean,
-    isDownloading: Boolean,
-    onDownloadClick: () -> Unit,
-    audioQuality: AudioQualityInfo,
-    onOpenCustomizeStyles: () -> Unit,
-    lyricsViewModel: LyricsViewModel? = null
+    sleepTimerRemaining: Long = -1L,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
+    onStartSleepTimer: (Int) -> Unit = {},
+    onCancelSleepTimer: () -> Unit = {},
+    isShuffleOn: Boolean = false,
+    onToggleShuffle: () -> Unit = {},
+    repeatMode: Int = 0,
+    onCycleRepeatMode: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    canDownload: Boolean = true,
+    isDownloaded: Boolean = false,
+    isDownloading: Boolean = false,
+    onDownloadClick: () -> Unit = {},
+    onRemoveDownloadClick: () -> Unit = {},
+    audioQuality: AudioQualityInfo = AudioQualityInfo(),
+    onOpenCustomizeStyles: () -> Unit = {},
+    styleOverride: PlayerStyleMode? = null,
+    isPreviewMode: Boolean = false,
+    lyricsViewModel: LyricsViewModel? = if (isPreviewMode) null else hiltViewModel()
 ) {
-    val activeStyle = mochyState.playerStyle
-    val positionMs = positionState.value
-    val safeDuration = durationMs.coerceAtLeast(1L)
-    val progress = (positionMs.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+    val activeStyle = styleOverride ?: mochyState.playerStyle
+    val positionMs = positionState.value.coerceAtLeast(0L)
+    val safeDuration = if (durationMs > 0L) durationMs else 1L
+    val progress = (positionMs.toFloat() / safeDuration.toFloat()).let {
+        if (it.isNaN() || it.isInfinite()) 0f else it.coerceIn(0f, 1f)
+    }
+    val hasSong = !title.isNullOrBlank()
 
-    when (activeStyle) {
-        // ── STYLE 1: YOUR SIGNATURE MYPLAYER RADIAL CONTROLLER SCREEN ──────
-        PlayerStyleMode.RADIAL_MYPLAYER -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF0E140B))
-            ) {
-                NowPlayingVisual(
-                    title = title,
-                    artist = artist,
-                    artUri = artUri,
-                    durationMs = safeDuration,
-                    positionMs = positionMs,
-                    isPlaying = isPlaying,
-                    isFavorite = isFavorite,
-                    isShuffleEnabled = isShuffleOn,
-                    repeatMode = repeatMode,
-                    onPlayPause = onPlayPauseClick,
-                    onPrevious = onPreviousClick,
-                    onNext = onNextClick,
-                    onSeek = onSeek,
-                    onFavorite = onToggleFavorite,
-                    onShuffle = onToggleShuffle,
-                    onRepeat = onCycleRepeatMode,
-                    onBack = onBackClick,
-                    onOptions = onOpenCustomizeStyles,
-                    lyricsContent = {
-                        lyricsViewModel?.let { lvm ->
-                            val lyricsState by lvm.lyricsState.collectAsStateWithLifecycle()
-                            val lyricsPositionState = lvm.currentPosition.collectAsStateWithLifecycle()
-                            LyricsTab(
-                                lyricsState = lyricsState,
-                                positionMs = lyricsPositionState,
-                                onSeek = onSeek,
-                                onAddCustomLyrics = {},
-                                onRetryLyrics = { lvm.retryLyrics() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(360.dp)
-                            )
-                        }
-                    }
-                )
+    var showSleepTimer by remember { mutableStateOf(false) }
+    var showRemoveConfirm by remember { mutableStateOf(false) }
+    var showQualityDetails by remember { mutableStateOf(false) }
+    var showCustomLyricsDialog by remember { mutableStateOf(false) }
+    var showLyricsBottomSheet by remember { mutableStateOf(false) }
+
+    // Observe real synced lyrics from LyricsViewModel (when not in static style-picker preview)
+    val lyricsState = lyricsViewModel?.lyricsState?.collectAsStateWithLifecycle()?.value
+    val lyricsPositionState = lyricsViewModel?.currentPosition?.collectAsStateWithLifecycle()
+        ?: positionState
+
+    // Extract current active lyric line for the compact bottom lyrics pill on Default/Turntable/Poster
+    val currentLyricSnippet = remember(lyricsState, positionMs) {
+        when (val st = lyricsState) {
+            is LyricsUiState.Loading -> "Loading lyrics..."
+            is LyricsUiState.Found -> {
+                val synced = st.result.syncedLyrics
+                if (!synced.isNullOrBlank()) {
+                    val currentLine = parseCurrentSyncedLine(synced, positionMs)
+                    currentLine.ifBlank { st.result.plainLyrics?.lines()?.firstOrNull { it.isNotBlank() } ?: "Tap to view lyrics" }
+                } else {
+                    st.result.plainLyrics?.lines()?.firstOrNull { it.isNotBlank() } ?: "Tap to view lyrics"
+                }
             }
+            else -> "No lyrics found • Tap to add lyrics"
+        }
+    }
+
+    // Dialogs (Audio Quality, Sleep Timer, Remove Download, Custom Lyrics, Full Lyrics Sheet)
+    if (!isPreviewMode) {
+        if (showQualityDetails) {
+            AlertDialog(
+                onDismissRequest = { showQualityDetails = false },
+                containerColor = MochySurface,
+                titleContentColor = Color.White,
+                textContentColor = MochyTextSecondary,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = NeonLimePrimary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Audio Stream Details", fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Source: ${audioQuality.sourceName}")
+                        Text("Codec / Format: ${audioQuality.format.uppercase()}")
+                        audioQuality.bitDepth?.let { Text("Bit Depth: $it-bit") }
+                        audioQuality.sampleRateHz?.let { Text("Sample Rate: ${it / 1000.0} kHz") }
+                        audioQuality.bitrateKbps?.let { Text("Bitrate: ~$it kbps") }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showQualityDetails = false }) {
+                        Text("Close", color = NeonLimePrimary)
+                    }
+                }
+            )
         }
 
-        // ── STYLE 2: MOCHY DEFAULT / FLAGSHIP CUSTOMIZABLE STYLE ─────────────
-        PlayerStyleMode.DEFAULT -> {
-            val bgModifier = when (mochyState.backgroundAtmosphere) {
-                BackgroundAtmosphereMode.OLED_BLACK -> Modifier.background(Color.Black)
-                BackgroundAtmosphereMode.FROSTED_GLASS_BLUR -> Modifier.background(Color(0xFF0F151F))
-                BackgroundAtmosphereMode.RADIAL_GLOW -> Modifier.background(
-                    Brush.radialGradient(listOf(Color(0xFF1E293B), Color(0xFF0A0F16), Color.Black))
-                )
-                BackgroundAtmosphereMode.NEON_CYAN_LIME -> Modifier.background(
-                    Brush.verticalGradient(listOf(Color(0xFF001A24), Color(0xFF0D1E13), Color(0xFF060D08)))
-                )
-                BackgroundAtmosphereMode.ALBUM_COLOR_GRADIENT -> Modifier.background(
-                    Brush.verticalGradient(listOf(Color(0xFF0E1A29), Color(0xFF09121E), Color(0xFF05080C)))
-                )
-            }
+        if (showSleepTimer) {
+            SleepTimerDialog(
+                currentRemaining = sleepTimerRemaining,
+                onDismiss = { showSleepTimer = false },
+                onStart = { minutes -> onStartSleepTimer(minutes); showSleepTimer = false },
+                onCancel = { onCancelSleepTimer(); showSleepTimer = false }
+            )
+        }
 
+        if (showRemoveConfirm) {
+            AlertDialog(
+                onDismissRequest = { showRemoveConfirm = false },
+                containerColor = MochySurface,
+                titleContentColor = Color.White,
+                textContentColor = MochyTextSecondary,
+                title = { Text("Remove Download?") },
+                text = { Text("This will remove the downloaded audio from your device.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = { onRemoveDownloadClick(); showRemoveConfirm = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))
+                    ) { Text("Remove") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRemoveConfirm = false }) {
+                        Text("Cancel", color = MochyTextSecondary)
+                    }
+                }
+            )
+        }
+
+        if (showCustomLyricsDialog && lyricsViewModel != null) {
+            val currentLyricsText = when (val st = lyricsState) {
+                is LyricsUiState.Found -> st.result.syncedLyrics ?: st.result.plainLyrics ?: ""
+                else -> ""
+            }
+            CustomLyricsDialog(
+                initialLyrics = currentLyricsText,
+                trackTitle = title,
+                trackArtist = artist,
+                onDismiss = { showCustomLyricsDialog = false },
+                onSave = { customText -> lyricsViewModel.saveCustomLyrics(customText) },
+                onDelete = if (lyricsState is LyricsUiState.Found) {
+                    { lyricsViewModel.deleteLyrics() }
+                } else null
+            )
+        }
+
+        if (showLyricsBottomSheet && lyricsViewModel != null && activeStyle != PlayerStyleMode.RADIAL_MYPLAYER) {
+            ModalBottomSheet(
+                onDismissRequest = { showLyricsBottomSheet = false },
+                containerColor = MochyBlack,
+                contentColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = title ?: "Lyrics",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = artist ?: "",
+                                fontSize = 13.sp,
+                                color = MochyTextSecondary,
+                                maxLines = 1
+                            )
+                        }
+                        TextButton(onClick = {
+                            showLyricsBottomSheet = false
+                            showCustomLyricsDialog = true
+                        }) {
+                            Icon(Icons.Default.EditNote, contentDescription = null, tint = NeonLimePrimary)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Edit Lyrics", color = NeonLimePrimary)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    if (lyricsState != null) {
+                        LyricsTab(
+                            lyricsState = lyricsState,
+                            positionMs = lyricsPositionState,
+                            onSeek = onSeek,
+                            onAddCustomLyrics = {
+                                showLyricsBottomSheet = false
+                                showCustomLyricsDialog = true
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(420.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
+        }
+    }
+
+    when (activeStyle) {
+        // ── STYLE 1: YOUR COMPLETE SIGNATURE MYPLAYER RADIAL SCREEN ──────────
+        PlayerStyleMode.RADIAL_MYPLAYER -> {
+            NowPlayingVisual(
+                title = title,
+                artist = artist,
+                artUri = artUri,
+                durationMs = safeDuration,
+                positionMs = positionMs,
+                isPlaying = isPlaying,
+                isFavorite = isFavorite,
+                isShuffleEnabled = isShuffleOn,
+                repeatMode = repeatMode,
+                onPlayPause = onPlayPauseClick,
+                onPrevious = onPreviousClick,
+                onNext = onNextClick,
+                onSeek = onSeek,
+                onFavorite = onToggleFavorite,
+                onShuffle = onToggleShuffle,
+                onRepeat = onCycleRepeatMode,
+                onBack = onBackClick,
+                onOptions = onNavigateToSettings,
+                lyricsContent = {
+                    if (!isPreviewMode && lyricsState != null) {
+                        LyricsTab(
+                            lyricsState = lyricsState,
+                            positionMs = lyricsPositionState,
+                            onSeek = onSeek,
+                            onAddCustomLyrics = { showCustomLyricsDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(450.dp)
+                        )
+                    }
+                }
+            )
+        }
+
+                // ── STYLE 2: MOCHY DEFAULT STYLE (01:10 - 01:13, 01:39) ─────────────
+        PlayerStyleMode.DEFAULT -> {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(bgModifier)
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .background(Color(0xFF08141E))
             ) {
-                // Top Grab Handle & Back / Customize Actions
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.60f)
+                ) {
+                    AlbumArtImage(
+                        uri = artUri ?: "",
+                        title = title,
+                        artist = artist,
+                        size = 500.dp,
+                        shape = RoundedCornerShape(0.dp),
+                        iconSize = 96.dp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.25f),
+                                        Color.Transparent,
+                                        Color(0xFF08141E)
+                                    )
+                                )
+                            )
+                    )
+                }
+
+                // Top Bar: Back Button on Left + Grab Handle Center + Sleep/Download on Right
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                        .align(Alignment.TopCenter),
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f))
-                    ) {
-                        Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White)
-                    }
+                    MochyCircleIconButton(icon = Icons.Default.KeyboardArrowDown, onClick = onBackClick)
                     Box(
                         modifier = Modifier
-                            .width(42.dp)
+                            .width(44.dp)
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.35f))
+                            .background(Color.White.copy(alpha = 0.45f))
                     )
-                    IconButton(
-                        onClick = onOpenCustomizeStyles,
-                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f))
-                    ) {
-                        Icon(Icons.Default.Palette, null, tint = NeonLimePrimary)
-                    }
+                    MochyCircleIconButton(
+                        icon = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.Download,
+                        onClick = { if (isDownloaded) showRemoveConfirm = true else onDownloadClick() }
+                    )
                 }
 
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 60.dp, bottom = 12.dp, start = 20.dp, end = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
                 ) {
-                    // 1. Cover Art (respects mochyState.coverStyle)
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        MochyCoverArtView(
-                            coverStyle = mochyState.coverStyle,
-                            artUri = artUri,
-                            title = title,
-                            artist = artist,
-                            isPlaying = isPlaying
-                        )
-                    }
-
-                    // 2. Metadata (Title, Artist, Format Badge)
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = title ?: "No song playing",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (mochyState.audioFormatBadge) {
-                                        Spacer(Modifier.width(8.dp))
-                                        MochyFormatBadge(audioQuality.format.ifBlank { "HI-RES" })
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = title ?: "No song playing",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (mochyState.audioFormatBadge) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Box(modifier = Modifier.clickable { showQualityDetails = true }) {
+                                        MochyFormatBadge(audioQuality.format.ifBlank { "AAC" })
                                     }
                                 }
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    text = artist ?: "Unknown Artist",
-                                    fontSize = 14.sp,
-                                    color = Color.White.copy(alpha = 0.72f),
-                                    maxLines = 1
-                                )
                             }
-                            IconButton(onClick = onToggleFavorite) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = if (isFavorite) Color(0xFFFF4081) else Color.White
-                                )
-                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = artist ?: "",
+                                fontSize = 15.sp,
+                                color = Color.White.copy(alpha = 0.72f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            MochyCircleIconButton(
+                                icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                onClick = onToggleFavorite
+                            )
+                            // Opens Lyrics Sheet (NOT Style Picker!)
+                            MochyCircleIconButton(
+                                icon = Icons.Default.Lyrics,
+                                onClick = { showLyricsBottomSheet = true }
+                            )
                         }
                     }
 
-                    // 3. Seekbar & Progress (respects mochyState.seekbarStyle & mochyState.timestampStyle)
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        when (mochyState.seekbarStyle) {
-                            SeekbarStyleMode.WAVY -> {
-                                MochyWavyProgressBar(
-                                    progress = progress,
-                                    onSeek = { onSeek((it * safeDuration).toLong()) },
-                                    isPlaying = isPlaying
-                                )
-                            }
-                            SeekbarStyleMode.SQUIGGLY -> {
-                                MochySquigglyProgressBar(
-                                    progress = progress,
-                                    onSeek = { onSeek((it * safeDuration).toLong()) },
-                                    isPlaying = isPlaying
-                                )
-                            }
-                            else -> {
-                                Slider(
-                                    value = progress,
-                                    onValueChange = { onSeek((it * safeDuration).toLong()) },
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = NeonLimePrimary,
-                                        activeTrackColor = Color.White,
-                                        inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                                    )
-                                )
-                            }
-                        }
+                    Spacer(Modifier.height(14.dp))
 
+                    Slider(
+                        value = progress,
+                        onValueChange = { onSeek((it * safeDuration).toLong()) },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(formatMs(positionMs), fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
+                        Text(formatMs(safeDuration), fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onToggleShuffle) {
+                            Icon(
+                                Icons.Default.Shuffle,
+                                null,
+                                tint = if (isShuffleOn) NeonLimePrimary else Color.White.copy(alpha = 0.55f)
+                            )
+                        }
+                        IconButton(onClick = onPreviousClick, modifier = Modifier.size(56.dp)) {
+                            Icon(Icons.Default.FastRewind, null, tint = Color.White, modifier = Modifier.size(38.dp))
+                        }
+                        IconButton(onClick = onPlayPauseClick, modifier = Modifier.size(68.dp)) {
+                            Icon(
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                null,
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                        IconButton(onClick = onNextClick, modifier = Modifier.size(56.dp)) {
+                            Icon(Icons.Default.FastForward, null, tint = Color.White, modifier = Modifier.size(38.dp))
+                        }
+                        IconButton(onClick = onCycleRepeatMode) {
+                            Icon(
+                                if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                                null,
+                                tint = if (repeatMode != 0) NeonLimePrimary else Color.White.copy(alpha = 0.55f)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Bottom Frosted Lyrics Pill — shows live synced lyric line & opens Lyrics Sheet on tap!
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White.copy(alpha = 0.10f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(62.dp)
+                            .clickable { showLyricsBottomSheet = true }
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            val elapsedText = formatMs(positionMs)
-                            val endText = when (mochyState.timestampStyle) {
-                                TimestampStyleMode.DURATION -> formatMs(safeDuration)
-                                TimestampStyleMode.REMAINING -> "-${formatMs((safeDuration - positionMs).coerceAtLeast(0L))}"
-                                TimestampStyleMode.CLOCK_TIME -> "Ends ${formatEndTime((safeDuration - positionMs).coerceAtLeast(0L))}"
-                            }
-                            Text(elapsedText, fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
-                            Text(endText, fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
-                        }
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-
-                    // 4. Transport Controls (respects mochyState.controlButtonStyle)
-                    MochyTransportButtonsRow(
-                        buttonStyle = mochyState.controlButtonStyle,
-                        isPlaying = isPlaying,
-                        onPrevious = onPreviousClick,
-                        onPlayPause = onPlayPauseClick,
-                        onNext = onNextClick
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // 5. Bottom Dock (respects mochyState.bottomBarStyle)
-                    when (mochyState.bottomBarStyle) {
-                        BottomBarStyleMode.CARD_STACK -> {
-                            Surface(
-                                shape = RoundedCornerShape(22.dp),
-                                color = Color.White.copy(alpha = 0.10f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(58.dp)
-                                    .clickable { onOpenCustomizeStyles() }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 18.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = NeonLimePrimary, modifier = Modifier.size(18.dp))
-                                        Text("Next in Queue • Synced Lyrics", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                    }
-                                    Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White.copy(alpha = 0.6f))
-                                }
-                            }
-                        }
-                        BottomBarStyleMode.VOLUME_BAR -> {
-                            Surface(
-                                shape = RoundedCornerShape(22.dp),
-                                color = Color.White.copy(alpha = 0.10f),
-                                modifier = Modifier.fillMaxWidth().height(52.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(Icons.Default.VolumeDown, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    Slider(
-                                        value = 0.7f,
-                                        onValueChange = {},
-                                        modifier = Modifier.weight(1f),
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = Color.White,
-                                            activeTrackColor = Color.White,
-                                            inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                                        )
-                                    )
-                                    Icon(Icons.Default.VolumeUp, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                }
-                            }
-                        }
-                        BottomBarStyleMode.MINIMAL_BAR -> {
-                            Box(
-                                modifier = Modifier
-                                    .padding(vertical = 4.dp)
-                                    .width(44.dp)
-                                    .height(4.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.4f))
-                                    .clickable { onOpenCustomizeStyles() }
+                            Text(
+                                text = currentLyricSnippet,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Expand Lyrics",
+                                tint = Color.White.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -1607,7 +1626,7 @@ fun MochyMultiStyleNowPlayingScreen(
             }
         }
 
-        // ── STYLE 3: MOCHY TURNTABLE STYLE (01:40 - 01:42, 01:51 - 01:59) ───
+        // ── STYLE 3: MOCHY TURNTABLE STYLE (FIXED CENTER ALIGNMENT & LYRICS) ─
         PlayerStyleMode.TURNTABLE -> {
             val infinite = rememberInfiniteTransition(label = "turntableSpin")
             val vinylAngle by infinite.animateFloat(
@@ -1629,85 +1648,103 @@ fun MochyMultiStyleNowPlayingScreen(
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
-                // Rotating Vinyl LP Disc + Artwork Label + Tonearm (Top-Left/Center, 01:53)
+                // Top-Left Back Button so user can always close player cleanly
+                MochyCircleIconButton(
+                    icon = Icons.Default.KeyboardArrowDown,
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 20.dp, top = 12.dp)
+                )
+
+                // Unified Turntable Platter Box: Vinyl Grooves & Center Artwork share the EXACT same center!
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(470.dp)
+                        .height(430.dp)
+                        .padding(top = 28.dp)
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val cx = size.width * 0.28f
-                        val cy = size.height * 0.46f
-                        val r = size.width * 0.64f
+                    Box(
+                        modifier = Modifier
+                            .size(340.dp)
+                            .offset(x = (-48).dp, y = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val r = size.minDimension / 2f
+                            drawCircle(color = Color(0xFF0B0B0D), radius = r)
+                            for (ring in 1..8) {
+                                drawCircle(
+                                    color = Color.White.copy(alpha = if (ring % 2 == 0) 0.07f else 0.03f),
+                                    radius = r * (0.54f + ring * 0.052f),
+                                    style = Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
+                        }
 
-                        // Outer Vinyl Disc
-                        drawCircle(color = Color(0xFF0B0B0D), radius = r, center = Offset(cx, cy))
-                        for (ring in 1..9) {
-                            drawCircle(
-                                color = Color.White.copy(alpha = if (ring % 2 == 0) 0.06f else 0.03f),
-                                radius = r * (0.48f + ring * 0.05f),
-                                center = Offset(cx, cy),
-                                style = Stroke(width = 1.5.dp.toPx())
+                        // Perfectly centered rotating Album Art inside the Vinyl LP
+                        Box(
+                            modifier = Modifier
+                                .size(196.dp)
+                                .rotate(effectiveAngle)
+                                .clip(CircleShape)
+                                .border(4.dp, Color(0xFF1A1A1F), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AlbumArtImage(
+                                uri = artUri ?: "",
+                                title = title,
+                                artist = artist,
+                                size = 196.dp,
+                                shape = CircleShape,
+                                iconSize = 56.dp
+                            )
+                            // Vinyl center spindle hole
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0B0B0D))
+                                    .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
                             )
                         }
                     }
 
-                    // Rotating Center Album Artwork inside the Vinyl
-                    Box(
-                        modifier = Modifier
-                            .offset(x = (-42).dp, y = 76.dp)
-                            .size(260.dp)
-                            .rotate(effectiveAngle)
-                            .clip(CircleShape)
-                            .border(4.dp, Color(0xFF1A1A1F), CircleShape)
-                    ) {
-                        AlbumArtImage(
-                            uri = artUri ?: "",
-                            title = title,
-                            artist = artist,
-                            size = 260.dp,
-                            shape = CircleShape,
-                            iconSize = 64.dp
-                        )
-                    }
-
                     // Tonearm on the Right (01:53)
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        val pivotX = size.width * 0.87f
-                        val pivotY = size.height * 0.13f
+                        val pivotX = size.width * 0.86f
+                        val pivotY = size.height * 0.12f
                         drawRoundRect(
                             color = Color(0xFF1C2026),
-                            topLeft = Offset(pivotX - 30.dp.toPx(), pivotY - 26.dp.toPx()),
-                            size = Size(60.dp.toPx(), 68.dp.toPx()),
+                            topLeft = Offset(pivotX - 28.dp.toPx(), pivotY - 22.dp.toPx()),
+                            size = Size(56.dp.toPx(), 64.dp.toPx()),
                             cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx())
                         )
-                        // Metallic silver arm rod
-                        val endX = size.width * 0.65f
+                        val endX = size.width * 0.62f
                         val endY = size.height * 0.72f
                         drawLine(
                             color = Color(0xFFD0D5DD),
-                            start = Offset(pivotX, pivotY + 20.dp.toPx()),
+                            start = Offset(pivotX, pivotY + 18.dp.toPx()),
                             end = Offset(endX, endY),
-                            strokeWidth = 7.dp.toPx(),
+                            strokeWidth = 6.5.dp.toPx(),
                             cap = StrokeCap.Round
                         )
-                        // Headshell cartridge
                         rotate(24f, pivot = Offset(endX, endY)) {
                             drawRoundRect(
                                 color = Color(0xFF15181E),
-                                topLeft = Offset(endX - 16.dp.toPx(), endY - 10.dp.toPx()),
-                                size = Size(32.dp.toPx(), 54.dp.toPx()),
+                                topLeft = Offset(endX - 15.dp.toPx(), endY - 8.dp.toPx()),
+                                size = Size(30.dp.toPx(), 50.dp.toPx()),
                                 cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
                             )
                         }
                     }
                 }
 
-                // Vertical Floating Control Column on Bottom-Right (Heart, Prev, Pause, Next - 01:53)
+                // Vertical Floating Control Column on Bottom-Right (Heart, Prev, Pause, Next)
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 112.dp),
+                        .padding(end = 24.dp, bottom = 136.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -1723,20 +1760,22 @@ fun MochyMultiStyleNowPlayingScreen(
                     MochyPillControlButton(icon = Icons.Default.FastForward, onClick = onNextClick)
                 }
 
-                // Bottom-Left Track Metadata + Bottom Lyrics Bar (01:53)
+                // Bottom Track Info + Seekbar + Lyrics Pill
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 18.dp)
+                        .padding(horizontal = 24.dp, vertical = 14.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(end = 76.dp)
                     ) {
+                        // Opens Lyrics Sheet (NOT Style Picker!)
                         MochyCircleIconButton(
                             icon = Icons.Default.KeyboardArrowUp,
-                            onClick = onOpenCustomizeStyles
+                            onClick = { showLyricsBottomSheet = true }
                         )
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1745,39 +1784,71 @@ fun MochyMultiStyleNowPlayingScreen(
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                MochyFormatBadge(audioQuality.format.ifBlank { "AAC" })
+                                Box(modifier = Modifier.clickable { showQualityDetails = true }) {
+                                    MochyFormatBadge(audioQuality.format.ifBlank { "AAC" })
+                                }
                             }
                             Text(
                                 text = artist ?: "Navjot Ahuja",
                                 fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.72f)
+                                color = Color.White.copy(alpha = 0.72f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(6.dp))
 
+                    Slider(
+                        value = progress,
+                        onValueChange = { onSeek((it * safeDuration).toLong()) },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.20f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // Bottom Lyrics Pill — shows live synced lyric line & opens Lyrics Sheet on tap!
                     Surface(
                         shape = RoundedCornerShape(24.dp),
                         color = Color.White.copy(alpha = 0.08f),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(66.dp)
-                            .clickable { onOpenCustomizeStyles() }
+                            .height(60.dp)
+                            .clickable { showLyricsBottomSheet = true }
                     ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterStart
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "No lyrics for this song",
+                                text = currentLyricSnippet,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White.copy(alpha = 0.65f)
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                Icons.Default.Lyrics,
+                                contentDescription = "Lyrics",
+                                tint = Color.White.copy(alpha = 0.65f),
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -1785,7 +1856,7 @@ fun MochyMultiStyleNowPlayingScreen(
             }
         }
 
-        // ── STYLE 4: MOCHY POSTER STYLE (01:43 - 01:45) ─────────────────────
+        // ── STYLE 4: MOCHY POSTER STYLE (01:43 - 01:45, FIXED BOUNDS) ────────
         PlayerStyleMode.POSTER -> {
             Box(
                 modifier = Modifier
@@ -1794,11 +1865,10 @@ fun MochyMultiStyleNowPlayingScreen(
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
-                // Top Poster Image + Curved Wave Progress Arc
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.68f)
+                        .fillMaxHeight(0.66f)
                 ) {
                     AlbumArtImage(
                         uri = artUri ?: "",
@@ -1808,7 +1878,6 @@ fun MochyMultiStyleNowPlayingScreen(
                         shape = RoundedCornerShape(0.dp),
                         iconSize = 96.dp
                     )
-                    // Curved Wave Progress Line at bottom of poster (01:44)
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val w = size.width
                         val h = size.height
@@ -1824,29 +1893,55 @@ fun MochyMultiStyleNowPlayingScreen(
                     }
                 }
 
-                // Top-Right Collapse Button
-                MochyCircleIconButton(
-                    icon = Icons.Default.KeyboardArrowDown,
-                    onClick = onBackClick,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(20.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MochyCircleIconButton(
+                        icon = Icons.Default.Lyrics,
+                        onClick = { showLyricsBottomSheet = true }
+                    )
+                    MochyCircleIconButton(
+                        icon = Icons.Default.KeyboardArrowDown,
+                        onClick = onBackClick
+                    )
+                }
 
-                // Large Poster Title on Left (01:44)
+                // Large Poster Title on Left with end padding so it never collides with right controls!
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 24.dp, bottom = 36.dp)
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 96.dp, bottom = 28.dp)
                 ) {
                     Text(
                         text = title ?: "Khat",
-                        fontSize = 42.sp,
+                        fontSize = 36.sp,
+                        lineHeight = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = artist ?: "Navjot Ahuja",
                         fontSize = 15.sp,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = Color.White.copy(alpha = 0.72f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Slider(
+                        value = progress,
+                        onValueChange = { onSeek((it * safeDuration).toLong()) },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                        )
                     )
                 }
 
@@ -1880,34 +1975,53 @@ fun MochyMultiStyleNowPlayingScreen(
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
-                // Top Half (Lighter Steel Blue #546A7B)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.46f)
+                        .weight(0.52f)
                         .background(Color(0xFF536878))
                         .padding(24.dp)
                 ) {
                     if (isLyricsStage) {
-                        Column(modifier = Modifier.align(Alignment.TopStart)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 72.dp)
+                        ) {
                             Text(
                                 text = title ?: "Khat",
-                                fontSize = 36.sp,
+                                fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.White.copy(alpha = 0.55f)
+                                color = Color.White.copy(alpha = 0.65f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(end = 48.dp)
                             )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = "No synced lyrics for this song.",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.75f)
-                            )
+                            Spacer(Modifier.height(8.dp))
+                            if (!isPreviewMode && lyricsState != null) {
+                                LyricsTab(
+                                    lyricsState = lyricsState,
+                                    positionMs = lyricsPositionState,
+                                    onSeek = onSeek,
+                                    onAddCustomLyrics = { showCustomLyricsDialog = true },
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
+                                )
+                            } else {
+                                Text(
+                                    text = currentLyricSnippet,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.85f)
+                                )
+                            }
                         }
                     } else {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.align(Alignment.TopStart)
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(end = 52.dp)
                         ) {
                             AlbumArtImage(
                                 uri = artUri ?: "",
@@ -1918,8 +2032,8 @@ fun MochyMultiStyleNowPlayingScreen(
                                 iconSize = 24.dp
                             )
                             Column {
-                                Text(title ?: "Khat", fontWeight = FontWeight.Bold, color = Color.White)
-                                Text(artist ?: "Navjot Ahuja", fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text(title ?: "Khat", fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                                Text(artist ?: "Navjot Ahuja", fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f), maxLines = 1)
                             }
                         }
                     }
@@ -1930,30 +2044,41 @@ fun MochyMultiStyleNowPlayingScreen(
                         modifier = Modifier.align(Alignment.TopEnd)
                     )
 
-                    // Huge Current Time right above split line (01:46)
                     Text(
                         text = formatMs(positionMs),
-                        fontSize = 68.sp,
+                        fontSize = 64.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         modifier = Modifier.align(Alignment.BottomStart)
                     )
                 }
 
-                // Bottom Half (Darker Slate #34434E)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.54f)
+                        .weight(0.48f)
                         .background(Color(0xFF34434E))
                         .padding(24.dp)
                 ) {
                     Text(
                         text = formatMs(safeDuration),
-                        fontSize = 68.sp,
+                        fontSize = 64.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White.copy(alpha = 0.55f),
                         modifier = Modifier.align(Alignment.TopStart)
+                    )
+
+                    Slider(
+                        value = progress,
+                        onValueChange = { onSeek((it * safeDuration).toLong()) },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.Center)
                     )
 
                     Row(
@@ -1970,824 +2095,37 @@ fun MochyMultiStyleNowPlayingScreen(
                 }
             }
         }
-
-        // ── STYLE 7: MOCHY IPOD CLASSIC RETRO STYLE ────────────────────────
-        PlayerStyleMode.IPOD -> {
-            MochyIpodPlayerScreen(
-                mochyState = mochyState,
-                title = title ?: "No song playing",
-                artist = artist ?: "Unknown Artist",
-                artUri = artUri,
-                positionMs = positionMs,
-                durationMs = safeDuration,
-                isPlaying = isPlaying,
-                onPlayPause = onPlayPauseClick,
-                onPrevious = onPreviousClick,
-                onNext = onNextClick,
-                onSeek = onSeek,
-                onBack = onBackClick,
-                onOpenCustomize = onOpenCustomizeStyles
-            )
-        }
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// 4. MOCHY PLAYER STUDIO & COMPLETE CUSTOMIZER (01:39 - 02:30 in video)
-// ═════════════════════════════════════════════════════════════════════════════
-
-@Composable
-fun MochyWavyProgressBar(
-    progress: Float,
-    onSeek: (Float) -> Unit,
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "wavyProgress")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wavePhase"
-    )
-
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(28.dp)
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                    onSeek(fraction)
-                }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, _ ->
-                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                    onSeek(fraction)
-                }
-            }
-    ) {
-        val w = size.width
-        val h = size.height
-        val centerY = h / 2f
-        val activeWidth = w * progress.coerceIn(0f, 1f)
-
-        // Inactive track (smooth line)
-        drawLine(
-            color = Color.White.copy(alpha = 0.22f),
-            start = Offset(activeWidth, centerY),
-            end = Offset(w, centerY),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round
-        )
-
-        // Active track (animated sine wave)
-        val path = Path()
-        val step = 4f
-        val wavelength = 36f
-        val amp = if (isPlaying) 5.dp.toPx() else 1.5.dp.toPx()
-        val activePhase = if (isPlaying) phase else 0f
-
-        var x = 0f
-        path.moveTo(0f, centerY + kotlin.math.sin(activePhase) * amp)
-        while (x <= activeWidth) {
-            val y = centerY + kotlin.math.sin((x / wavelength) * (2 * Math.PI.toFloat()) + activePhase) * amp
-            path.lineTo(x, y.toFloat())
-            x += step
+private fun parseCurrentSyncedLine(lrcText: String, positionMs: Long): String {
+    val regex = Regex("""\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)""")
+    var latestLine = ""
+    for (rawLine in lrcText.lines()) {
+        val match = regex.find(rawLine.trim()) ?: continue
+        val min = match.groupValues[1].toLongOrNull() ?: 0L
+        val sec = match.groupValues[2].toLongOrNull() ?: 0L
+        val msStr = match.groupValues[3]
+        val ms = when (msStr.length) {
+            2 -> (msStr.toLongOrNull() ?: 0L) * 10L
+            3 -> msStr.toLongOrNull() ?: 0L
+            else -> 0L
         }
-
-        drawPath(
-            path = path,
-            color = Color.White,
-            style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-
-        // Thumb glow & circle at activeWidth
-        val thumbY = centerY + kotlin.math.sin((activeWidth / wavelength) * (2 * Math.PI.toFloat()) + activePhase) * amp
-        drawCircle(
-            color = NeonLimePrimary.copy(alpha = 0.35f),
-            radius = 10.dp.toPx(),
-            center = Offset(activeWidth, thumbY.toFloat())
-        )
-        drawCircle(
-            color = Color.White,
-            radius = 6.dp.toPx(),
-            center = Offset(activeWidth, thumbY.toFloat())
-        )
-    }
-}
-
-@Composable
-fun MochySquigglyProgressBar(
-    progress: Float,
-    onSeek: (Float) -> Unit,
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(28.dp)
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                    onSeek(fraction)
-                }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, _ ->
-                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                    onSeek(fraction)
-                }
-            }
-    ) {
-        val w = size.width
-        val h = size.height
-        val centerY = h / 2f
-        val activeWidth = w * progress.coerceIn(0f, 1f)
-
-        // Inactive line
-        drawLine(
-            color = Color.White.copy(alpha = 0.22f),
-            start = Offset(activeWidth, centerY),
-            end = Offset(w, centerY),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round
-        )
-
-        // Squiggly active path
-        val path = Path()
-        val step = 10f
-        var toggle = 1f
-        var x = 0f
-        path.moveTo(0f, centerY)
-        while (x <= activeWidth) {
-            val y = centerY + (if (isPlaying) toggle * 5.dp.toPx() else 0f)
-            path.lineTo(x, y)
-            toggle = -toggle
-            x += step
-        }
-        drawPath(
-            path = path,
-            color = NeonLimePrimary,
-            style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-        drawCircle(
-            color = Color.White,
-            radius = 6.dp.toPx(),
-            center = Offset(activeWidth, centerY)
-        )
-    }
-}
-
-@Composable
-fun MochyCoverArtView(
-    coverStyle: CoverStyleMode,
-    artUri: String?,
-    title: String?,
-    artist: String?,
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier
-) {
-    when (coverStyle) {
-        CoverStyleMode.RADIAL_3D -> {
-            Box(
-                modifier = modifier
-                    .size(270.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(Color(0xFF283648), Color(0xFF141C26), Color(0xFF090E14)),
-                            radius = 450f
-                        )
-                    )
-                    .border(BorderStroke(2.dp, Color(0xFF88B8E6).copy(alpha = 0.5f)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                AlbumArtImage(
-                    uri = artUri ?: "",
-                    title = title,
-                    artist = artist,
-                    size = 200.dp,
-                    shape = CircleShape,
-                    iconSize = 64.dp
-                )
-            }
-        }
-        CoverStyleMode.ROUNDED_SQUARE -> {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                shadowElevation = 14.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                modifier = modifier.size(270.dp)
-            ) {
-                AlbumArtImage(
-                    uri = artUri ?: "",
-                    title = title,
-                    artist = artist,
-                    size = 270.dp,
-                    shape = RoundedCornerShape(26.dp),
-                    iconSize = 80.dp
-                )
-            }
-        }
-        CoverStyleMode.CIRCLE_DISC -> {
-            Box(
-                modifier = modifier
-                    .size(270.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF121212))
-                    .border(BorderStroke(2.dp, Color.White.copy(alpha = 0.2f)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val r = size.minDimension / 2f
-                    for (i in 1..5) {
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.05f),
-                            radius = r * (0.4f + i * 0.1f),
-                            style = Stroke(1.dp.toPx())
-                        )
-                    }
-                }
-                AlbumArtImage(
-                    uri = artUri ?: "",
-                    title = title,
-                    artist = artist,
-                    size = 140.dp,
-                    shape = CircleShape,
-                    iconSize = 48.dp
-                )
-            }
-        }
-        CoverStyleMode.VINYL_LP -> {
-            val infinite = rememberInfiniteTransition(label = "vinylSpin")
-            val angle by infinite.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing)),
-                label = "vinylAngle"
-            )
-            val effectiveAngle = if (isPlaying) angle else 0f
-            Box(
-                modifier = modifier
-                    .size(270.dp)
-                    .rotate(effectiveAngle)
-                    .clip(CircleShape)
-                    .background(Color(0xFF141416)),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val r = size.minDimension / 2f
-                    for (i in 1..8) {
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.06f),
-                            radius = r * (0.35f + i * 0.07f),
-                            style = Stroke(1.2.dp.toPx())
-                        )
-                    }
-                }
-                AlbumArtImage(
-                    uri = artUri ?: "",
-                    title = title,
-                    artist = artist,
-                    size = 115.dp,
-                    shape = CircleShape,
-                    iconSize = 40.dp
-                )
-            }
-        }
-        CoverStyleMode.CASSETTE -> {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF22262C),
-                border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.2f)),
-                modifier = modifier.size(width = 280.dp, height = 190.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("STEREO CASSETTE • TYPE I", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.5f))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(84.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF121418))
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0xFF2A303A)).border(2.dp, Color.White.copy(alpha = 0.4f), CircleShape))
-                        AlbumArtImage(
-                            uri = artUri ?: "",
-                            title = title,
-                            artist = artist,
-                            size = 64.dp,
-                            shape = RoundedCornerShape(8.dp),
-                            iconSize = 26.dp
-                        )
-                        Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0xFF2A303A)).border(2.dp, Color.White.copy(alpha = 0.4f), CircleShape))
-                    }
-                    Text(title ?: "Audio Cassette", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                }
-            }
-        }
-        CoverStyleMode.CD_JEWEL -> {
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = Color(0xFF181D24),
-                border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.35f)),
-                modifier = modifier.size(260.dp)
-            ) {
-                Row(Modifier.fillMaxSize()) {
-                    Box(Modifier.width(16.dp).fillMaxHeight().background(Color(0xFF0E1116)).border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))))
-                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                        AlbumArtImage(
-                            uri = artUri ?: "",
-                            title = title,
-                            artist = artist,
-                            size = 230.dp,
-                            shape = RoundedCornerShape(0.dp),
-                            iconSize = 68.dp
-                        )
-                    }
-                }
-            }
-        }
-        CoverStyleMode.POSTER_BLEED -> {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                modifier = modifier.fillMaxWidth(0.92f).height(340.dp)
-            ) {
-                AlbumArtImage(
-                    uri = artUri ?: "",
-                    title = title,
-                    artist = artist,
-                    size = 500.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    iconSize = 96.dp
-                )
-            }
+        val timeMs = (min * 60_000L) + (sec * 1_000L) + ms
+        val text = match.groupValues[4].trim()
+        if (timeMs <= positionMs + 300L && text.isNotBlank()) {
+            latestLine = text
         }
     }
-}
-
-@Composable
-fun MochyTransportButtonsRow(
-    buttonStyle: ControlButtonStyleMode,
-    isPlaying: Boolean,
-    onPrevious: () -> Unit,
-    onPlayPause: () -> Unit,
-    onNext: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    when (buttonStyle) {
-        ControlButtonStyleMode.DEFAULT -> {
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onPrevious, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Default.FastRewind, null, tint = Color.White, modifier = Modifier.size(38.dp))
-                }
-                IconButton(onClick = onPlayPause, modifier = Modifier.size(68.dp)) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(48.dp)
-                    )
-                }
-                IconButton(onClick = onNext, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Default.FastForward, null, tint = Color.White, modifier = Modifier.size(38.dp))
-                }
-            }
-        }
-        ControlButtonStyleMode.PILL_DOCK -> {
-            Surface(
-                shape = RoundedCornerShape(32.dp),
-                color = Color.White.copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-                modifier = modifier.padding(horizontal = 20.dp).fillMaxWidth().height(66.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onPrevious) {
-                        Icon(Icons.Default.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                    }
-                    IconButton(onClick = onPlayPause, modifier = Modifier.size(52.dp).clip(CircleShape).background(Color.White)) {
-                        Icon(
-                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                    IconButton(onClick = onNext) {
-                        Icon(Icons.Default.SkipNext, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                    }
-                }
-            }
-        }
-        ControlButtonStyleMode.NEUMORPHIC -> {
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF262E3B))
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                        .clickable(onClick = onPrevious),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FastRewind, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                }
-                Box(
-                    modifier = Modifier
-                        .size(68.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF2E3848))
-                        .border(2.dp, NeonLimePrimary.copy(alpha = 0.65f), CircleShape)
-                        .clickable(onClick = onPlayPause),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        null,
-                        tint = NeonLimePrimary,
-                        modifier = Modifier.size(38.dp)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF262E3B))
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                        .clickable(onClick = onNext),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FastForward, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                }
-            }
-        }
-        ControlButtonStyleMode.NEON_GLOW -> {
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape)
-                        .clickable(onClick = onPrevious),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FastRewind, null, tint = Color(0xFF00E5FF), modifier = Modifier.size(26.dp))
-                }
-                Box(
-                    modifier = Modifier
-                        .size(70.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.65f))
-                        .border(2.dp, NeonLimePrimary, CircleShape)
-                        .clickable(onClick = onPlayPause),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        null,
-                        tint = NeonLimePrimary,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape)
-                        .clickable(onClick = onNext),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.FastForward, null, tint = Color(0xFF00E5FF), modifier = Modifier.size(26.dp))
-                }
-            }
-        }
-        ControlButtonStyleMode.MINIMAL_LIGHT -> {
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(26.dp))
-                }
-                IconButton(onClick = onPlayPause, modifier = Modifier.size(60.dp)) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-                IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Default.ArrowForward, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(26.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MochyIpodPlayerScreen(
-    mochyState: MochyUiStateHolder,
-    title: String,
-    artist: String,
-    artUri: String?,
-    positionMs: Long,
-    durationMs: Long,
-    isPlaying: Boolean,
-    onPlayPause: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onBack: () -> Unit,
-    onOpenCustomize: () -> Unit
-) {
-    val theme = mochyState.ipodTheme
-    val bodyBrush = when (theme) {
-        IpodThemeMode.SILVER -> Brush.linearGradient(
-            listOf(Color(0xFFE8ECEF), Color(0xFFCBD0D6), Color(0xFFD6DBE0))
-        )
-        IpodThemeMode.BLACK -> Brush.linearGradient(
-            listOf(Color(0xFF282C34), Color(0xFF1E2127), Color(0xFF16181D))
-        )
-        IpodThemeMode.U2_EDITION -> Brush.linearGradient(
-            listOf(Color(0xFF14171A), Color(0xFF0C0E10), Color(0xFF101215))
-        )
-        IpodThemeMode.TRUE_DARK -> Brush.linearGradient(
-            listOf(Color(0xFF0A0C0E), Color(0xFF050607), Color(0xFF08090A))
-        )
-    }
-
-    val wheelBg = when (theme) {
-        IpodThemeMode.SILVER -> Color(0xFFF0F3F6)
-        IpodThemeMode.BLACK -> Color(0xFF2B303A)
-        IpodThemeMode.U2_EDITION -> Color(0xFFD32F2F)
-        IpodThemeMode.TRUE_DARK -> Color(0xFF1A1D22)
-    }
-    val wheelText = if (theme == IpodThemeMode.SILVER) Color(0xFF4A5568) else Color.White
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF06080B))
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(36.dp),
-            shadowElevation = 18.dp,
-            border = BorderStroke(2.dp, Color.White.copy(alpha = 0.25f)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(bodyBrush)
-                    .padding(20.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // LCD Screen
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFEDF2F7),
-                        border = BorderStroke(2.dp, Color(0xFF8A95A5)),
-                        shadowElevation = 8.dp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(0.48f)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                        contentDescription = null,
-                                        tint = Color(0xFF2D3748),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text("Now Playing", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("1 of 1", fontSize = 10.sp, color = Color(0xFF718096))
-                                    Icon(Icons.Default.BatteryFull, null, tint = Color(0xFF2D3748), modifier = Modifier.size(16.dp))
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    shadowElevation = 6.dp,
-                                    modifier = Modifier.size(105.dp)
-                                ) {
-                                    AlbumArtImage(
-                                        uri = artUri ?: "",
-                                        title = title,
-                                        artist = artist,
-                                        size = 105.dp,
-                                        shape = RoundedCornerShape(8.dp),
-                                        iconSize = 36.dp
-                                    )
-                                }
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = title,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color(0xFF1A202C),
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = artist,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF4A5568),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        text = "MyPlayer",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF718096)
-                                    )
-                                }
-                            }
-
-                            Column {
-                                val progressFrac = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
-                                LinearProgressIndicator(
-                                    progress = { progressFrac },
-                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                                    color = Color(0xFF3182CE),
-                                    trackColor = Color(0xFFCBD5E0)
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(formatMs(positionMs), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A5568))
-                                    val rem = (durationMs - positionMs).coerceAtLeast(0L)
-                                    Text("-${formatMs(rem)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A5568))
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    // Click Wheel
-                    Box(
-                        modifier = Modifier
-                            .size(240.dp)
-                            .clip(CircleShape)
-                            .background(wheelBg)
-                            .border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.25f)), CircleShape)
-                            .pointerInput(Unit) {
-                                detectDragGestures { change, dragAmount ->
-                                    change.consume()
-                                    if (dragAmount.x > 5 || dragAmount.y > 5) {
-                                        val newPos = (positionMs + 3000L).coerceAtMost(durationMs)
-                                        onSeek(newPos)
-                                    } else if (dragAmount.x < -5 || dragAmount.y < -5) {
-                                        val newPos = (positionMs - 3000L).coerceAtLeast(0L)
-                                        onSeek(newPos)
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "MENU",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp,
-                            color = wheelText,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 18.dp)
-                                .clickable { onOpenCustomize() }
-                        )
-
-                        Icon(
-                            imageVector = Icons.Default.FastRewind,
-                            contentDescription = "Previous",
-                            tint = wheelText,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 18.dp)
-                                .size(28.dp)
-                                .clickable { onPrevious() }
-                        )
-
-                        Icon(
-                            imageVector = Icons.Default.FastForward,
-                            contentDescription = "Next",
-                            tint = wheelText,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 18.dp)
-                                .size(28.dp)
-                                .clickable { onNext() }
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 18.dp)
-                                .clickable { onPlayPause() },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
-                                tint = wheelText,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(92.dp)
-                                .clip(CircleShape)
-                                .background(bodyBrush)
-                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), CircleShape)
-                                .clickable { onPlayPause() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(76.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-                }
-            }
-        }
-    }
+    return latestLine
 }
 
 /**
- * Mochy Player Studio & Complete Customizer Screen
- * Lets user customize ALL player dimensions from Mochy + keeps MyPlayer Radial screen!
+ * Player Style Picker Carousel Screen (`Styles` screen at 01:39 - 01:52 in video)
+ * Each card passes `styleOverride = style` and `isPreviewMode = true` so all 6 styles
+ * (Radial MyPlayer, Default, Turntable, Poster, Timeline, Lyrics stage) render distinctly!
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MochyPlayerStylesPickerScreen(
     mochyState: MochyUiStateHolder,
@@ -2796,22 +2134,10 @@ fun MochyPlayerStylesPickerScreen(
     previewArtUri: String? = null,
     onBack: () -> Unit
 ) {
-    val categories = remember {
-        listOf(
-            "Styles" to Icons.Default.Palette,
-            "Cover Style" to Icons.Default.Album,
-            "Controls" to Icons.Default.PlayCircle,
-            "Seekbar" to Icons.Default.GraphicEq,
-            "Bottom Dock" to Icons.Default.ViewAgenda,
-            "Timestamp" to Icons.Default.Schedule,
-            "Atmosphere" to Icons.Default.WbSunny,
-            "iPod Theme" to Icons.Default.Smartphone,
-            "Turntable" to Icons.Default.Speed,
-            "Visuals" to Icons.Default.AutoAwesome
-        )
-    }
-    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
-    val (activeCategoryName, _) = categories[selectedCategoryIndex]
+    val styles = PlayerStyleMode.entries
+    val initialPage = styles.indexOf(mochyState.playerStyle).coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = initialPage) { styles.size }
+    val currentHighlighted = styles.getOrElse(pagerState.currentPage.coerceIn(0, styles.lastIndex)) { styles.first() }
 
     Column(
         modifier = Modifier
@@ -2820,339 +2146,110 @@ fun MochyPlayerStylesPickerScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Top Header
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.size(40.dp).clip(CircleShape).background(MochySurface)
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(MochySurface)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Customize Player Studio", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                Text("Active Style: ${mochyState.playerStyle.title}", fontSize = 12.sp, color = NeonLimePrimary)
-            }
-            MochyPrimaryPillButton(
-                text = "Done",
-                onClick = onBack,
-                modifier = Modifier.width(76.dp).height(38.dp)
-            )
-        }
 
-        // Horizontal Category Tabs
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-        ) {
-            items(categories.size) { idx ->
-                val (catName, catIcon) = categories[idx]
-                val isSelected = selectedCategoryIndex == idx
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isSelected) NeonLimePrimary else MochySurface,
-                    border = BorderStroke(1.dp, if (isSelected) NeonLimePrimary else MochyCardBorder),
-                    modifier = Modifier.clickable { selectedCategoryIndex = idx }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(catIcon, null, tint = if (isSelected) Color.Black else Color.White, modifier = Modifier.size(16.dp))
-                        Text(
-                            text = catName,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.Black else Color.White
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Live Miniature Preview Card (height 280dp)
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Color(0xFF0C1017),
-            border = BorderStroke(1.5.dp, NeonLimePrimary.copy(alpha = 0.5f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .height(270.dp)
-        ) {
-            val dummyPos = remember { mutableLongStateOf(48_000L) }
-            MochyMultiStyleNowPlayingScreen(
-                mochyState = mochyState,
-                title = previewTitle,
-                artist = previewArtist,
-                artUri = previewArtUri,
-                durationMs = 240_000L,
-                isPlaying = true,
-                positionState = dummyPos,
-                onPlayPauseClick = {},
-                onNextClick = {},
-                onPreviousClick = {},
-                onSeek = {},
-                onBackClick = {},
-                isFavorite = true,
-                onToggleFavorite = {},
-                isShuffleOn = false,
-                onToggleShuffle = {},
-                repeatMode = 0,
-                onCycleRepeatMode = {},
-                canDownload = false,
-                isDownloaded = false,
-                isDownloading = false,
-                onDownloadClick = {},
-                audioQuality = AudioQualityInfo(),
-                onOpenCustomizeStyles = {}
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        // Options List for Active Category
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            when (activeCategoryName) {
-                "Styles" -> {
-                    items(PlayerStyleMode.entries.size) { i ->
-                        val style = PlayerStyleMode.entries[i]
-                        val isSelected = mochyState.playerStyle == style
-                        MochyCustomizerOptionCard(
-                            title = style.title,
-                            desc = style.subtitle,
-                            isSelected = isSelected,
-                            badge = if (style == PlayerStyleMode.RADIAL_MYPLAYER) "MyPlayer Signature" else "Mochy Style",
-                            onClick = { mochyState.updatePlayerStyle(style) }
-                        )
-                    }
-                }
-                "Cover Style" -> {
-                    items(CoverStyleMode.entries.size) { i ->
-                        val style = CoverStyleMode.entries[i]
-                        val isSelected = mochyState.coverStyle == style
-                        MochyCustomizerOptionCard(
-                            title = style.title,
-                            desc = style.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateCoverStyle(style) }
-                        )
-                    }
-                }
-                "Controls" -> {
-                    items(ControlButtonStyleMode.entries.size) { i ->
-                        val btn = ControlButtonStyleMode.entries[i]
-                        val isSelected = mochyState.controlButtonStyle == btn
-                        MochyCustomizerOptionCard(
-                            title = btn.title,
-                            desc = btn.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateControlButtonStyle(btn) }
-                        )
-                    }
-                }
-                "Seekbar" -> {
-                    items(SeekbarStyleMode.entries.size) { i ->
-                        val seek = SeekbarStyleMode.entries[i]
-                        val isSelected = mochyState.seekbarStyle == seek
-                        MochyCustomizerOptionCard(
-                            title = seek.title,
-                            desc = seek.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateSeekbarStyle(seek) }
-                        )
-                    }
-                }
-                "Bottom Dock" -> {
-                    items(BottomBarStyleMode.entries.size) { i ->
-                        val bar = BottomBarStyleMode.entries[i]
-                        val isSelected = mochyState.bottomBarStyle == bar
-                        MochyCustomizerOptionCard(
-                            title = bar.title,
-                            desc = bar.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateBottomBarStyle(bar) }
-                        )
-                    }
-                }
-                "Timestamp" -> {
-                    items(TimestampStyleMode.entries.size) { i ->
-                        val ts = TimestampStyleMode.entries[i]
-                        val isSelected = mochyState.timestampStyle == ts
-                        MochyCustomizerOptionCard(
-                            title = ts.title,
-                            desc = ts.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateTimestampStyle(ts) }
-                        )
-                    }
-                }
-                "Atmosphere" -> {
-                    items(BackgroundAtmosphereMode.entries.size) { i ->
-                        val bg = BackgroundAtmosphereMode.entries[i]
-                        val isSelected = mochyState.backgroundAtmosphere == bg
-                        MochyCustomizerOptionCard(
-                            title = bg.title,
-                            desc = bg.desc,
-                            isSelected = isSelected,
-                            onClick = { mochyState.updateBackgroundAtmosphere(bg) }
-                        )
-                    }
-                }
-                "iPod Theme" -> {
-                    items(IpodThemeMode.entries.size) { i ->
-                        val theme = IpodThemeMode.entries[i]
-                        val isSelected = mochyState.ipodTheme == theme
-                        MochyCustomizerOptionCard(
-                            title = theme.title,
-                            desc = theme.desc,
-                            isSelected = isSelected,
-                            onClick = {
-                                mochyState.updateIpodTheme(theme)
-                                mochyState.updatePlayerStyle(PlayerStyleMode.IPOD)
-                            }
-                        )
-                    }
-                }
-                "Turntable" -> {
-                    item {
-                        Text("Turntable Arm Finish", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MochyTextSecondary)
-                    }
-                    items(TurntableArmColorMode.entries.size) { i ->
-                        val arm = TurntableArmColorMode.entries[i]
-                        val isSelected = mochyState.turntableArmColor == arm
-                        MochyCustomizerOptionCard(
-                            title = arm.title,
-                            desc = "Physical metallic finish for needle tonearm",
-                            isSelected = isSelected,
-                            onClick = {
-                                mochyState.updateTurntableArmColor(arm)
-                                mochyState.updatePlayerStyle(PlayerStyleMode.TURNTABLE)
-                            }
-                        )
-                    }
-                    item {
-                        Spacer(Modifier.height(8.dp))
-                        Text("Vinyl RPM Speed", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MochyTextSecondary)
-                    }
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            listOf(33 to "33⅓ RPM (Standard)", 45 to "45 RPM (Faster)").forEach { (rpm, label) ->
-                                val isSelected = mochyState.turntableRpm == rpm
-                                Surface(
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = if (isSelected) NeonLimePrimary else MochySurface,
-                                    modifier = Modifier.weight(1f).clickable {
-                                        mochyState.updateTurntableRpm(rpm)
-                                        mochyState.updatePlayerStyle(PlayerStyleMode.TURNTABLE)
-                                    }
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.Black else Color.White,
-                                        modifier = Modifier.padding(14.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                "Visuals" -> {
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MochySurface,
-                            border = BorderStroke(1.dp, MochyCardBorder),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                MochySwitchRow("High Quality Bloom", "Extra soft bloom pass on artwork & lyrics", mochyState.highQualityBloom) { mochyState.highQualityBloom = it }
-                                MochySwitchRow("Lyrics Shader Glow", "Glow effect on singing lines", mochyState.lyricsShader) { mochyState.lyricsShader = it }
-                                MochySwitchRow("Audio Format Badge", "Lossless, Hi-Res, Dolby Atmos indicator", mochyState.audioFormatBadge) { mochyState.audioFormatBadge = it }
-                                MochySwitchRow("Smooth Animations", "UI transition interpolations", mochyState.smoothAnimations) { mochyState.smoothAnimations = it }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MochyCustomizerOptionCard(
-    title: String,
-    desc: String,
-    isSelected: Boolean,
-    badge: String? = null,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Color(0xFF131D16) else MochySurface,
-        border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) NeonLimePrimary else MochyCardBorder
-        ),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) NeonLimePrimary else Color.Transparent)
-                    .border(2.dp, if (isSelected) NeonLimePrimary else Color.White.copy(alpha = 0.35f), CircleShape),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isSelected) {
-                    Icon(Icons.Default.Check, null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                }
+                Text("Styles", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(currentHighlighted.title, fontSize = 13.sp, color = MochyTextSecondary)
             }
-            Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
-                    if (badge != null) {
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = NeonLimePrimary.copy(alpha = 0.16f)
-                        ) {
-                            Text(
-                                badge,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NeonLimePrimary,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(2.dp))
-                Text(desc, fontSize = 12.sp, color = MochyTextSecondary)
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = 36.dp),
+            pageSpacing = 16.dp,
+            modifier = Modifier.weight(1f)
+        ) { page ->
+            val style = styles[page]
+            val isSelected = mochyState.playerStyle == style
+            Surface(
+                shape = RoundedCornerShape(32.dp),
+                border = BorderStroke(
+                    width = if (isSelected) 2.5.dp else 1.dp,
+                    color = if (isSelected) NeonLimePrimary else MochyCardBorder
+                ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(32.dp))
+            ) {
+                val dummyPos = remember { mutableLongStateOf(36_000L) }
+                MochyMultiStyleNowPlayingScreen(
+                    mochyState = mochyState,
+                    title = previewTitle,
+                    artist = previewArtist,
+                    artUri = previewArtUri,
+                    durationMs = 296_000L,
+                    isPlaying = true,
+                    positionState = dummyPos,
+                    onPlayPauseClick = {},
+                    onNextClick = {},
+                    onPreviousClick = {},
+                    onSeek = {},
+                    onBackClick = {},
+                    isFavorite = true,
+                    styleOverride = style,
+                    isPreviewMode = true
+                )
             }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            styles.forEachIndexed { idx, _ ->
+                val active = idx == pagerState.currentPage
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (active) 8.dp else 6.dp)
+                        .clip(CircleShape)
+                        .background(if (active) Color.White else Color.White.copy(alpha = 0.28f))
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            MochySecondaryPillButton(
+                text = "Cancel",
+                modifier = Modifier.weight(1f),
+                onClick = onBack
+            )
+            MochyPrimaryPillButton(
+                text = if (mochyState.playerStyle == currentHighlighted) "Active ✓" else "Set Style",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    val targetStyle = styles.getOrElse(pagerState.currentPage.coerceIn(0, styles.lastIndex)) { currentHighlighted }
+                    runCatching { mochyState.updatePlayerStyle(targetStyle) }
+                    onBack()
+                }
+            )
         }
     }
 }
@@ -3930,13 +3027,6 @@ fun MochyPillControlButton(
     }
 }
 
-private fun formatEndTime(remainingMs: Long): String {
-    val cal = java.util.Calendar.getInstance()
-    cal.add(java.util.Calendar.MILLISECOND, remainingMs.toInt().coerceAtLeast(0))
-    val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
-    return sdf.format(cal.time)
-}
-
 private fun formatMs(ms: Long): String {
     val totalSec = (ms / 1000L).coerceAtLeast(0L)
     return "%d:%02d".format(totalSec / 60L, totalSec % 60L)
@@ -4342,7 +3432,7 @@ fun MochyPlatformCountGrid(spotifyCount: Int, youtubeCount: Int) {
 }
 
 @Composable
-fun MochyPlatformStatCard(name: String, count: Int, dotColor: Color, modifier: Modifier = Modifier) {
+private fun MochyPlatformStatCard(name: String, count: Int, dotColor: Color, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MochySurface,
@@ -4772,7 +3862,7 @@ fun MochyAudioLabHubScreen(
 }
 
 @Composable
-fun MochySwitchRow(
+private fun MochySwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,

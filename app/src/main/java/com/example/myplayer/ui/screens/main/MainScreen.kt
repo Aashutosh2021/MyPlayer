@@ -403,19 +403,27 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         onPreviousClick = { viewModel.skipToPrevious() },
                         onSeek = { viewModel.seekTo(it) },
                         onBackClick = { navController.popBackStack() },
+                        sleepTimerRemaining = sleepTimerRemaining,
                         isFavorite = isFavorite,
                         onToggleFavorite = { viewModel.toggleFavorite() },
+                        onStartSleepTimer = { viewModel.startSleepTimer(it) },
+                        onCancelSleepTimer = { viewModel.cancelSleepTimer() },
                         isShuffleOn = isShuffleOn,
                         onToggleShuffle = { viewModel.toggleShuffle() },
                         repeatMode = repeatMode,
                         onCycleRepeatMode = { viewModel.cycleRepeatMode() },
+                        onNavigateToSettings = {
+                            navController.navigate(Screen.Settings.route) {
+                                launchSingleTop = true
+                            }
+                        },
                         canDownload = canDownload,
                         isDownloaded = isDownloaded,
                         isDownloading = isDownloading,
                         onDownloadClick = { viewModel.downloadCurrentSong() },
+                        onRemoveDownloadClick = { viewModel.removeCurrentSongDownload() },
                         audioQuality = currentAudioQuality,
-                        onOpenCustomizeStyles = { showStylePicker = true },
-                        lyricsViewModel = lyricsViewModel
+                        onOpenCustomizeStyles = { showStylePicker = true }
                     )
                 }
             }
