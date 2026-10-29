@@ -26,9 +26,9 @@
 
     <!-- Permission to bind to AriaService. Restricted to same-certificate applications -->
     <permission
-        android:name="com.example.myplayer.permission.ARIA_CONNECT"
+        android:name="com.myplayer.app.permission.ARIA_CONNECT"
         android:protectionLevel="signature" />
-    <uses-permission android:name="com.example.myplayer.permission.ARIA_CONNECT" />
+    <uses-permission android:name="com.myplayer.app.permission.ARIA_CONNECT" />
 
     <application
         android:name=".MyPlayerApplication"
@@ -61,10 +61,10 @@
         </service>
         <service
             android:name=".aria.service.AriaService"
-            android:permission="com.example.myplayer.permission.ARIA_CONNECT"
+            android:permission="com.myplayer.app.permission.ARIA_CONNECT"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.example.myplayer.aria.BIND" />
+                <action android:name="com.myplayer.app.aria.BIND" />
             </intent-filter>
         </service>
         <!-- Disable WorkManager's auto-init so we can provide our own

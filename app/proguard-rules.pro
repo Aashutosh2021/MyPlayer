@@ -144,8 +144,8 @@
 -dontwarn org.jsoup.**
 
 # App Online Data & Downloader classes
--keep class com.example.myplayer.data.online.** { *; }
--keep class com.example.myplayer.data.online.model.** { *; }
+-keep class com.myplayer.app.data.online.** { *; }
+-keep class com.myplayer.app.data.online.model.** { *; }
 -dontwarn org.apache.**
 
 # =============================================================================
@@ -194,11 +194,11 @@
 # =============================================================================
 # WHY: JNI bridge methods MUST keep their exact names — JVM looks them up by
 #      exact name when loading the native library.
--keepclassmembers class com.example.myplayer.security.SecurityNativeBridge {
+-keepclassmembers class com.myplayer.app.security.SecurityNativeBridge {
     native <methods>;
 }
 # Keep security managers so Hilt can inject them.
--keep class com.example.myplayer.security.** { *; }
+-keep class com.myplayer.app.security.** { *; }
 
 # =============================================================================
 # ── PLAY INTEGRITY ────────────────────────────────────────────────────────────
@@ -223,6 +223,6 @@
 -dontwarn java.lang.invoke.**
 
 # -- Master audio DSP (JNI): never rename the class or its native methods ------
--keep class com.example.myplayer.playback.dsp.MasterAudioDspProcessor {
+-keep class com.myplayer.app.playback.dsp.MasterAudioDspProcessor {
     native <methods>;
 }

@@ -12,7 +12,7 @@
  * EXPORTED FUNCTIONS (JNI):
  *   All JNI bridge functions follow the naming convention:
  *     Java_<package_path>_<class>_<method>
- *   The package is: com.example.myplayer.security.SecurityNativeBridge
+ *   The package is: com.myplayer.app.security.SecurityNativeBridge
  *
  * SECURITY TECHNIQUES IN THIS FILE:
  *   1. Obfuscated string storage (XOR-encoded, assembled at runtime)
@@ -222,7 +222,7 @@ extern "C" {
  * Returns true if Frida is detected (port 27042 open OR library in maps).
  */
 JNIEXPORT jboolean JNICALL
-Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsFridaDetected(
+Java_com_myplayer_app_security_SecurityNativeBridge_nativeIsFridaDetected(
     JNIEnv* env, jobject /* thiz */) {
     return static_cast<jboolean>(
         nativeCheckFridaPort() || nativeCheckProcMapsForFrida()
@@ -233,7 +233,7 @@ Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsFridaDetected(
  * Returns true if a debugger is attached (TracerPid != 0 or ptrace fails).
  */
 JNIEXPORT jboolean JNICALL
-Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsDebuggerAttached(
+Java_com_myplayer_app_security_SecurityNativeBridge_nativeIsDebuggerAttached(
     JNIEnv* env, jobject /* thiz */) {
     return static_cast<jboolean>(
         nativeCheckTracerPid() || nativeCheckPtrace()
@@ -244,7 +244,7 @@ Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsDebuggerAttached
  * Returns true if su binary is found in standard root paths (via fopen, not Java).
  */
 JNIEXPORT jboolean JNICALL
-Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsRooted(
+Java_com_myplayer_app_security_SecurityNativeBridge_nativeIsRooted(
     JNIEnv* env, jobject /* thiz */) {
     return static_cast<jboolean>(nativeCheckSuBinary());
 }
@@ -255,7 +255,7 @@ Java_com_example_myplayer_security_SecurityNativeBridge_nativeIsRooted(
  * JNI string table hooks.
  */
 JNIEXPORT jbyteArray JNICALL
-Java_com_example_myplayer_security_SecurityNativeBridge_nativeGetBaseUrlBytes(
+Java_com_myplayer_app_security_SecurityNativeBridge_nativeGetBaseUrlBytes(
     JNIEnv* env, jobject /* thiz */) {
     // "https://music.youtube.com/youtubei/v1" assembled here in native
     // (also stored obfuscated in StringEncryptionManager as a second layer)
@@ -277,7 +277,7 @@ Java_com_example_myplayer_security_SecurityNativeBridge_nativeGetBaseUrlBytes(
  * a single function call is more atomic.
  */
 JNIEXPORT jint JNICALL
-Java_com_example_myplayer_security_SecurityNativeBridge_nativeRunAllChecks(
+Java_com_myplayer_app_security_SecurityNativeBridge_nativeRunAllChecks(
     JNIEnv* env, jobject /* thiz */) {
     int flags = 0;
 

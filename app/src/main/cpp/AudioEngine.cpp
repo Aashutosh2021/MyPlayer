@@ -16,7 +16,7 @@ static std::atomic<float> gLoudnessGainLinear{1.0f};
 } // namespace
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_myplayer_playback_dsp_MasterAudioDspProcessor_nativeConfigure(
+Java_com_myplayer_app_playback_dsp_MasterAudioDspProcessor_nativeConfigure(
         JNIEnv *env,
         jobject /*thiz*/,
         jint sampleRate,
@@ -53,7 +53,7 @@ Java_com_example_myplayer_playback_dsp_MasterAudioDspProcessor_nativeConfigure(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_myplayer_playback_dsp_MasterAudioDspProcessor_nativeProcessPcmFloat(
+Java_com_myplayer_app_playback_dsp_MasterAudioDspProcessor_nativeProcessPcmFloat(
         JNIEnv *env,
         jobject /*thiz*/,
         jobject directBuffer,
@@ -84,7 +84,7 @@ Java_com_example_myplayer_playback_dsp_MasterAudioDspProcessor_nativeProcessPcmF
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_myplayer_playback_dsp_MasterAudioDspProcessor_nativeProcessPcm16(
+Java_com_myplayer_app_playback_dsp_MasterAudioDspProcessor_nativeProcessPcm16(
         JNIEnv *env,
         jobject /*thiz*/,
         jobject directBuffer,

@@ -13,7 +13,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myplayer"
+    namespace = "com.myplayer.app"
     compileSdk = 36
 
     val localProps = Properties().apply {
@@ -58,11 +58,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.myplayer"
+        applicationId = "com.myplayer.app"
         minSdk = 28
         targetSdk = 36
-        versionCode = 17
-        versionName = "5.5"
+        versionCode = 18
+        versionName = "6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -115,7 +115,10 @@ android {
                         null
                     }
                 }
-                storeFilePath.isNotBlank() -> file(storeFilePath)
+                storeFilePath.isNotBlank() -> {
+                    val direct = file(storeFilePath)
+                    if (direct.exists()) direct else rootProject.file(storeFilePath)
+                }
                 else -> null
             }
 
