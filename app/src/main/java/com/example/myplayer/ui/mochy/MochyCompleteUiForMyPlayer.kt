@@ -1316,6 +1316,11 @@ fun MochyMultiStyleNowPlayingScreen(
     lyricsViewModel: LyricsViewModel? = if (isPreviewMode) null else hiltViewModel()
 ) {
     val activeStyle = styleOverride ?: mochyState.playerStyle
+
+    // ── Day/Night bridge: custom player styles flip with the app-wide theme ──
+    val isDarkPlayer = ThemeState.isDarkMode
+    val onBg = if (isDarkPlayer) Color.White else CharcoalPrimary
+    val mochySec = if (isDarkPlayer) MochyTextSecondary else SlateSecondary
     val positionMs = positionState.value.coerceAtLeast(0L)
     val safeDuration = if (durationMs > 0L) durationMs else 1L
     val progress = (positionMs.toFloat() / safeDuration.toFloat()).let {
@@ -1357,9 +1362,9 @@ fun MochyMultiStyleNowPlayingScreen(
         if (showQualityDetails) {
             AlertDialog(
                 onDismissRequest = { showQualityDetails = false },
-                containerColor = MochySurface,
-                titleContentColor = Color.White,
-                textContentColor = MochyTextSecondary,
+                containerColor = if (isDarkPlayer) MochySurface else PureWhite,
+                titleContentColor = onBg,
+                textContentColor = mochySec,
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = NeonLimePrimary)
@@ -1396,9 +1401,9 @@ fun MochyMultiStyleNowPlayingScreen(
         if (showRemoveConfirm) {
             AlertDialog(
                 onDismissRequest = { showRemoveConfirm = false },
-                containerColor = MochySurface,
-                titleContentColor = Color.White,
-                textContentColor = MochyTextSecondary,
+                containerColor = if (isDarkPlayer) MochySurface else PureWhite,
+                titleContentColor = onBg,
+                textContentColor = mochySec,
                 title = { Text("Remove Download?") },
                 text = { Text("This will remove the downloaded audio from your device.") },
                 confirmButton = {
@@ -1409,7 +1414,7 @@ fun MochyMultiStyleNowPlayingScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showRemoveConfirm = false }) {
-                        Text("Cancel", color = MochyTextSecondary)
+                        Text("Cancel", color = mochySec)
                     }
                 }
             )
@@ -1443,7 +1448,7 @@ fun MochyMultiStyleNowPlayingScreen(
                 DropdownMenu(
                     expanded = showOptionsMenu,
                     onDismissRequest = { showOptionsMenu = false },
-                    containerColor = MochySurface
+                    containerColor = if (isDarkPlayer) MochySurface else PureWhite
                 ) {
                     if (hasSong && canDownload) {
                         DropdownMenuItem(
@@ -1454,7 +1459,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                         isDownloading -> "Downloading..."
                                         else -> "Download Offline"
                                     },
-                                    color = Color.White
+                                    color = onBg
                                 )
                             },
                             leadingIcon = {
@@ -1471,7 +1476,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Sleep Timer", color = Color.White) },
+                        text = { Text("Sleep Timer", color = onBg) },
                         leadingIcon = { Icon(Icons.Filled.Timer, contentDescription = null, tint = NeonLimePrimary) },
                         onClick = {
                             showOptionsMenu = false
@@ -1479,7 +1484,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Audio Details", color = Color.White) },
+                        text = { Text("Audio Details", color = onBg) },
                         leadingIcon = { Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = NeonLimePrimary) },
                         onClick = {
                             showOptionsMenu = false
@@ -1487,8 +1492,8 @@ fun MochyMultiStyleNowPlayingScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Settings", color = MochyTextSecondary) },
-                        leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null, tint = MochyTextSecondary) },
+                        text = { Text("Settings", color = mochySec) },
+                        leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null, tint = mochySec) },
                         onClick = {
                             showOptionsMenu = false
                             onNavigateToSettings()
@@ -1501,8 +1506,8 @@ fun MochyMultiStyleNowPlayingScreen(
         if (showLyricsBottomSheet && lyricsViewModel != null && activeStyle != PlayerStyleMode.RADIAL_MYPLAYER) {
             ModalBottomSheet(
                 onDismissRequest = { showLyricsBottomSheet = false },
-                containerColor = MochyBlack,
-                contentColor = Color.White
+                containerColor = if (isDarkPlayer) MochyBlack else PureWhite,
+                contentColor = onBg
             ) {
                 Column(
                     modifier = Modifier
@@ -1520,14 +1525,14 @@ fun MochyMultiStyleNowPlayingScreen(
                                 text = title ?: "Lyrics",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
+                                color = onBg,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = artist ?: "",
                                 fontSize = 13.sp,
-                                color = MochyTextSecondary,
+                                color = mochySec,
                                 maxLines = 1
                             )
                         }
@@ -1604,7 +1609,7 @@ fun MochyMultiStyleNowPlayingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF08141E))
+                    .background(Color(if (isDarkPlayer) 0xFF08141E else 0xFFF4F6F9))
             ) {
                 Box(
                     modifier = Modifier
@@ -1627,7 +1632,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                     colors = listOf(
                                         Color.Black.copy(alpha = 0.25f),
                                         Color.Transparent,
-                                        Color(0xFF08141E)
+                                        Color(if (isDarkPlayer) 0xFF08141E else 0xFFF4F6F9)
                                     )
                                 )
                             )
@@ -1649,7 +1654,7 @@ fun MochyMultiStyleNowPlayingScreen(
                             .width(44.dp)
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.45f))
+                            .background(onBg.copy(alpha = 0.45f))
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MochyCircleIconButton(
@@ -1681,7 +1686,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                     text = title ?: "No song playing",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
+                                    color = onBg,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
@@ -1697,7 +1702,7 @@ fun MochyMultiStyleNowPlayingScreen(
                             Text(
                                 text = artist ?: "",
                                 fontSize = 15.sp,
-                                color = Color.White.copy(alpha = 0.72f),
+                                color = onBg.copy(alpha = 0.72f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1722,17 +1727,17 @@ fun MochyMultiStyleNowPlayingScreen(
                         value = progress,
                         onValueChange = { onSeek((it * safeDuration).toLong()) },
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                            thumbColor = onBg,
+                            activeTrackColor = onBg,
+                            inactiveTrackColor = onBg.copy(alpha = 0.22f)
                         )
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(formatMs(positionMs), fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
-                        Text(formatMs(safeDuration), fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f))
+                        Text(formatMs(positionMs), fontSize = 12.sp, color = onBg.copy(alpha = 0.75f))
+                        Text(formatMs(safeDuration), fontSize = 12.sp, color = onBg.copy(alpha = 0.75f))
                     }
 
                     Spacer(Modifier.height(8.dp))
@@ -1746,28 +1751,28 @@ fun MochyMultiStyleNowPlayingScreen(
                             Icon(
                                 Icons.Default.Shuffle,
                                 null,
-                                tint = if (isShuffleOn) NeonLimePrimary else Color.White.copy(alpha = 0.55f)
+                                tint = if (isShuffleOn) NeonLimePrimary else onBg.copy(alpha = 0.55f)
                             )
                         }
                         IconButton(onClick = onPreviousClick, modifier = Modifier.size(56.dp)) {
-                            Icon(Icons.Default.FastRewind, null, tint = Color.White, modifier = Modifier.size(38.dp))
+                            Icon(Icons.Default.FastRewind, null, tint = onBg, modifier = Modifier.size(38.dp))
                         }
                         IconButton(onClick = onPlayPauseClick, modifier = Modifier.size(68.dp)) {
                             Icon(
                                 if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 null,
-                                tint = Color.White,
+                                tint = onBg,
                                 modifier = Modifier.size(48.dp)
                             )
                         }
                         IconButton(onClick = onNextClick, modifier = Modifier.size(56.dp)) {
-                            Icon(Icons.Default.FastForward, null, tint = Color.White, modifier = Modifier.size(38.dp))
+                            Icon(Icons.Default.FastForward, null, tint = onBg, modifier = Modifier.size(38.dp))
                         }
                         IconButton(onClick = onCycleRepeatMode) {
                             Icon(
                                 if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
                                 null,
-                                tint = if (repeatMode != 0) NeonLimePrimary else Color.White.copy(alpha = 0.55f)
+                                tint = if (repeatMode != 0) NeonLimePrimary else onBg.copy(alpha = 0.55f)
                             )
                         }
                     }
@@ -1777,7 +1782,7 @@ fun MochyMultiStyleNowPlayingScreen(
                     // Bottom Frosted Lyrics Pill — shows live synced lyric line & opens Lyrics Sheet on tap!
                     Surface(
                         shape = RoundedCornerShape(24.dp),
-                        color = Color.White.copy(alpha = 0.10f),
+                        color = onBg.copy(alpha = 0.10f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(62.dp)
@@ -1794,7 +1799,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                 text = currentLyricSnippet,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = onBg.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -1802,7 +1807,7 @@ fun MochyMultiStyleNowPlayingScreen(
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
                                 contentDescription = "Expand Lyrics",
-                                tint = Color.White.copy(alpha = 0.7f)
+                                tint = onBg.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -1826,7 +1831,11 @@ fun MochyMultiStyleNowPlayingScreen(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color(0xFF0A141D), Color(0xFF071A24), Color(0xFF050A0E))
+                            listOf(
+                                if (isDarkPlayer) Color(0xFF0A141D) else Color(0xFFF8F9FB),
+                                if (isDarkPlayer) Color(0xFF071A24) else Color(0xFFEFF2F6),
+                                if (isDarkPlayer) Color(0xFF050A0E) else Color(0xFFE4E9EF)
+                            )
                         )
                     )
                     .statusBarsPadding()
@@ -1860,8 +1869,8 @@ fun MochyMultiStyleNowPlayingScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(340.dp)
-                            .offset(x = (-48).dp, y = 16.dp),
+                            .size(376.dp)
+                            .offset(x = (-48).dp, y = 34.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1879,7 +1888,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         // Perfectly centered rotating Album Art inside the Vinyl LP
                         Box(
                             modifier = Modifier
-                                .size(196.dp)
+                                .size(216.dp)
                                 .rotate(effectiveAngle)
                                 .clip(CircleShape)
                                 .border(4.dp, Color(0xFF1A1A1F), CircleShape),
@@ -1889,7 +1898,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                 uri = artUri ?: "",
                                 title = title,
                                 artist = artist,
-                                size = 196.dp,
+                                size = 216.dp,
                                 shape = CircleShape,
                                 iconSize = 56.dp
                             )
@@ -1958,7 +1967,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                     text = title ?: "Khat",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
+                                    color = onBg,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
@@ -1971,7 +1980,7 @@ fun MochyMultiStyleNowPlayingScreen(
                             Text(
                                 text = artist ?: "Navjot Ahuja",
                                 fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.72f),
+                                color = onBg.copy(alpha = 0.72f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -2001,7 +2010,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         MochyPillControlButton(
                             icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             onClick = onToggleFavorite,
-                            tint = if (isFavorite) Color(0xFFFF3B30) else Color.White
+                            tint = if (isFavorite) Color(0xFFFF3B30) else onBg
                         )
                     }
 
@@ -2012,9 +2021,9 @@ fun MochyMultiStyleNowPlayingScreen(
                         value = progress,
                         onValueChange = { onSeek((it * safeDuration).toLong()) },
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.20f)
+                            thumbColor = onBg,
+                            activeTrackColor = onBg,
+                            inactiveTrackColor = onBg.copy(alpha = 0.20f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -2028,12 +2037,12 @@ fun MochyMultiStyleNowPlayingScreen(
                         Text(
                             text = formatMs(positionMs),
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.6f)
+                            color = onBg.copy(alpha = 0.6f)
                         )
                         Text(
                             text = formatMs(durationMs),
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.6f)
+                            color = onBg.copy(alpha = 0.6f)
                         )
                     }
 
@@ -2042,8 +2051,8 @@ fun MochyMultiStyleNowPlayingScreen(
                     // Bottom Lyrics Pill — shows live synced lyric line & opens Lyrics Sheet on tap!
                     Surface(
                         shape = RoundedCornerShape(24.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                        color = onBg.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, onBg.copy(alpha = 0.1f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(60.dp)
@@ -2060,7 +2069,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                 text = currentLyricSnippet,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = onBg.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -2068,7 +2077,7 @@ fun MochyMultiStyleNowPlayingScreen(
                             Icon(
                                 Icons.Default.Lyrics,
                                 contentDescription = "Lyrics",
-                                tint = Color.White.copy(alpha = 0.65f),
+                                tint = onBg.copy(alpha = 0.65f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -2082,7 +2091,7 @@ fun MochyMultiStyleNowPlayingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF06131C))
+                    .background(if (isDarkPlayer) Color(0xFF06131C) else Color(0xFFF5F7FA))
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
@@ -2149,7 +2158,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         fontSize = 36.sp,
                         lineHeight = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
+                        color = onBg,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2157,7 +2166,7 @@ fun MochyMultiStyleNowPlayingScreen(
                     Text(
                         text = artist ?: "Navjot Ahuja",
                         fontSize = 15.sp,
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = onBg.copy(alpha = 0.72f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2166,9 +2175,9 @@ fun MochyMultiStyleNowPlayingScreen(
                         value = progress,
                         onValueChange = { onSeek((it * safeDuration).toLong()) },
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                            thumbColor = onBg,
+                            activeTrackColor = onBg,
+                            inactiveTrackColor = onBg.copy(alpha = 0.22f)
                         )
                     )
                 }
@@ -2207,7 +2216,7 @@ fun MochyMultiStyleNowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.52f)
-                        .background(Color(0xFF536878))
+                        .background(if (isDarkPlayer) Color(0xFF536878) else Color(0xFFD5DEE6))
                         .padding(24.dp)
                 ) {
                     if (isLyricsStage) {
@@ -2220,7 +2229,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                 text = title ?: "Khat",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.White.copy(alpha = 0.65f),
+                                color = onBg.copy(alpha = 0.65f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(end = 48.dp)
@@ -2239,7 +2248,7 @@ fun MochyMultiStyleNowPlayingScreen(
                                     text = currentLyricSnippet,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White.copy(alpha = 0.85f)
+                                    color = onBg.copy(alpha = 0.85f)
                                 )
                             }
                         }
@@ -2260,8 +2269,8 @@ fun MochyMultiStyleNowPlayingScreen(
                                 iconSize = 24.dp
                             )
                             Column {
-                                Text(title ?: "Khat", fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                                Text(artist ?: "Navjot Ahuja", fontSize = 12.sp, color = Color.White.copy(alpha = 0.75f), maxLines = 1)
+                                Text(title ?: "Khat", fontWeight = FontWeight.Bold, color = onBg, maxLines = 1)
+                                Text(artist ?: "Navjot Ahuja", fontSize = 12.sp, color = onBg.copy(alpha = 0.75f), maxLines = 1)
                             }
                         }
                     }
@@ -2284,7 +2293,7 @@ fun MochyMultiStyleNowPlayingScreen(
                         text = formatMs(positionMs),
                         fontSize = 64.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
+                        color = onBg,
                         modifier = Modifier.align(Alignment.BottomStart)
                     )
                 }
@@ -2293,14 +2302,14 @@ fun MochyMultiStyleNowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.48f)
-                        .background(Color(0xFF34434E))
+                        .background(if (isDarkPlayer) Color(0xFF34434E) else Color(0xFFE7EDF3))
                         .padding(24.dp)
                 ) {
                     Text(
                         text = formatMs(safeDuration),
                         fontSize = 64.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White.copy(alpha = 0.55f),
+                        color = onBg.copy(alpha = 0.55f),
                         modifier = Modifier.align(Alignment.TopStart)
                     )
 
@@ -2308,9 +2317,9 @@ fun MochyMultiStyleNowPlayingScreen(
                         value = progress,
                         onValueChange = { onSeek((it * safeDuration).toLong()) },
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                            thumbColor = onBg,
+                            activeTrackColor = onBg,
+                            inactiveTrackColor = onBg.copy(alpha = 0.25f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2494,64 +2503,265 @@ fun MochyPlayerStylesPickerScreen(
 // 5. MOCHY SEARCH SCREEN: MOODS & MOMENTS + GENRES + TOP RESULT (00:46 - 01:09)
 // ═════════════════════════════════════════════════════════════════════════════
 
-data class MochyMoodGenreItem(val title: String, val bgColor: Color)
+data class MochyMoodGenreItem(
+    val title: String,
+    val bgColor: Color,
+    val coverUrl1: String = "",
+    val coverUrl2: String = ""
+)
 
 val MOCHY_MOODS = listOf(
-    MochyMoodGenreItem("Chill", Color(0xFF425468)),
-    MochyMoodGenreItem("Commute", Color(0xFF6B653B)),
-    MochyMoodGenreItem("Energize", Color(0xFF3E6340)),
-    MochyMoodGenreItem("Feel good", Color(0xFF3C5E3E)),
-    MochyMoodGenreItem("Focus", Color(0xFF3B3B3F)),
-    MochyMoodGenreItem("Gaming", Color(0xFF3A4968)),
-    MochyMoodGenreItem("Party", Color(0xFF526638)),
-    MochyMoodGenreItem("Romance", Color(0xFF5E2F36)),
-    MochyMoodGenreItem("Sad", Color(0xFF3D385B)),
-    MochyMoodGenreItem("Sleep", Color(0xFF46365E)),
-    MochyMoodGenreItem("Workout", Color(0xFF664938))
+    MochyMoodGenreItem(
+        title = "Chill",
+        bgColor = Color(0xFF425468),
+        coverUrl1 = "https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Commute",
+        bgColor = Color(0xFF6B653B),
+        coverUrl1 = "https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/kTJczUoc26U/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Diwali",
+        bgColor = Color(0xFF684738),
+        coverUrl1 = "https://i.ytimg.com/vi/BddP6PYo2gs/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/RLzC55ai0eo/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Energize",
+        bgColor = Color(0xFF3E6340),
+        coverUrl1 = "https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/7wtfhZwyrcc/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Feel good",
+        bgColor = Color(0xFF3C5E3E),
+        coverUrl1 = "https://i.ytimg.com/vi/ZbZSe6N_BXs/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/OPf0YbXqDm0/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Focus",
+        bgColor = Color(0xFF3B3B3F),
+        coverUrl1 = "https://i.ytimg.com/vi/DWcJFNfaw9c/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/lTRiuFIWV54/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Gaming",
+        bgColor = Color(0xFF3A4968),
+        coverUrl1 = "https://i.ytimg.com/vi/60ItHLz5WEA/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/m7Bc3pLyij0/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Party",
+        bgColor = Color(0xFF526638),
+        coverUrl1 = "https://i.ytimg.com/vi/IcrbM1l_BoI/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/2Vv-BfVoq4g/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Romance",
+        bgColor = Color(0xFF5E2F36),
+        coverUrl1 = "https://i.ytimg.com/vi/Umqb9KENgmk/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/IJq0yyWug1k/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Sad",
+        bgColor = Color(0xFF3D385B),
+        coverUrl1 = "https://i.ytimg.com/vi/hLQl3WQQoQ0/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/RgKAFK5djSk/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Sleep",
+        bgColor = Color(0xFF46365E),
+        coverUrl1 = "https://i.ytimg.com/vi/1ZYbU82GVz4/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/2OEL4P1Rz04/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Workout",
+        bgColor = Color(0xFF664938),
+        coverUrl1 = "https://i.ytimg.com/vi/btPJPFnesV4/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/uelHwf8o7_U/hqdefault.jpg"
+    )
 )
 
 val MOCHY_GENRES = listOf(
-    MochyMoodGenreItem("African", Color(0xFF3B663E)),
-    MochyMoodGenreItem("Arabic", Color(0xFF684738)),
-    MochyMoodGenreItem("Bengali", Color(0xFF385E3D)),
-    MochyMoodGenreItem("Bhojpuri", Color(0xFF593866)),
-    MochyMoodGenreItem("Carnatic classical", Color(0xFF3B5A68)),
-    MochyMoodGenreItem("Classical", Color(0xFF424248)),
-    MochyMoodGenreItem("Country & Americana", Color(0xFF4A6638)),
-    MochyMoodGenreItem("Dance & electronic", Color(0xFF385E56)),
-    MochyMoodGenreItem("Desi hip-hop", Color(0xFF5D3A3A)),
-    MochyMoodGenreItem("Hindi", Color(0xFF663B48)),
-    MochyMoodGenreItem("Hip-hop", Color(0xFF684B38)),
-    MochyMoodGenreItem("Indian Indie", Color(0xFF563866)),
-    MochyMoodGenreItem("Indian pop", Color(0xFF633845)),
-    MochyMoodGenreItem("Indie & alternative", Color(0xFF384D66)),
-    MochyMoodGenreItem("J-Pop", Color(0xFF463866)),
-    MochyMoodGenreItem("Jazz", Color(0xFF685838)),
-    MochyMoodGenreItem("K-Pop", Color(0xFF523866)),
-    MochyMoodGenreItem("Kannada", Color(0xFF586638)),
-    MochyMoodGenreItem("Latin", Color(0xFF685F38)),
-    MochyMoodGenreItem("Malayalam", Color(0xFF38663E)),
-    MochyMoodGenreItem("Marathi", Color(0xFF385366)),
-    MochyMoodGenreItem("Metal", Color(0xFF3C3C42)),
-    MochyMoodGenreItem("Monsoon", Color(0xFF5D6638)),
-    MochyMoodGenreItem("Pop", Color(0xFF5D3866)),
-    MochyMoodGenreItem("Punjabi", Color(0xFF684838)),
-    MochyMoodGenreItem("R&B & soul", Color(0xFF384766))
+    MochyMoodGenreItem(
+        title = "African",
+        bgColor = Color(0xFF3B663E),
+        coverUrl1 = "https://i.ytimg.com/vi/WcIcVapfqXw/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/ye9J4aG78J0/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Arabic",
+        bgColor = Color(0xFF684738),
+        coverUrl1 = "https://i.ytimg.com/vi/N7SLI2ab3F8/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/SmM0653YvXU/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Bengali",
+        bgColor = Color(0xFF385E3D),
+        coverUrl1 = "https://i.ytimg.com/vi/qfdShSZZxlg/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/6wNFJIbTxNk/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Bhojpuri",
+        bgColor = Color(0xFF593866),
+        coverUrl1 = "https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Carnatic classical",
+        bgColor = Color(0xFF3B5A68),
+        coverUrl1 = "https://i.ytimg.com/vi/YR12Z8f1Dh8/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/jADTdg-o8i0/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Classical",
+        bgColor = Color(0xFF424248),
+        coverUrl1 = "https://i.ytimg.com/vi/4Tr0otuiQuU/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/GRxofEmo3HA/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Country & Americana",
+        bgColor = Color(0xFF4A6638),
+        coverUrl1 = "https://i.ytimg.com/vi/1vrEljMfXYo/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/bg1sT4ILG0w/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Dance & electronic",
+        bgColor = Color(0xFF385E56),
+        coverUrl1 = "https://i.ytimg.com/vi/60ItHLz5WEA/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/IcrbM1l_BoI/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Desi hip-hop",
+        bgColor = Color(0xFF5D3A3A),
+        coverUrl1 = "https://i.ytimg.com/vi/pnMQLrS5s64/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Hindi",
+        bgColor = Color(0xFF663B48),
+        coverUrl1 = "https://i.ytimg.com/vi/RLzC55ai0eo/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/BddP6PYo2gs/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Hip-hop",
+        bgColor = Color(0xFF684B38),
+        coverUrl1 = "https://i.ytimg.com/vi/tvTRZJ-4EyI/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/DRS_PpOrUZ4/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Indian Indie",
+        bgColor = Color(0xFF563866),
+        coverUrl1 = "https://i.ytimg.com/vi/5Eqb_-j3FDA/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/SlPhMPnQ58k/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Indian pop",
+        bgColor = Color(0xFF633845),
+        coverUrl1 = "https://i.ytimg.com/vi/kffacxfA7G4/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Indie & alternative",
+        bgColor = Color(0xFF384D66),
+        coverUrl1 = "https://i.ytimg.com/vi/bpOSxM0rNPM/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "J-Pop",
+        bgColor = Color(0xFF463866),
+        coverUrl1 = "https://i.ytimg.com/vi/ZRtdQ81jPUQ/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/by4SYYWlhEs/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Jazz",
+        bgColor = Color(0xFF685838),
+        coverUrl1 = "https://i.ytimg.com/vi/vmDDOFXSgAs/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/zqNTltOGh5c/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "K-Pop",
+        bgColor = Color(0xFF523866),
+        coverUrl1 = "https://i.ytimg.com/vi/gdZLi9oWNZg/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/IHNzOHi8sJs/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Kannada",
+        bgColor = Color(0xFF586638),
+        coverUrl1 = "https://i.ytimg.com/vi/P2KRKxAb2ek/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/hcMzwMrr1tE/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Latin",
+        bgColor = Color(0xFF685F38),
+        coverUrl1 = "https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/OSUXR6sP6H8/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Malayalam",
+        bgColor = Color(0xFF38663E),
+        coverUrl1 = "https://i.ytimg.com/vi/0G2VxhV_gXM/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/tOM-nWPcR4U/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Marathi",
+        bgColor = Color(0xFF385366),
+        coverUrl1 = "https://i.ytimg.com/vi/H6be8dM8xWw/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/2Vv-BfVoq4g/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Metal",
+        bgColor = Color(0xFF3C3C42),
+        coverUrl1 = "https://i.ytimg.com/vi/CD-E-LDc384/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/CSvFpBOe8eY/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Monsoon",
+        bgColor = Color(0xFF5D6638),
+        coverUrl1 = "https://i.ytimg.com/vi/Umqb9KENgmk/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/IJq0yyWug1k/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Pop",
+        bgColor = Color(0xFF5D3866),
+        coverUrl1 = "https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "Punjabi",
+        bgColor = Color(0xFF684838),
+        coverUrl1 = "https://i.ytimg.com/vi/twCHVhk8iMU/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/6xoB4ZiKKn0/hqdefault.jpg"
+    ),
+    MochyMoodGenreItem(
+        title = "R&B & soul",
+        bgColor = Color(0xFF384766),
+        coverUrl1 = "https://i.ytimg.com/vi/fHI8X4OXluQ/hqdefault.jpg",
+        coverUrl2 = "https://i.ytimg.com/vi/uPD0QOGTmMI/hqdefault.jpg"
+    )
 )
 
 @Composable
 fun MochyMoodGenreCard(
     item: MochyMoodGenreItem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    overrideCoverUrl1: String? = null,
+    overrideCoverUrl2: String? = null
 ) {
+    val thumb1 = overrideCoverUrl1?.takeIf { it.isNotBlank() } ?: item.coverUrl1
+    val thumb2 = overrideCoverUrl2?.takeIf { it.isNotBlank() } ?: item.coverUrl2
+
     Box(
         modifier = modifier
             .height(82.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(item.bgColor)
             .clickable(onClick = onClick)
-            .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 6.dp)
+            .padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 6.dp)
     ) {
         Text(
             text = item.title,
@@ -2564,28 +2774,61 @@ fun MochyMoodGenreCard(
                 .fillMaxWidth(0.55f)
         )
 
-        // Two Tilted Overlapping Album Thumbnails on the Right (exact match to 00:46 - 00:50)
+        // Two Tilted Overlapping Album Thumbnails on the Right (exact match to Mochy-Music Search screen)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .size(width = 76.dp, height = 62.dp)
+                .size(width = 78.dp, height = 64.dp)
         ) {
+            // Back tilted album card (left, rotated -12 deg)
             Box(
                 modifier = Modifier
                     .size(46.dp)
                     .align(Alignment.CenterStart)
-                    .graphicsLayer { rotationZ = -12f }
+                    .graphicsLayer {
+                        rotationZ = -12f
+                        shadowElevation = 8f
+                    }
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color.Black.copy(alpha = 0.45f))
-            )
+                    .border(0.8.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+            ) {
+                if (thumb1.isNotBlank()) {
+                    AlbumArtImage(
+                        uri = thumb1,
+                        title = item.title,
+                        artist = null,
+                        size = 46.dp,
+                        shape = RoundedCornerShape(10.dp),
+                        iconSize = 20.dp
+                    )
+                }
+            }
+
+            // Front tilted album card (right, rotated +10 deg)
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .align(Alignment.CenterEnd)
-                    .graphicsLayer { rotationZ = 10f }
+                    .graphicsLayer {
+                        rotationZ = 10f
+                        shadowElevation = 12f
+                    }
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color.Black.copy(alpha = 0.65f))
-            )
+                    .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(10.dp))
+            ) {
+                if (thumb2.isNotBlank()) {
+                    AlbumArtImage(
+                        uri = thumb2,
+                        title = item.title,
+                        artist = null,
+                        size = 48.dp,
+                        shape = RoundedCornerShape(10.dp),
+                        iconSize = 20.dp
+                    )
+                }
+            }
         }
     }
 }
@@ -3213,15 +3456,16 @@ fun MochySecondaryPillButton(
 
 @Composable
 fun MochyFormatBadge(formatText: String) {
+    val isDark = ThemeState.isDarkMode
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = Color.White.copy(alpha = 0.18f)
+        color = if (isDark) Color.White.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.10f)
     ) {
         Text(
             text = formatText.uppercase(),
             fontSize = 10.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            color = if (isDark) Color.White else CharcoalPrimary,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
@@ -3231,17 +3475,19 @@ fun MochyFormatBadge(formatText: String) {
 fun MochyCircleIconButton(
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tint: Color = if (ThemeState.isDarkMode) Color.White else CharcoalPrimary,
+    circleBg: Color = if (ThemeState.isDarkMode) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
 ) {
     Box(
         modifier = modifier
             .size(42.dp)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.12f))
+            .background(circleBg)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -3249,18 +3495,26 @@ fun MochyCircleIconButton(
 fun MochyPillControlButton(
     icon: ImageVector,
     onClick: () -> Unit,
-    tint: Color = Color.White
+    tint: Color = Color.Unspecified
 ) {
+    val isDark = ThemeState.isDarkMode
+    val resolvedTint = if (tint == Color.Unspecified) {
+        if (isDark) Color.White else CharcoalPrimary
+    } else tint
     Box(
         modifier = Modifier
             .size(width = 58.dp, height = 44.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF18222C).copy(alpha = 0.88f))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+            .background(if (isDark) Color(0xFF18222C).copy(alpha = 0.88f) else PureWhite.copy(alpha = 0.92f))
+            .border(
+                1.dp,
+                if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                RoundedCornerShape(22.dp)
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = resolvedTint, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -3746,7 +4000,12 @@ fun MochySettingsHubScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         MochyPlayLogo(modifier = Modifier.size(32.dp))
-                        MochyCircleIconButton(icon = Icons.Default.PersonOutline, onClick = onBack)
+                        MochyCircleIconButton(
+                            icon = Icons.Default.PersonOutline,
+                            onClick = onBack,
+                            tint = Color.White,
+                            circleBg = Color.White.copy(alpha = 0.12f)
+                        )
                     }
                     Spacer(Modifier.height(14.dp))
                     OutlinedTextField(

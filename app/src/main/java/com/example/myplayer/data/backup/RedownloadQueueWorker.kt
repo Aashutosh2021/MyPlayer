@@ -157,7 +157,7 @@ class RedownloadQueueWorker @AssistedInject constructor(
         fun resumeIfPending(context: Context) {
             runCatching {
                 val file = File(context.filesDir, "redownload_queue.json")
-                if (!file.exists() || file.length() == 0L) return
+                if (!file.exists() || file.length() == 0L) return@runCatching
                 val request = OneTimeWorkRequestBuilder<RedownloadQueueWorker>()
                     .setConstraints(
                         Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
