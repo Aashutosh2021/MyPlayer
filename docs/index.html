@@ -884,6 +884,49 @@
 
   <div id="toast" class="toast" role="status"></div>
   <script src="script.js"></script>
+
+  <div id="migrationModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="warning-icon">!</div>
+        <h2>Important Update: v6.0 Migration</h2>
+      </div>
+      <div class="modal-content">
+        <div class="feature-item">
+          <h3>⚠️ ACTION REQUIRED: Take a backup now</h3>
+          <p>The next major update (v6.0) moves MyPlayer to a new app package (com.myplayer.app) and installs as a
+            separate app — your library, playlists and settings will NOT carry over automatically. Open Settings →
+            Backup & Restore → Create Backup and save the backup file somewhere safe (Google Drive or local storage).
+          </p>
+        </div>
+        <div class="feature-item">
+          <h3>🛠️ How to upgrade to v6.0 safely</h3>
+          <p>When v6.0 is released:</p>
+          <ol class="migration-steps">
+            <li>Create a backup in v5.6.</li>
+            <li>Uninstall MyPlayer (the old app).</li>
+            <li>Install the new MyPlayer v6.0.</li>
+            <li>Open Settings → Backup & Restore → Restore Backup and select your saved file — your library, playlists,
+              settings and songs will be restored.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-close-modal" onclick="closeMigrationModal()">I Understand</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function closeMigrationModal() {
+      document.getElementById('migrationModal').classList.remove('show');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('migrationModal').classList.add('show');
+    });
+  </script>
 </body>
+
 
 </html>

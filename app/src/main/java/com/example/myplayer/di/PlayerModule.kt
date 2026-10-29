@@ -196,8 +196,17 @@ object PlayerModule {
         cacheDataSourceFactory: CacheDataSource.Factory,
         lastWaveDspProcessor: LastWaveDspAudioProcessor,
         masterAudioDspProcessor: MasterAudioDspProcessor,
-        spatialAudioProcessor: SpatialAudioProcessor
+        spatialAudioProcessor: SpatialAudioProcessor,
+        audioFx: com.example.myplayer.mochyfx.AudioFxService
     ): ExoPlayer {
+        // Mochy Audio Lab chain (needs 16-bit PCM, so float output is off): spatial/surround/mono, reverb, loudness
+        val replayGain = com.example.myplayer.mochyfx.audio.ReplayGainTags()
+        com.example.myplayer.ui.mochy.MochyAudioFxDspBridge.attach(audioFx)
+        val mochyFx = arrayOf<androidx.media3.common.audio.AudioProcessor>(
+            com.example.myplayer.mochyfx.audio.SpatialAudioProcessor(audioFx),
+            com.example.myplayer.mochyfx.audio.ReverbAudioProcessor(audioFx),
+            com.example.myplayer.mochyfx.audio.LoudnessAudioProcessor(audioFx),
+        )
         val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
         val initialShuffle = prefs.getBoolean("playback_shuffle_mode", false)
@@ -297,12 +306,13 @@ object PlayerModule {
                 enableFloatOutput: Boolean,
                 enableAudioTrackPlaybackParams: Boolean
             ): AudioSink {
-                return DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(true)
+                val sink = DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(false)
                     .setEnableAudioTrackPlaybackParams(false)
                     .setAudioCapabilities(AudioCapabilities.getCapabilities(context))
-                    .setAudioProcessors(arrayOf(spatialAudioProcessor, masterAudioDspProcessor))
+                    .setAudioProcessors(arrayOf(spatialAudioProcessor, masterAudioDspProcessor, *mochyFx))
                     .build()
+                return com.example.myplayer.mochyfx.audio.MochyVolumeSink(sink, audioFx, replayGain)
             }
         }.apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
@@ -320,6 +330,11 @@ object PlayerModule {
             .build().apply {
                 repeatMode = initialRepeat
                 shuffleModeEnabled = initialShuffle
+                addListener(object : Player.Listener {
+                    override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                        replayGain.update(tracks)
+                    }
+                })
                 addAnalyticsListener(object : AnalyticsListener {
                     override fun onAudioInputFormatChanged(
                         eventTime: AnalyticsListener.EventTime,
