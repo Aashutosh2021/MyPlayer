@@ -90,7 +90,8 @@ fun SettingsScreen(
         com.example.myplayer.ui.settings.AudioAndPlaybackScreen(
             store = viewModel.audioPlaybackStore,
             featureManagers = viewModel.audioFeatureManagers,
-            onBack = { showAudioPlaybackScreen = false }
+            onBack = { showAudioPlaybackScreen = false },
+            mochyState = mochyState
         )
         return
     }
@@ -584,7 +585,7 @@ fun SettingsScreen(
                 MochySettingsNavigationRow(
                     icon = Icons.Filled.GraphicEq,
                     title = "Audio & Playback Engine",
-                    subtitle = "15-Band EQ, 7 Quality Tiers, Studio Clarity & Bit-Perfect",
+                    subtitle = "15-Band EQ, Audio Lab FX, 7 Quality Tiers & Bit-Perfect",
                     onClick = {
                         if (onNavigateToAudioPlayback != null) {
                             onNavigateToAudioPlayback()
@@ -592,13 +593,6 @@ fun SettingsScreen(
                             showAudioPlaybackScreen = true
                         }
                     }
-                )
-                MochySettingsDivider()
-                MochySettingsNavigationRow(
-                    icon = Icons.Filled.Tune,
-                    title = "Audio Lab & Effects",
-                    subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
-                    onClick = onNavigateToMochyAudioLab
                 )
                 MochySettingsDivider()
                 MochySettingsToggleRow(

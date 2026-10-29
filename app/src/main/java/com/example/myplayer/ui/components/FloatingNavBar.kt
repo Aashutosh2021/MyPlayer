@@ -2,7 +2,9 @@ package com.example.myplayer.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,23 +48,32 @@ fun FloatingNavBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Pure White curved bottom dock that overlaps the bottom of the dark MiniPlayer
+    val navShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+
+    // Frosted glass translucent bottom dock
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .offset(y = (-14).dp)
-            .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), spotColor = androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
+            .shadow(
+                elevation = 14.dp,
+                shape = navShape,
+                spotColor = Color.Black.copy(alpha = 0.5f)
+            )
+            .clip(navShape)
+            .background(Color(0xD9121217))
+            .border(
+                BorderStroke(0.8.dp, Color.White.copy(alpha = 0.12f)),
+                shape = navShape
+            )
             .navigationBarsPadding()
-            .padding(top = 12.dp, bottom = 10.dp, start = 12.dp, end = 12.dp),
+            .padding(top = 10.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
         bottomNavItems.forEach { item ->
             val isSelected = currentRoute == item.route
             val tint by animateColorAsState(
-                targetValue = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                targetValue = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else Color(0xFF8E8E98),
                 animationSpec = tween(180),
                 label = "navTint_${item.route}"
             )

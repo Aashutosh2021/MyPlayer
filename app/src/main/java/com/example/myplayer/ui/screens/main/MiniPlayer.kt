@@ -121,13 +121,15 @@ fun MiniPlayer(
                 )
             }
     ) {
+        val cardShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+
         // 1. Main Purple-Magenta Gradient Card (shifted down by 16.dp so artwork overhangs top-left)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp)
-                .shadow(elevation = 14.dp, shape = RoundedCornerShape(24.dp), spotColor = Color.Black)
-                .clip(RoundedCornerShape(24.dp))
+                .shadow(elevation = 14.dp, shape = cardShape, spotColor = Color.Black)
+                .clip(cardShape)
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(MiniPurpleStart, MiniPurpleMid, MiniMagentaEnd)

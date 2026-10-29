@@ -76,9 +76,9 @@ import kotlin.random.Random
 // ═════════════════════════════════════════════════════════════════════════════
 
 val MochyBlack = Color(0xFF070709)
-val MochySurface = Color(0xFF141418)
-val MochySurfaceHigh = Color(0xFF1E1E24)
-val MochyCardBorder = Color(0xFF282830)
+val MochySurface = Color(0xFF131318)
+val MochySurfaceHigh = Color(0xFF1E1E26)
+val MochyCardBorder = Color(0xFF1F1F27)
 val MochyTextPrimary = Color(0xFFF5F5F7)
 val MochyTextSecondary = Color(0xFF9A9AA6)
 val MochyAccentGreen = Color(0xFF38E54D)
@@ -1934,44 +1934,25 @@ fun MochyMultiStyleNowPlayingScreen(
                     }
                 }
 
-                // Vertical Floating Control Column on Bottom-Right (Heart, Prev, Pause, Next)
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 136.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    MochyPillControlButton(
-                        icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        onClick = onToggleFavorite
-                    )
-                    MochyPillControlButton(icon = Icons.Default.FastRewind, onClick = onPreviousClick)
-                    MochyPillControlButton(
-                        icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        onClick = onPlayPauseClick
-                    )
-                    MochyPillControlButton(icon = Icons.Default.FastForward, onClick = onNextClick)
-                }
-
-                // Bottom Track Info + Seekbar + Lyrics Pill
+                // Bottom Track Info + Horizontal Controls + Seekbar + Lyrics Pill
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 14.dp)
                 ) {
+                    // Song Title & Artist
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(end = 76.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         // Opens Lyrics Sheet (NOT Style Picker!)
                         MochyCircleIconButton(
                             icon = Icons.Default.KeyboardArrowUp,
                             onClick = { showLyricsBottomSheet = true }
                         )
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = title ?: "Khat",
@@ -1997,8 +1978,36 @@ fun MochyMultiStyleNowPlayingScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(10.dp))
 
+                    // Horizontal Playback Controls (Prev, Play/Pause, Next, Like) between Song Name & Seekbar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        MochyPillControlButton(
+                            icon = Icons.Default.FastRewind,
+                            onClick = onPreviousClick
+                        )
+                        MochyPillControlButton(
+                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            onClick = onPlayPauseClick
+                        )
+                        MochyPillControlButton(
+                            icon = Icons.Default.FastForward,
+                            onClick = onNextClick
+                        )
+                        MochyPillControlButton(
+                            icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            onClick = onToggleFavorite,
+                            tint = if (isFavorite) Color(0xFFFF3B30) else Color.White
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // Seekbar / Slider
                     Slider(
                         value = progress,
                         onValueChange = { onSeek((it * safeDuration).toLong()) },
@@ -2010,7 +2019,25 @@ fun MochyMultiStyleNowPlayingScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatMs(positionMs),
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = formatMs(durationMs),
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(6.dp))
 
                     // Bottom Lyrics Pill — shows live synced lyric line & opens Lyrics Sheet on tap!
                     Surface(
@@ -3221,7 +3248,8 @@ fun MochyCircleIconButton(
 @Composable
 fun MochyPillControlButton(
     icon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    tint: Color = Color.White
 ) {
     Box(
         modifier = Modifier
@@ -3232,7 +3260,7 @@ fun MochyPillControlButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -3995,123 +4023,13 @@ enum class MochyLoudnessPreset(val label: String, val boostDb: Float, val compre
 @Composable
 fun MochyAudioLabHubScreen(
     mochyState: MochyUiStateHolder,
-    onOpenEqualizer: () -> Unit,
+    onOpenEqualizer: () -> Unit = {},
     onBack: () -> Unit
 ) {
-    var showFullAudioFx by remember { mutableStateOf(false) }
-
-    if (showFullAudioFx) {
-        MochyAudioFxScreen(
-            mochyState = mochyState,
-            onBack = { showFullAudioFx = false }
-        )
-        return
-    }
-
-    val activeFxCount = listOf(
-        mochyState.reverbEnabled,
-        mochyState.loudnessEnabled,
-        mochyState.spatialAudioEnabled,
-        mochyState.monoAudio,
-        mochyState.dolbyAtmosSurround,
-        mochyState.playbackSpeed != 1.0f || !mochyState.preservePitch,
-        mochyState.exponentialVolume
-    ).count { it }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MochyBlack)
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(42.dp).clip(CircleShape).background(MochySurface)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-            }
-            Spacer(Modifier.height(10.dp))
-            Text("Audio\nLab", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-        }
-
-        // 1. Equalizer Card
-        item {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MochySurface,
-                border = BorderStroke(1.dp, MochyCardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(118.dp)
-                    .clickable(onClick = onOpenEqualizer)
-            ) {
-                Box(modifier = Modifier.padding(20.dp).fillMaxSize()) {
-                    Text(
-                        text = if (mochyState.eqEnabled) "● ${mochyState.eqPreset.label.uppercase()}" else "● OFF",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (mochyState.eqEnabled) MochyAccentGreen else MochyTextSecondary,
-                        modifier = Modifier.align(Alignment.TopStart)
-                    )
-                    Text(
-                        text = "Equalizer",
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.BottomStart)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.14f),
-                        modifier = Modifier.size(84.dp).align(Alignment.CenterEnd).rotate(-14f)
-                    )
-                }
-            }
-        }
-
-        // 2. Audio Effect Card -> Opens the full 00:00-01:01 MochyAudioFxScreen!
-        item {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MochySurface,
-                border = BorderStroke(1.dp, MochyCardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(118.dp)
-                    .clickable { showFullAudioFx = true }
-            ) {
-                Box(modifier = Modifier.padding(20.dp).fillMaxSize()) {
-                    Text(
-                        text = if (activeFxCount > 0) "● $activeFxCount ACTIVE" else "● ALL OFF",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeFxCount > 0) MochyAccentGreen else MochyTextSecondary,
-                        modifier = Modifier.align(Alignment.TopStart)
-                    )
-                    Text(
-                        text = "Audio Effect",
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.BottomStart)
-                    )
-                    Text(
-                        text = "FX",
-                        fontSize = 68.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.align(Alignment.CenterEnd).rotate(-10f)
-                    )
-                }
-            }
-        }
-
-        item { Spacer(Modifier.height(90.dp)) }
-    }
+    MochyAudioFxScreen(
+        mochyState = mochyState,
+        onBack = onBack
+    )
 }
 
 /**
@@ -4179,100 +4097,113 @@ fun MochyAudioFxScreen(
             .fillMaxSize()
             .background(MochyBlack)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── TOP HEADER: "Audio / FX" + Tilted Active FX Card Stack (00:00, 01:00) ──
+        // ── TOP HEADER: "Audio / FX" + Tilted Active FX Card Stack (Screenshot match) ──
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.size(42.dp).clip(CircleShape).background(MochySurface)
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF141419))
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Text("Audio", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C7C86))
-                    Text("FX", fontSize = 68.sp, lineHeight = 68.sp, fontWeight = FontWeight.Black, color = Color.White)
-                }
-
-                // Tilted Active FX Stack on Top-Right (exact match to 00:02 & 01:00)
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.padding(top = 18.dp)
-                ) {
-                    if (activeFxNames.size > 3) {
-                        Text(
-                            text = "and ${activeFxNames.size - 3} other",
-                            fontSize = 11.sp,
-                            color = MochyTextSecondary,
-                            modifier = Modifier.padding(bottom = 6.dp, end = 12.dp)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    Box(modifier = Modifier.size(width = 175.dp, height = 165.dp)) {
-                        val displayCards = if (activeFxNames.isEmpty()) listOf("SPATIAL") else activeFxNames.take(3)
-                        displayCards.asReversed().forEachIndexed { revIdx, fxName ->
-                            val idx = displayCards.size - 1 - revIdx
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = Color(0xFF17171C),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                                modifier = Modifier
-                                    .size(width = 132.dp, height = 145.dp)
-                                    .offset(x = (idx * (-16)).dp, y = (idx * 8).dp)
-                                    .graphicsLayer { rotationZ = -10f + idx * 4f }
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = if (activeFxNames.isNotEmpty()) "ON" else "OFF",
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (activeFxNames.isNotEmpty()) MochyAccentGreen else MochyTextSecondary
-                                            )
-                                            Text(
-                                                text = "${idx + 1} of ${activeFxNames.size.coerceAtLeast(1)}",
-                                                fontSize = 9.sp,
-                                                color = MochyTextSecondary
-                                            )
-                                        }
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            text = fxName,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White,
-                                            maxLines = 1
-                                        )
-                                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Audio",
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6E6E78)
+                    )
+                    Text(
+                        text = "FX",
+                        fontSize = 64.sp,
+                        lineHeight = 64.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
 
-                                    // Mini bar visualizer inside the tilted card
-                                    Canvas(modifier = Modifier.fillMaxWidth().height(42.dp)) {
-                                        val bars = 11
-                                        val step = size.width / bars
-                                        for (b in 0 until bars) {
-                                            val h = size.height * (0.25f + 0.65f * abs(sin(b * 0.7f)))
-                                            drawLine(
-                                                color = Color.White.copy(alpha = 0.55f),
-                                                start = Offset(b * step + 4f, size.height),
-                                                end = Offset(b * step + 4f, size.height - h),
-                                                strokeWidth = 3f,
-                                                cap = StrokeCap.Round
-                                            )
-                                        }
-                                    }
+                // Tilted Active FX Card on Top-Right (exact match to screenshot)
+                Box(
+                    modifier = Modifier
+                        .padding(top = 6.dp, end = 4.dp)
+                        .graphicsLayer { rotationZ = -7f }
+                ) {
+                    val activeFxCount = activeFxNames.size
+                    val topFxName = activeFxNames.firstOrNull() ?: "SPATIAL"
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = Color(0xFF14141A),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        modifier = Modifier.size(width = 138.dp, height = 142.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (activeFxCount > 0) "ON" else "OFF",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (activeFxCount > 0) MochyAccentGreen else Color(0xFF888894)
+                                    )
+                                    Text(
+                                        text = "${if (activeFxCount > 0) 1 else 1} of ${activeFxCount.coerceAtLeast(1)}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF888894)
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    text = topFxName,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // 12 Spectrum bars matching the screenshot
+                            Canvas(modifier = Modifier.fillMaxWidth().height(42.dp)) {
+                                val bars = listOf(0.38f, 0.62f, 0.45f, 0.76f, 0.52f, 0.92f, 0.68f, 0.48f, 0.78f, 0.58f, 0.68f, 0.42f)
+                                val barWidth = 2.8.dp.toPx()
+                                val totalBarsWidth = bars.size * barWidth
+                                val spacing = (size.width - totalBarsWidth) / (bars.size - 1).coerceAtLeast(1)
+                                bars.forEachIndexed { i, factor ->
+                                    val x = i * (barWidth + spacing) + barWidth / 2f
+                                    val h = (size.height * factor).coerceIn(4f, size.height)
+                                    drawLine(
+                                        color = Color.White.copy(alpha = 0.65f),
+                                        start = Offset(x, size.height),
+                                        end = Offset(x, size.height - h),
+                                        strokeWidth = barWidth,
+                                        cap = StrokeCap.Round
+                                    )
                                 }
                             }
                         }
@@ -4281,23 +4212,23 @@ fun MochyAudioFxScreen(
             }
         }
 
-        // ── CARD 1: REVERB (00:02 - 00:18) ───────────────────────────────────
+        // ── CARD 1: REVERB (Exact match to screenshot) ───────────────────────
         item {
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = MochySurface,
-                border = BorderStroke(1.dp, MochyCardBorder),
+                color = Color(0xFF131318),
+                border = BorderStroke(1.dp, Color(0xFF1F1F27)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    // Animated Acoustic Wave Reflections Canvas (00:02 - 00:17)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Acoustic Reflection Container
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(126.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF0A0A0D))
-                            .border(1.dp, MochyCardBorder, RoundedCornerShape(20.dp))
+                            .height(118.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF09090D))
+                            .border(1.dp, Color(0xFF181820), RoundedCornerShape(18.dp))
                     ) {
                         val waveAnim = rememberInfiniteTransition(label = "reverbWave")
                         val phase by waveAnim.animateFloat(
@@ -4310,44 +4241,58 @@ fun MochyAudioFxScreen(
                             val w = size.width
                             val h = size.height
                             val cy = h / 2f
-                            // Reflecting wall on right
-                            val wallX = w * (0.58f + mochyState.reverbRoomSize * 0.24f)
+                            val wallX = w * 0.68f
+
+                            // Reflecting vertical wall on the right
                             drawLine(
-                                color = Color.White.copy(alpha = 0.65f),
-                                start = Offset(wallX, h * 0.22f),
-                                end = Offset(wallX, h * 0.78f),
-                                strokeWidth = 3.dp.toPx(),
+                                color = Color.White.copy(alpha = 0.82f),
+                                start = Offset(wallX, cy - 32.dp.toPx()),
+                                end = Offset(wallX, cy + 32.dp.toPx()),
+                                strokeWidth = 3.2.dp.toPx(),
                                 cap = StrokeCap.Round
                             )
-                            // Forward & reflected sound wave arcs
-                            val arcCount = if (mochyState.reverbEnabled) 4 else 1
-                            for (i in 0 until arcCount) {
-                                val t = if (mochyState.reverbEnabled) ((phase + i * 0.25f) % 1f) else 0.55f
-                                val arcX = w * 0.18f + t * (wallX - w * 0.24f)
-                                val alpha = if (mochyState.reverbEnabled) (1f - t * 0.7f) * mochyState.reverbWet else 0.45f
+
+                            if (mochyState.reverbEnabled) {
+                                for (i in 0 until 4) {
+                                    val t = (phase + i * 0.25f) % 1f
+                                    val arcX = w * 0.22f + t * (wallX - w * 0.26f)
+                                    val alpha = ((1f - t * 0.7f) * mochyState.reverbWet).coerceIn(0.12f, 0.85f)
+                                    drawArc(
+                                        color = Color.White.copy(alpha = alpha),
+                                        startAngle = -40f,
+                                        sweepAngle = 80f,
+                                        useCenter = false,
+                                        topLeft = Offset(arcX - 34.dp.toPx(), cy - 36.dp.toPx()),
+                                        size = Size(68.dp.toPx(), 72.dp.toPx()),
+                                        style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round)
+                                    )
+                                }
+                            } else {
+                                // Single curved arc when disabled (screenshot match)
+                                val arcX = w * 0.54f
                                 drawArc(
-                                    color = Color.White.copy(alpha = alpha.coerceIn(0.1f, 0.9f)),
-                                    startAngle = -38f,
-                                    sweepAngle = 76f,
+                                    color = Color.White.copy(alpha = 0.72f),
+                                    startAngle = -42f,
+                                    sweepAngle = 84f,
                                     useCenter = false,
-                                    topLeft = Offset(arcX - 40.dp.toPx(), cy - 42.dp.toPx()),
-                                    size = Size(80.dp.toPx(), 84.dp.toPx()),
-                                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                                    topLeft = Offset(arcX - 34.dp.toPx(), cy - 36.dp.toPx()),
+                                    size = Size(68.dp.toPx(), 72.dp.toPx()),
+                                    style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round)
                                 )
                             }
                         }
                         Icon(
-                            imageVector = Icons.Default.VolumeUp,
+                            imageVector = Icons.Filled.VolumeUp,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.75f),
+                            tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .padding(start = 26.dp)
+                                .padding(start = 24.dp)
                                 .size(26.dp)
                         )
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     MochySwitchRow(
                         title = "Reverb",
@@ -4359,13 +4304,13 @@ fun MochyAudioFxScreen(
                     AnimatedVisibility(visible = mochyState.reverbEnabled) {
                         Column {
                             Spacer(Modifier.height(14.dp))
-                            // 8 Reverb Presets Row: Room, Studio, Bathroom, Plate, Hall, Cathedral, Stadium, Dreamy
+                            // 8 Reverb Presets Row
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(MochyReverbPreset.entries) { preset ->
                                     val selected = selectedReverbPreset == preset
                                     Surface(
                                         shape = RoundedCornerShape(20.dp),
-                                        color = if (selected) Color.White else MochySurfaceHigh,
+                                        color = if (selected) Color.White else Color(0xFF1E1E26),
                                         modifier = Modifier.clickable {
                                             selectedReverbPreset = preset
                                             mochyState.reverbPreset = preset.label
@@ -4453,47 +4398,52 @@ fun MochyAudioFxScreen(
             }
         }
 
-        // ── CARD 2: LOUDNESS & REPLAYGAIN (00:18 - 00:29) ────────────────────
+        // ── CARD 2: LOUDNESS & REPLAYGAIN (Exact match to screenshot) ─────────
         item {
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = MochySurface,
-                border = BorderStroke(1.dp, MochyCardBorder),
+                color = Color(0xFF131318),
+                border = BorderStroke(1.dp, Color(0xFF1F1F27)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    // Waveform Compression Visualizer (00:19 - 00:26)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Twin-Envelope Waveform Compression Visualizer
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(116.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF0A0A0D))
-                            .border(1.dp, MochyCardBorder, RoundedCornerShape(20.dp))
-                            .padding(14.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF09090D))
+                            .border(1.dp, Color(0xFF181820), RoundedCornerShape(18.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Canvas(modifier = Modifier.fillMaxSize()) {
-                            val bars = 64
+                            val bars = 52
                             val step = size.width / bars
                             val midY = size.height / 2f
-                            val boostFactor = if (mochyState.loudnessEnabled) (1f + loudnessBoostDb / 14f) else 0.72f
-                            val compFactor = if (mochyState.loudnessEnabled) loudnessCompression else 0f
+                            val barWidth = 2.4.dp.toPx()
                             for (i in 0 until bars) {
-                                val rawEnv = if (i in 34..45) 0.32f else 0.68f + 0.25f * sin(i * 0.35f)
-                                val liftedEnv = rawEnv + (1f - rawEnv) * compFactor * 0.75f
-                                val h = (midY * liftedEnv * boostFactor).coerceAtMost(midY * 0.95f)
+                                val t = i.toFloat() / (bars - 1)
+                                val p1 = exp(-((t - 0.26f) / 0.13f).toDouble().pow(2)).toFloat()
+                                val p2 = exp(-((t - 0.76f) / 0.13f).toDouble().pow(2)).toFloat()
+                                val centerDip = (1f - exp(-((t - 0.51f) / 0.09f).toDouble().pow(2))).toFloat()
+                                val base = 0.22f + 0.08f * (1f - abs(t - 0.5f))
+                                val envelope = (base + 0.68f * (p1 + p2) * (0.28f + 0.72f * centerDip)).coerceIn(0.18f, 0.92f)
+                                val boost = if (mochyState.loudnessEnabled) (1f + loudnessBoostDb / 16f) else 1f
+                                val h = (midY * envelope * boost).coerceIn(4.dp.toPx(), midY * 0.94f)
+                                val x = i * step + step / 2f
                                 drawLine(
-                                    color = Color.White.copy(alpha = 0.82f),
-                                    start = Offset(i * step, midY - h),
-                                    end = Offset(i * step, midY + h),
-                                    strokeWidth = 2.5.dp.toPx(),
+                                    color = Color.White.copy(alpha = 0.90f),
+                                    start = Offset(x, midY - h),
+                                    end = Offset(x, midY + h),
+                                    strokeWidth = barWidth,
                                     cap = StrokeCap.Round
                                 )
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     MochySwitchRow(
                         title = "Loudness",
@@ -4510,7 +4460,7 @@ fun MochyAudioFxScreen(
                                     val active = selectedLoudnessPreset == preset
                                     Surface(
                                         shape = RoundedCornerShape(20.dp),
-                                        color = if (active) Color.White else MochySurfaceHigh,
+                                        color = if (active) Color.White else Color(0xFF1E1E26),
                                         modifier = Modifier.clickable {
                                             selectedLoudnessPreset = preset
                                             loudnessBoostDb = preset.boostDb
@@ -4546,14 +4496,12 @@ fun MochyAudioFxScreen(
                             Text(
                                 text = "Compression lifts the quiet parts up toward the loud ones. Night mode keeps whispers and explosions close.",
                                 fontSize = 12.sp,
-                                color = MochyTextSecondary
+                                color = Color(0xFF757582)
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
-                    HorizontalDivider(color = MochyCardBorder)
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     MochySwitchRow(
                         title = "Even out songs",
@@ -4562,29 +4510,35 @@ fun MochyAudioFxScreen(
                         onCheckedChange = { mochyState.evenOutSongs = it }
                     )
 
-                    Spacer(Modifier.height(12.dp))
-                    Text("REPLAYGAIN", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MochyTextSecondary)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "REPLAYGAIN",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6E6E78),
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         listOf("Track", "Album").forEach { mode ->
                             val selected = mochyState.replayGainMode == mode
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = if (selected) Color.White else MochySurfaceHigh,
+                                color = if (selected) Color.White else Color(0xFF1E1E26),
                                 modifier = Modifier.clickable { mochyState.replayGainMode = mode }
                             ) {
                                 Text(
                                     text = mode,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (selected) Color.Black else Color.White,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
+                                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 11.dp)
                                 )
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(16.dp))
                     MochyLabeledSlider(
                         label = "Preamp",
                         valueText = "${if (mochyState.replayGainPreampDb >= 0f) "+" else ""}${"%.1f".format(mochyState.replayGainPreampDb)} dB",
@@ -5147,11 +5101,13 @@ private fun MochyLabeledSlider(
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             Text(valueText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
+        Spacer(Modifier.height(4.dp))
         Slider(
             value = value,
             onValueChange = onValueChange,
@@ -5159,13 +5115,11 @@ private fun MochyLabeledSlider(
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
-                inactiveTrackColor = Color.White.copy(alpha = 0.18f)
+                inactiveTrackColor = Color(0xFF282832)
             )
         )
     }
 }
-
-
 
 @Composable
 private fun MochySwitchRow(
@@ -5179,10 +5133,32 @@ private fun MochySwitchRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(subtitle, fontSize = 12.sp, color = MochyTextSecondary)
+        Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
+            Text(
+                text = title,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                color = Color(0xFF757582)
+            )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color(0xFF16161D),
+                checkedTrackColor = Color.White,
+                uncheckedThumbColor = Color(0xFF485060),
+                uncheckedTrackColor = Color(0xFF2C3240),
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
+            )
+        )
     }
 }

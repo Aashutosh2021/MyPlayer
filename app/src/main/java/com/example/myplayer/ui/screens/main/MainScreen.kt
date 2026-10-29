@@ -437,7 +437,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 com.example.myplayer.ui.settings.AudioAndPlaybackScreen(
                     store = settingsVm.audioPlaybackStore,
                     featureManagers = settingsVm.audioFeatureManagers,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    mochyState = mochyState
                 )
             }
         }

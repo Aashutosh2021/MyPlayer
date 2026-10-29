@@ -48,13 +48,14 @@ import com.example.myplayer.ui.components.ClayIconButton
 import com.example.myplayer.ui.theme.*
 import kotlinx.coroutines.launch
 
-private enum class SubScreen { MAIN, STREAMING_QUALITY, DOWNLOAD_QUALITY, EQUALIZER_15 }
+private enum class SubScreen { MAIN, STREAMING_QUALITY, DOWNLOAD_QUALITY, EQUALIZER_15, AUDIO_LAB }
 
 @Composable
 fun AudioAndPlaybackScreen(
     store: AudioPlaybackStore,
     featureManagers: AudioFeatureManagers,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    mochyState: com.example.myplayer.ui.mochy.MochyUiStateHolder? = null
 ) {
     val state by store.stateFlow.collectAsState(initial = AudioPlaybackState())
     val scope = rememberCoroutineScope()
@@ -96,6 +97,14 @@ fun AudioAndPlaybackScreen(
                 onSelectPreset = { scope.launch { store.setEqPreset(it) } },
                 onBandChange = { idx, db -> scope.launch { store.setEqBandGain(idx, db, state.eqBandGains) } },
                 onReset = { scope.launch { store.setEqPreset(Eq15Preset.DEFAULT) } },
+                onBack = { currentSubScreen = SubScreen.MAIN }
+            )
+            return
+        }
+        SubScreen.AUDIO_LAB -> {
+            val stateHolder = mochyState ?: com.example.myplayer.ui.mochy.rememberMochyUiStateHolder()
+            com.example.myplayer.ui.mochy.MochyAudioFxScreen(
+                mochyState = stateHolder,
                 onBack = { currentSubScreen = SubScreen.MAIN }
             )
             return
@@ -286,6 +295,16 @@ fun AudioAndPlaybackScreen(
                     title = "Equalizer",
                     subtitle = "${if (state.eqEnabled) "On" else "Off"} • ${state.eqPreset.label} • 15-band",
                     onClick = { currentSubScreen = SubScreen.EQUALIZER_15 }
+                )
+            }
+
+            // 12b. Audio Lab & Effects
+            item {
+                SettingsRowNav(
+                    icon = Icons.Default.Tune,
+                    title = "Audio Lab & Effects",
+                    subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
+                    onClick = { currentSubScreen = SubScreen.AUDIO_LAB }
                 )
             }
 
