@@ -768,6 +768,12 @@
 
   <div id="toast" class="toast" role="status"></div>
   <script src="script.js"></script>
+
+  <!-- MyPlayer site tracker (Firestore: visits + download clicks) -->
+  <script type="module">
+    import { initTracker } from "./js/tracker.js";
+    initTracker();
+  </script>
 </body>
 
 </html>

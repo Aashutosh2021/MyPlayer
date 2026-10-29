@@ -9,12 +9,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.SurroundSound
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
@@ -53,14 +58,24 @@ object WhatsNewRepository {
 
     fun getCurrentFeatures(): List<WhatsNewFeature> = listOf(
         WhatsNewFeature(
-            icon = Icons.Filled.Waves,
-            title = "Studio Master Clarity (C++17 DSP)",
-            description = "8-stage psychoacoustic mastering chain: dynamic sub-bass foundation, low-mid decongestion, vocal presence lift, 1.22x stereo widener & analog air exciter."
+            icon = Icons.Filled.Dashboard,
+            title = "New Miniplayer & Frosted Floating Nav",
+            description = "Fully redesigned miniplayer with a frosted-glass floating navigation bar that adapts seamlessly to light and dark themes."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.Album,
+            title = "Custom Now Playing — 6 Styles",
+            description = "Pick your vibe: Radial dial, Default, vinyl Turntable, editorial Poster, Timeline and immersive Lyrics Stage — every style fully theme-aware."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.DarkMode,
+            title = "Day & Night Mode",
+            description = "A complete dark theme across the whole app — library, player, settings, dialogs and the audio lab all follow your choice."
         ),
         WhatsNewFeature(
             icon = Icons.Filled.SurroundSound,
-            title = "Dolby Atmos & Hardware Spatial Audio",
-            description = "Dedicated hardware spatializer renderer for E-AC-3 JOC Dolby Atmos with hardware dialogue normalization and Jellyfin FFmpeg 32-bit Float decoding."
+            title = "FX Audio Lab — Reverb & Spatial",
+            description = "New studio-grade effects chain: lush reverb with room & depth control, True Dolby-style spatial widening, and loudness compression."
         ),
         WhatsNewFeature(
             icon = Icons.Filled.GraphicEq,
@@ -68,14 +83,29 @@ object WhatsNewRepository {
             description = "15 ISO 2/3-octave center frequencies (25Hz - 16kHz) with real-time frequency curve canvas, haptic tactile faders, and 12 acoustic presets."
         ),
         WhatsNewFeature(
+            icon = Icons.Filled.Waves,
+            title = "Studio Master Clarity (C++17 DSP)",
+            description = "8-stage psychoacoustic mastering chain: dynamic sub-bass foundation, low-mid decongestion, vocal presence lift, 1.22x stereo widener & analog air exciter."
+        ),
+        WhatsNewFeature(
             icon = Icons.AutoMirrored.Filled.VolumeUp,
             title = "ReplayGain & -14 LUFS Normalization",
             description = "Automatic Vorbis & ID3 TXXX tag loudness normalization with Dolby Atmos +6 dB compensation and true-peak protection."
         ),
         WhatsNewFeature(
-            icon = Icons.Filled.Tune,
-            title = "Redesigned Audio & Playback Hub",
-            description = "Full Light & Dark mode support with tactile clay styling, Bit-Perfect direct DAC output, and background playback protection."
+            icon = Icons.Filled.Translate,
+            title = "Lyrics Script Converter",
+            description = "Read lyrics your way — convert Hindi (Devanagari), Hinglish (Latin) and Urdu (Arabic script) into each other, right inside the player."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.CloudSync,
+            title = "Spotify Integration",
+            description = "Log in during onboarding or from Settings to sync your Spotify taste into the AI engine and get personal recommendations."
+        ),
+        WhatsNewFeature(
+            icon = Icons.Filled.Backup,
+            title = "Smart Backup & Restore",
+            description = "Save your library, playlists and settings as a portable JSON file — restore on any device and missing songs redownload automatically."
         )
     )
 }

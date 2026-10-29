@@ -926,6 +926,12 @@
       document.getElementById('migrationModal').classList.add('show');
     });
   </script>
+
+  <!-- MyPlayer site tracker (Firestore: visits + download clicks) -->
+  <script type="module">
+    import { initTracker } from "./js/tracker.js";
+    initTracker();
+  </script>
 </body>
 
 
