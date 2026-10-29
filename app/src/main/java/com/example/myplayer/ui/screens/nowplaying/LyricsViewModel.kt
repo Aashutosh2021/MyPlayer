@@ -3,7 +3,10 @@ package com.example.myplayer.ui.screens.nowplaying
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myplayer.data.lyrics.LyricsRepository
+import com.example.myplayer.data.lyrics.DetectedScript
 import com.example.myplayer.data.lyrics.LyricsResult
+import com.example.myplayer.data.lyrics.LyricsScript
+import com.example.myplayer.data.lyrics.LyricsScriptConverter
 import com.example.myplayer.playback.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,12 +33,50 @@ data class LyricsMetadata(
 @HiltViewModel
 class LyricsViewModel @Inject constructor(
     private val lyricsRepository: LyricsRepository,
+    private val scriptConverter: LyricsScriptConverter,
     private val musicController: MusicController,
     private val audioPlaybackStore: com.example.myplayer.data.preferences.AudioPlaybackStore
 ) : ViewModel() {
 
-    private val _lyricsState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)
-    val lyricsState: StateFlow<LyricsUiState> = _lyricsState.asStateFlow()
+    private val rawState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)
+
+    // Script picker: Original / Hinglish / Hindi / Urdu. English lyrics are never converted.
+    private val _scriptMode = MutableStateFlow(LyricsScript.ORIGINAL)
+    val scriptMode: StateFlow<LyricsScript> = _scriptMode.asStateFlow()
+    private val _detectedScript = MutableStateFlow(DetectedScript.UNKNOWN)
+    val detectedScript: StateFlow<DetectedScript> = _detectedScript.asStateFlow()
+    private val _converting = MutableStateFlow(false)
+    val converting: StateFlow<Boolean> = _converting.asStateFlow()
+
+    fun setScriptMode(mode: LyricsScript) { _scriptMode.value = mode }
+
+    /** What the screens show: the fetched lyrics, converted to the picked script. */
+    val lyricsState: StateFlow<LyricsUiState> = combine(rawState, _scriptMode) { raw, mode -> raw to mode }
+        .mapLatest { (raw, mode) -> applyScript(raw, mode) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, LyricsUiState.Idle)
+
+    private suspend fun applyScript(raw: LyricsUiState, mode: LyricsScript): LyricsUiState {
+        if (raw !is LyricsUiState.Found) {
+            _detectedScript.value = DetectedScript.UNKNOWN
+            return raw
+        }
+        val synced = raw.syncedLines
+        val lines = if (synced.isNotEmpty()) synced.map { it.second } else (raw.result.plainLyrics ?: "").lines()
+        val from = scriptConverter.detect(lines)
+        _detectedScript.value = from
+        if (mode == LyricsScript.ORIGINAL || !from.convertible) return raw
+        _converting.value = true
+        try {
+            val out = scriptConverter.convert(lines, from, mode)
+            return if (synced.isNotEmpty()) {
+                raw.copy(syncedLines = synced.mapIndexed { i, (t, _) -> t to out[i] })
+            } else {
+                raw.copy(result = raw.result.copy(plainLyrics = out.joinToString("\n")))
+            }
+        } finally {
+            _converting.value = false
+        }
+    }
 
     val currentPosition = musicController.currentPosition
 
@@ -67,7 +108,7 @@ class LyricsViewModel @Inject constructor(
             }.distinctUntilChanged().collectLatest { metadata ->
                 lastMetadata = metadata
                 if (metadata == null) {
-                    _lyricsState.value = LyricsUiState.Idle
+                    rawState.value = LyricsUiState.Idle
                     return@collectLatest
                 }
                 fetchLyrics(metadata)
@@ -111,7 +152,7 @@ class LyricsViewModel @Inject constructor(
     fun saveCustomLyrics(lyricsText: String) {
         val metadata = lastMetadata ?: return
         viewModelScope.launch {
-            _lyricsState.value = LyricsUiState.Loading
+            rawState.value = LyricsUiState.Loading
             val result = lyricsRepository.saveCustomLyrics(
                 songId = metadata.songId,
                 trackName = metadata.title,
@@ -119,7 +160,7 @@ class LyricsViewModel @Inject constructor(
                 lyricsText = lyricsText
             )
             val synced = result.syncedLyrics?.let { lyricsRepository.parseSyncedLyrics(it) } ?: emptyList()
-            _lyricsState.value = LyricsUiState.Found(result, synced)
+            rawState.value = LyricsUiState.Found(result, synced)
         }
     }
 
@@ -140,7 +181,7 @@ class LyricsViewModel @Inject constructor(
     private fun fetchLyricsInternal(metadata: LyricsMetadata, forceRefresh: Boolean) {
         fetchJob?.cancel()
         fetchJob = viewModelScope.launch {
-            _lyricsState.value = LyricsUiState.Loading
+            rawState.value = LyricsUiState.Loading
             if (forceRefresh) {
                 lyricsRepository.deleteLyrics(metadata.songId)
             }
@@ -152,7 +193,7 @@ class LyricsViewModel @Inject constructor(
                 durationSeconds = durationSec,
                 albumName = metadata.album
             )
-            _lyricsState.value = if (result != null) {
+            rawState.value = if (result != null) {
                 val synced = result.syncedLyrics?.let { lyricsRepository.parseSyncedLyrics(it) } ?: emptyList()
                 LyricsUiState.Found(result, synced)
             } else {

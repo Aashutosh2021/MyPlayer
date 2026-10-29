@@ -48,23 +48,10 @@ fun FloatingNavBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val navShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-
-    // Frosted glass translucent bottom dock
+    // Fully transparent dock: icons float above the screen content
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 14.dp,
-                shape = navShape,
-                spotColor = Color.Black.copy(alpha = 0.5f)
-            )
-            .clip(navShape)
-            .background(Color(0xD9121217))
-            .border(
-                BorderStroke(0.8.dp, Color.White.copy(alpha = 0.12f)),
-                shape = navShape
-            )
             .navigationBarsPadding()
             .padding(top = 10.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -100,7 +87,14 @@ fun FloatingNavBar(
                     text = item.label,
                     fontSize = 11.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = tint
+                    color = tint,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = Color.Black.copy(alpha = 0.75f),
+                            offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                            blurRadius = 8f
+                        )
+                    )
                 )
             }
         }

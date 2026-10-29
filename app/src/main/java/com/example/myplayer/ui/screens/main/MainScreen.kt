@@ -3,6 +3,7 @@ package com.example.myplayer.ui.screens.main
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -123,6 +124,9 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         }
     }
 
+    // Content draws behind the transparent miniplayer + navbar; screens get the bar height as list padding.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var barHeight by remember { mutableStateOf(0.dp) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
@@ -132,6 +136,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onGloballyPositioned { barHeight = with(density) { it.size.height.toDp() } }
                         .background(androidx.compose.ui.graphics.Color.Transparent),
                     verticalArrangement = Arrangement.Bottom
                 ) {
@@ -237,7 +242,6 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = if (showNav) innerPadding.calculateBottomPadding() else 0.dp)
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
@@ -247,7 +251,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route) { launchSingleTop = true }
                     },
-                    bottomPadding = 16.dp,
+                    bottomPadding = barHeight,
                     // Reuse the instance created above: a second hiltViewModel() here would run
                     // refreshAiRecommendations / trending / library sync a second time at startup.
                     viewModel = homeViewModel
@@ -258,7 +262,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = 16.dp
+                    bottomPadding = barHeight
                 )
             }
             composable(Screen.Trending.route) {
@@ -266,7 +270,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = 16.dp
+                    bottomPadding = barHeight
                 )
             }
             composable(Screen.Downloads.route) {
@@ -274,7 +278,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = 16.dp
+                    bottomPadding = barHeight
                 )
             }
             composable(Screen.Library.route) {
@@ -293,7 +297,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onOpenCustomizeStyles = { showStylePicker = true },
                     onOpenAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
                     onOpenAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
-                    bottomPadding = 16.dp
+                    bottomPadding = barHeight
                 )
             }
             composable("playlist_detail/{playlistId}") { backStackEntry ->
@@ -397,7 +401,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToPlayerStyles = { showStylePicker = true },
                     onNavigateToMochyAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
                     onNavigateToMochyAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
-                    bottomPadding = 16.dp
+                    bottomPadding = barHeight
                 )
             }
             composable(Screen.MochyAudioLab.route) {

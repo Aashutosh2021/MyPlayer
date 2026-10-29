@@ -27,7 +27,7 @@ import javax.inject.Inject
 
 sealed interface BackupRestoreState {
     object Idle : BackupRestoreState
-    object Loading : BackupRestoreState
+    data class Loading(val progress: String? = null) : BackupRestoreState
     data class Success(val message: String) : BackupRestoreState
     data class Error(val error: String) : BackupRestoreState
 }
@@ -195,14 +195,26 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun exportBackup(uri: Uri) {
-        _backupState.value = BackupRestoreState.Loading
+        _backupState.value = BackupRestoreState.Loading()
         viewModelScope.launch {
             try {
-                val json = backupRestoreManager.generateBackup()
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    output.write(json.toByteArray(Charsets.UTF_8))
+                val isArchive = runCatching { isZipBackup(uri) }.getOrDefault(false)
+                val message = if (isArchive) {
+                    val output = context.contentResolver.openOutputStream(uri)
+                        ?: throw IOException("Could not open file for writing")
+                    val packed = backupRestoreManager.generateBackupArchive(output) { packed, total ->
+                        _backupState.value = BackupRestoreState.Loading("Copying songs... $packed / $total")
+                    }
+                    "Backup created successfully! ($packed downloaded songs included)"
+                } else {
+                    // Legacy JSON export (metadata only)
+                    val json = backupRestoreManager.generateBackup()
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray(Charsets.UTF_8))
+                    }
+                    "Backup created successfully!"
                 }
-                _backupState.value = BackupRestoreState.Success("Backup created successfully!")
+                _backupState.value = BackupRestoreState.Success(message)
             } catch (e: Exception) {
                 _backupState.value = BackupRestoreState.Error(e.message ?: "Failed to write backup file")
             }
@@ -210,19 +222,35 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun importBackup(uri: Uri) {
-        _restoreState.value = BackupRestoreState.Loading
+        _restoreState.value = BackupRestoreState.Loading()
         viewModelScope.launch {
             try {
-                val json = context.contentResolver.openInputStream(uri)?.use { input ->
-                    input.bufferedReader().use { it.readText() }
-                } ?: throw IOException("Could not read backup file")
-                
-                backupRestoreManager.restoreBackup(json)
+                val isArchive = runCatching { isZipBackup(uri) }.getOrDefault(false)
+                if (isArchive) {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        backupRestoreManager.restoreBackupArchive(input)
+                    } ?: throw IOException("Could not read backup file")
+                } else {
+                    // Legacy JSON backup (metadata only; missing downloads re-fetch in background)
+                    val json = context.contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader().use { it.readText() }
+                    } ?: throw IOException("Could not read backup file")
+                    backupRestoreManager.restoreBackup(json)
+                }
                 _restoreState.value = BackupRestoreState.Success("Backup restored successfully!")
             } catch (e: Exception) {
                 _restoreState.value = BackupRestoreState.Error(e.message ?: "Failed to restore backup file")
             }
         }
+    }
+
+    /** ZIP archives start with the "PK" magic bytes. */
+    private suspend fun isZipBackup(uri: Uri): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val magic = ByteArray(2)
+            val read = input.read(magic)
+            read == 2 && magic[0] == 'P'.code.toByte() && magic[1] == 'K'.code.toByte()
+        } ?: false
     }
 }
 

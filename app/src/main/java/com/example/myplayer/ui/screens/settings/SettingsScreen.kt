@@ -124,7 +124,7 @@ fun SettingsScreen(
     }
 
     val backupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         uri?.let { viewModel.exportBackup(it) }
     }
@@ -139,7 +139,7 @@ fun SettingsScreen(
         when (val state = backupState) {
             is BackupRestoreState.Loading -> {
                 isLoadingDialog = true
-                showDialogText = "Creating backup file..."
+                showDialogText = state.progress ?: "Creating backup file..."
             }
             is BackupRestoreState.Success -> {
                 isLoadingDialog = false
@@ -157,7 +157,7 @@ fun SettingsScreen(
         when (val state = restoreState) {
             is BackupRestoreState.Loading -> {
                 isLoadingDialog = true
-                showDialogText = "Restoring database & downloads..."
+                showDialogText = state.progress ?: "Restoring database & downloads..."
             }
             is BackupRestoreState.Success -> {
                 isLoadingDialog = false
@@ -643,8 +643,8 @@ fun SettingsScreen(
                 MochySettingsNavigationRow(
                     icon = Icons.Filled.Backup,
                     title = "Create Backup",
-                    subtitle = "Export your library, playlists, and settings to JSON",
-                    onClick = { backupLauncher.launch("myplayer_backup.json") }
+                    subtitle = "Export library, playlists, settings + downloaded song files (ZIP)",
+                    onClick = { backupLauncher.launch("myplayer_backup.zip") }
                 )
                 MochySettingsDivider()
                 MochySettingsNavigationRow(

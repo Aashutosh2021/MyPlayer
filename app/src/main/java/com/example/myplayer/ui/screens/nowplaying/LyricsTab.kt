@@ -7,6 +7,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -31,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.myplayer.data.lyrics.LyricsScript
 import com.example.myplayer.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -184,6 +189,8 @@ fun LyricsTab(
                     PlainLyricsView(text = lyricsState.result.plainLyrics ?: "")
                 }
 
+                LyricsScriptPicker(modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 8.dp, end = 48.dp))
+
                 IconButton(
                     onClick = onAddCustomLyrics,
                     modifier = Modifier
@@ -318,3 +325,36 @@ private fun PlainLyricsView(text: String) {
 }
 
 
+
+/** Original / Hinglish / हिन्दी / اردو chips; hidden for English lyrics. */
+@Composable
+private fun LyricsScriptPicker(modifier: Modifier = Modifier, viewModel: LyricsViewModel = hiltViewModel()) {
+    val detected by viewModel.detectedScript.collectAsStateWithLifecycle()
+    if (!detected.convertible) return
+    val mode by viewModel.scriptMode.collectAsStateWithLifecycle()
+    val converting by viewModel.converting.collectAsStateWithLifecycle()
+    val isDark = ThemeState.isDarkMode
+    val fg = if (isDark) Color.White else CharcoalPrimary
+
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LyricsScript.values().forEach { option ->
+            val selected = option == mode
+            Text(
+                text = option.label,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) (if (isDark) CharcoalPrimary else PureWhite) else fg.copy(alpha = 0.75f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (selected) fg else fg.copy(alpha = 0.10f))
+                    .clickable { viewModel.setScriptMode(option) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+        if (converting) CircularProgressIndicator(color = fg, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+    }
+}
