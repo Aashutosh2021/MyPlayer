@@ -13,6 +13,7 @@ import com.example.myplayer.security.SecurityManager
 import com.example.myplayer.util.AudioAlbumArtFetcher
 
 import com.example.myplayer.data.artwork.ArtworkRepository
+import com.example.myplayer.data.backup.RedownloadQueueWorker
 import com.example.myplayer.data.artwork.coil.ArtworkFetcher
 import com.example.myplayer.data.update.UpdateCheckScheduler
 import javax.inject.Provider
@@ -40,6 +41,9 @@ class MyPlayerApplication : Application(), Configuration.Provider, ImageLoaderFa
 
         // Background update checking
         UpdateCheckScheduler.schedulePeriodicCheck(this)
+
+        // Revive an interrupted sequential redownload queue (from a backup restore).
+        RedownloadQueueWorker.resumeIfPending(this)
     }
 
     override val workManagerConfiguration: Configuration

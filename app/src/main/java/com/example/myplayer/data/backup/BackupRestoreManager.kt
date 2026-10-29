@@ -11,7 +11,6 @@ import com.example.myplayer.data.local.datastore.SettingsDataStore
 import com.example.myplayer.data.local.prefs.PreferencesManager
 import com.example.myplayer.data.local.entity.*
 import com.example.myplayer.data.online.InnertubeApi
-import com.example.myplayer.data.online.model.OnlineSong
 import com.example.myplayer.data.repository.DownloadRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -448,27 +447,27 @@ class BackupRestoreManager @Inject constructor(
             }
         }
 
-        // 3. For any restored download whose file does not exist on disk, schedule background download
+        // 3. For any restored download whose file does not exist on disk, queue sequential
+        //    background redownload (one song at a time; stream URL resolved per song first).
         val missingDownloads = backupData.downloads.filter { dl ->
             val resolved = resolveLocalPath(context, dl.localPath, "${dl.title}.m4a")
             !checkFileExists(context, resolved)
         }
         if (missingDownloads.isNotEmpty()) {
-            Log.i("BackupRestoreManager", "Auto-scheduling ${missingDownloads.size} missing downloaded songs for background download...")
-            missingDownloads.forEach { dl ->
-                try {
-                    val onlineSong = OnlineSong(
+            Log.i("BackupRestoreManager", "Queuing ${missingDownloads.size} missing downloaded songs for sequential background redownload...")
+            RedownloadQueueWorker.enqueue(
+                context,
+                missingDownloads.map { dl ->
+                    RedownloadItem(
                         videoId = dl.id,
                         title = dl.title,
                         artist = dl.artist,
+                        thumbnailUrl = dl.thumbnailUrl,
                         durationMs = dl.durationMs,
-                        thumbnailUrl = dl.thumbnailUrl
+                        localPath = dl.localPath
                     )
-                    downloadRepository.startDownload(onlineSong)
-                } catch (e: Exception) {
-                    Log.w("BackupRestoreManager", "Failed to schedule download for ${dl.title}", e)
                 }
-            }
+            )
         }
 
         Log.i("BackupRestoreManager", "Restore complete. ${backupData.downloads.size} downloads restored (${missingDownloads.size} queued for background download).")

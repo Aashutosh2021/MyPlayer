@@ -121,7 +121,7 @@ fun MiniPlayer(
                 )
             }
     ) {
-        val cardShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+        val cardShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
 
         // 1. Main Purple-Magenta Gradient Card (shifted down by 16.dp so artwork overhangs top-left)
         Column(

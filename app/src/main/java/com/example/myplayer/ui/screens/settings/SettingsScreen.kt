@@ -124,7 +124,7 @@ fun SettingsScreen(
     }
 
     val backupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
+        contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         uri?.let { viewModel.exportBackup(it) }
     }
@@ -643,8 +643,8 @@ fun SettingsScreen(
                 MochySettingsNavigationRow(
                     icon = Icons.Filled.Backup,
                     title = "Create Backup",
-                    subtitle = "Export library, playlists, settings + downloaded song files (ZIP)",
-                    onClick = { backupLauncher.launch("myplayer_backup.zip") }
+                    subtitle = "Export library, playlists, and settings to JSON. Downloads re-fetch automatically on restore.",
+                    onClick = { backupLauncher.launch("myplayer_backup.json") }
                 )
                 MochySettingsDivider()
                 MochySettingsNavigationRow(
