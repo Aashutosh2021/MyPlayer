@@ -3658,9 +3658,21 @@ fun MochyProfileSheetDialog(
                             Text("Version & about app", fontSize = 12.sp, color = MochyTextSecondary)
                             Text("8.2.3", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                         }
+                        val context = LocalContext.current
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = MochySurfaceHigh
+                            color = MochySurfaceHigh,
+                            modifier = Modifier.clickable {
+                                runCatching {
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(com.myplayer.app.data.update.UpdateChecker.UPDATE_WEBSITE_URL)
+                                    ).apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
                         ) {
                             Text(
                                 text = "About app",

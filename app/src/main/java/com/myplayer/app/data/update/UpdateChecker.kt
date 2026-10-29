@@ -46,7 +46,7 @@ class UpdateChecker @Inject constructor(
         private const val GITHUB_OWNER = "Aashutosh2021"
         private const val GITHUB_REPO = "MyPlayer"
 
-        const val UPDATE_WEBSITE_URL = "https://aashutosh2021.github.io/MyPlayer/"
+        const val UPDATE_WEBSITE_URL = "https://myplayer-660ee.web.app"
 
         private const val RELEASES_URL =
             "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"

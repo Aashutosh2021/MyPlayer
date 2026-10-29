@@ -101,3 +101,7 @@ docs/releases.html
 docs/script.js
 docs/style.css
 docs/js/
+.firebaserc
+firebase.json
+.firebase/
+
