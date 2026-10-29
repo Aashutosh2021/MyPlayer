@@ -91,3 +91,13 @@ instructions_codes/
 *.jks
 app/*.keystore
 keystore_base64.txt
+
+# Docs & Website
+docs/ADMIN_SETUP.md
+docs/admin.html
+docs/firestore.rules
+docs/index.html
+docs/releases.html
+docs/script.js
+docs/style.css
+docs/js/
