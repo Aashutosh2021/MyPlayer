@@ -91,7 +91,8 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
         val params = service.spatial
         val scale = 1f / 32768f
 
-        if (surround) {
+        // 5.1/7.1 are rendered to two ears when the stream arrives; plain stereo follows the toggle live
+        if (if (inChannels == 2) params.surround else surround) {
             val renderer = head ?: HeadRenderer(sampleRate, surroundAzimuths(inChannels)).also { head = it }
             val out = replaceOutputBuffer(frames * 4)
             val frame = FloatArray(inChannels)
@@ -378,6 +379,7 @@ class SpatialAudioProcessor(private val service: AudioFxService) : AudioProcesso
 
         /** android's channel order: fl fr fc lfe bl br sl sr (fewer channels drop from the end) */
         private fun surroundAzimuths(channels: Int): FloatArray = when (channels) {
+            2 -> floatArrayOf(-30f, 30f)
             3 -> floatArrayOf(-30f, 30f, 0f)
             4 -> floatArrayOf(-30f, 30f, -110f, 110f)
             5 -> floatArrayOf(-30f, 30f, 0f, -110f, 110f)

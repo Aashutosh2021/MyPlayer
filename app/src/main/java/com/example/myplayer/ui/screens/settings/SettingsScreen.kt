@@ -596,7 +596,7 @@ fun SettingsScreen(
                 MochySettingsDivider()
                 MochySettingsNavigationRow(
                     icon = Icons.Filled.Tune,
-                    title = "Mochy Audio Lab & Effects",
+                    title = "Audio Lab & Effects",
                     subtitle = "Reverb, Spatial Audio, Loudness Boost, Speed & Pitch",
                     onClick = onNavigateToMochyAudioLab
                 )

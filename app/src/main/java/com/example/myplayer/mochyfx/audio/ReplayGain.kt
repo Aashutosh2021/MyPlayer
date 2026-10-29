@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import kotlin.math.min
 import kotlin.math.pow
@@ -39,8 +40,14 @@ class ReplayGainTags {
                 if (!group.isTrackSelected(i)) continue
                 val metadata = group.getTrackFormat(i).metadata ?: continue
                 for (e in 0 until metadata.length()) {
-                    val entry = metadata.get(e) as? VorbisComment ?: continue
-                    comments += entry.key to entry.value
+                    when (val entry = metadata.get(e)) {
+                        is VorbisComment -> comments += entry.key to entry.value
+                        // mp3: REPLAYGAIN_* live in ID3 TXXX frames
+                        is TextInformationFrame -> if (entry.id == "TXXX") {
+                            comments += entry.description.orEmpty() to entry.values.firstOrNull().orEmpty()
+                        }
+                        else -> Unit
+                    }
                 }
             }
         }
