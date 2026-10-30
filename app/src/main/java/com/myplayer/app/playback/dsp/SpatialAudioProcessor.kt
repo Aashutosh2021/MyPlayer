@@ -30,7 +30,7 @@ data class SpatialParams(
 
 /**
  * Headphone Spatial Audio & Dolby Atmos / Multichannel 3D Surround Processor.
- * Based on Mochy-Music's true audio DSP:
+ * Based on MyPlayer-Music's true audio DSP:
  * - Multichannel 5.1 / 7.1 / Atmos rendered binaurally to stereo headphones via Brown & Duda Spherical Head Model.
  * - Virtual 3D Stereo Speakers (±speakerAngle) or Bauer BS2B Binaural Crossfeed for stereo headphone externalization.
  * - Supports both 16-bit and 32-bit float PCM buffers.

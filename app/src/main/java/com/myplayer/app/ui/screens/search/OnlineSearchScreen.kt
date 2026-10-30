@@ -36,7 +36,7 @@ import com.myplayer.app.data.online.model.OnlineSong
 import com.myplayer.app.data.local.entity.RecentSearchEntity
 import com.myplayer.app.data.local.entity.PlayedSongHistoryEntity
 import com.myplayer.app.ui.components.ClayIconButton
-import com.myplayer.app.ui.mochy.*
+import com.myplayer.app.ui.myplayer.*
 import com.myplayer.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -280,7 +280,7 @@ fun SearchHistorySection(
         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ── Mochy Moods & Moments ──────────────────────────────────────────
+        // ── MyPlayer Moods & Moments ──────────────────────────────────────────
         item {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 Row(
@@ -294,7 +294,7 @@ fun SearchHistorySection(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Mochy AI",
+                        text = "MyPlayer AI",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -303,9 +303,9 @@ fun SearchHistorySection(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    items(MOCHY_MOODS.size) { idx ->
-                        val mood = MOCHY_MOODS[idx]
-                        MochyMoodGenreCard(
+                    items(MYPLAYER_MOODS.size) { idx ->
+                        val mood = MYPLAYER_MOODS[idx]
+                        MyPlayerMoodGenreCard(
                             item = mood,
                             onClick = { onSearchClick(mood.title) },
                             modifier = Modifier.width(160.dp)
@@ -315,7 +315,7 @@ fun SearchHistorySection(
             }
         }
 
-        // ── Mochy Explore Genres ───────────────────────────────────────────
+        // ── MyPlayer Explore Genres ───────────────────────────────────────────
         item {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 Text(
@@ -328,9 +328,9 @@ fun SearchHistorySection(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    items(MOCHY_GENRES.size) { idx ->
-                        val genre = MOCHY_GENRES[idx]
-                        MochyMoodGenreCard(
+                    items(MYPLAYER_GENRES.size) { idx ->
+                        val genre = MYPLAYER_GENRES[idx]
+                        MyPlayerMoodGenreCard(
                             item = genre,
                             onClick = { onSearchClick(genre.title) },
                             modifier = Modifier.width(160.dp)

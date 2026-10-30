@@ -30,6 +30,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.myplayer.app.ui.components.WhatsNewDialog
+import com.myplayer.app.ui.components.WhatsNewRepository
 import androidx.navigation.compose.rememberNavController
 import com.myplayer.app.ui.components.FloatingNavBar
 import com.myplayer.app.ui.navigation.Screen
@@ -43,15 +45,16 @@ import com.myplayer.app.ui.screens.settings.SettingsScreen
 import com.myplayer.app.ui.theme.CloudBlueBackground
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.myplayer.app.ui.mochy.*
+import com.myplayer.app.ui.myplayer.*
 
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val homeViewModel: com.myplayer.app.ui.screens.home.HomeViewModel = hiltViewModel()
-    val mochyState = rememberMochyUiStateHolder()
+    val myplayerState = rememberMyPlayerUiStateHolder()
     // Audio Lab -> real DSP for the whole UI lifetime (restores saved settings at app start).
-    MochyAudioLabEngineSync(mochyState)
+    MyPlayerAudioLabEngineSync(myplayerState)
     var showStylePicker by remember { mutableStateOf(false) }
+    var showWhatsNew by remember { mutableStateOf(false) }
 
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -91,23 +94,35 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.MochyAudioLab.route, Screen.MochyEqualizer.route, Screen.MochyAppearance.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.MyPlayerAudioLab.route, Screen.MyPlayerEqualizer.route, Screen.MyPlayerAppearance.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
-    if (!mochyState.onboardingDone) {
-        MochyOnboardingFlow(
-            mochyState = mochyState,
+    if (!myplayerState.onboardingDone) {
+        MyPlayerOnboardingFlow(
+            myplayerState = myplayerState,
             spotifyManager = homeViewModel.spotifyManager,
             onComplete = { username, selectedArtists ->
-                mochyState.completeOnboarding(username, selectedArtists)
+                myplayerState.completeOnboarding(username, selectedArtists)
+                homeViewModel.setUserName(username)
                 homeViewModel.saveUserTastePreferences(
                     setOf("Hindi", "Punjabi"),
                     setOf("Bollywood", "Pop"),
                     selectedArtists
                 )
+                // What's New greets the user right after onboarding, never during it.
+                if (WhatsNewRepository.shouldShow(context)) showWhatsNew = true
             }
         )
         return
+    }
+
+    if (showWhatsNew) {
+        WhatsNewDialog(
+            onDismiss = {
+                showWhatsNew = false
+                WhatsNewRepository.markSeen(context)
+            }
+        )
     }
 
     if (showStylePicker) {
@@ -115,8 +130,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
             onDismissRequest = { showStylePicker = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            MochyPlayerStylesPickerScreen(
-                mochyState = mochyState,
+            MyPlayerPlayerStylesPickerScreen(
+                myplayerState = myplayerState,
                 previewTitle = displayTitle ?: "Khat",
                 previewArtist = displayArtist ?: "Navjot Ahuja",
                 previewArtUri = displayArt,
@@ -192,6 +207,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         currentRoute = currentRoute,
                         onNavigate = { route ->
                             if (route == currentRoute) return@FloatingNavBar
+                            // Home is the start destination: pop everything above it (Settings and its sub-screens included).
+                            if (route == Screen.Home.route && navController.popBackStack(Screen.Home.route, inclusive = false)) {
+                                return@FloatingNavBar
+                            }
                             navController.navigate(route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -294,10 +313,10 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route) { launchSingleTop = true }
                     },
-                    mochyState = mochyState,
+                    myplayerState = myplayerState,
                     onOpenCustomizeStyles = { showStylePicker = true },
-                    onOpenAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
-                    onOpenAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
+                    onOpenAudioLab = { navController.navigate(Screen.MyPlayerAudioLab.route) { launchSingleTop = true } },
+                    onOpenAppearance = { navController.navigate(Screen.MyPlayerAppearance.route) { launchSingleTop = true } },
                     bottomPadding = barHeight
                 )
             }
@@ -351,7 +370,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                 val positionState = viewModel.currentPosition.collectAsStateWithLifecycle()
                 val queue by viewModel.playbackQueue.collectAsStateWithLifecycle()
                 NowPlayingScreen(
-                    mochyState = mochyState,
+                    myplayerState = myplayerState,
                     canDownload = canDownload,
                     isDownloaded = isDownloaded,
                     isDownloading = isDownloading,
@@ -398,30 +417,30 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToDualBud = { navController.navigate(Screen.DualBud.route) { launchSingleTop = true } },
                     onNavigateToSyncPlay = { navController.navigate(Screen.SyncPlay.route) { launchSingleTop = true } },
                     onNavigateToAudioPlayback = { navController.navigate(Screen.AudioPlayback.route) { launchSingleTop = true } },
-                    mochyState = mochyState,
+                    myplayerState = myplayerState,
                     onNavigateToPlayerStyles = { showStylePicker = true },
-                    onNavigateToMochyAppearance = { navController.navigate(Screen.MochyAppearance.route) { launchSingleTop = true } },
-                    onNavigateToMochyAudioLab = { navController.navigate(Screen.MochyAudioLab.route) { launchSingleTop = true } },
+                    onNavigateToMyPlayerAppearance = { navController.navigate(Screen.MyPlayerAppearance.route) { launchSingleTop = true } },
+                    onNavigateToMyPlayerAudioLab = { navController.navigate(Screen.MyPlayerAudioLab.route) { launchSingleTop = true } },
                     bottomPadding = barHeight
                 )
             }
-            composable(Screen.MochyAudioLab.route) {
-                MochyAudioLabHubScreen(
-                    mochyState = mochyState,
-                    onOpenEqualizer = { navController.navigate(Screen.MochyEqualizer.route) { launchSingleTop = true } },
+            composable(Screen.MyPlayerAudioLab.route) {
+                MyPlayerAudioLabHubScreen(
+                    myplayerState = myplayerState,
+                    onOpenEqualizer = { navController.navigate(Screen.MyPlayerEqualizer.route) { launchSingleTop = true } },
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.MochyEqualizer.route) {
-                MochyEqualizerScreen(
-                    mochyState = mochyState,
-                    onApplyGainsToEngine = { enabled, gains, preamp -> MochyAudioFxDspBridge.setEq(enabled, gains, preamp) },
+            composable(Screen.MyPlayerEqualizer.route) {
+                MyPlayerEqualizerScreen(
+                    myplayerState = myplayerState,
+                    onApplyGainsToEngine = { enabled, gains, preamp -> MyPlayerAudioFxDspBridge.setEq(enabled, gains, preamp) },
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.MochyAppearance.route) {
-                MochyAppearanceSettingsScreen(
-                    mochyState = mochyState,
+            composable(Screen.MyPlayerAppearance.route) {
+                MyPlayerAppearanceSettingsScreen(
+                    myplayerState = myplayerState,
                     onOpenStylesPicker = { showStylePicker = true },
                     onBack = { navController.popBackStack() }
                 )
@@ -443,7 +462,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     store = settingsVm.audioPlaybackStore,
                     featureManagers = settingsVm.audioFeatureManagers,
                     onBack = { navController.popBackStack() },
-                    mochyState = mochyState
+                    myplayerState = myplayerState
                 )
             }
         }

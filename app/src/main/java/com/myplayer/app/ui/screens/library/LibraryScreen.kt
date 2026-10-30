@@ -37,14 +37,14 @@ import androidx.compose.ui.res.painterResource
 import com.myplayer.app.R
 import com.myplayer.app.ui.common.AlbumArtImage
 import com.myplayer.app.ui.theme.*
-import com.myplayer.app.ui.mochy.*
+import com.myplayer.app.ui.myplayer.*
 
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit,
     onPlaySong: (List<PlayableSong>, Int) -> Unit,
     onNavigateToSettings: () -> Unit = {},
-    mochyState: MochyUiStateHolder? = null,
+    myplayerState: MyPlayerUiStateHolder? = null,
     onOpenCustomizeStyles: () -> Unit = {},
     onOpenAudioLab: () -> Unit = {},
     onOpenAppearance: () -> Unit = {},
@@ -54,18 +54,6 @@ fun LibraryScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
     val favoriteSongs by viewModel.favoriteSongs.collectAsStateWithLifecycle()
-
-    var showProfileSheet by remember { mutableStateOf(false) }
-
-    if (showProfileSheet && mochyState != null) {
-        MochyProfileSheetDialog(
-            mochyState = mochyState,
-            totalListeningHours = (downloadedSongs.size * 3) / 60,
-            totalListeningMinutes = (downloadedSongs.size * 3) % 60,
-            onDismiss = { showProfileSheet = false },
-            onOpenSettings = onNavigateToSettings
-        )
-    }
 
     // Persisted across navigation (NavHost's rememberSaveableStateHolder):
     // previously a plain remember reset the section to Downloaded every time the
@@ -286,24 +274,6 @@ fun LibraryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (mochyState != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), CircleShape)
-                                .clickable { showProfileSheet = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Badge,
-                                contentDescription = "Profile ID",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -324,7 +294,7 @@ fun LibraryScreen(
             }
 
         // ── Stitch Screen 8: Category Filter Chips ────────────────────────────
-        val categoryTabs = remember { listOf("Downloaded", "Playlists", "Overview") }
+        val categoryTabs = remember { listOf("Downloaded", "Playlists") }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -368,7 +338,7 @@ fun LibraryScreen(
             }
         }
 
-        if (selectedTab != 2) {
+        if (selectedTab in 0..1) {
             // ── Stitch Screen 8: Sort & Action Row ────────────────────────────────
             Row(
                 modifier = Modifier
@@ -415,7 +385,7 @@ fun LibraryScreen(
                 onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
-            1 -> PlaylistsTab(
+            else -> PlaylistsTab(
                 playlists = playlists,
                 favoriteSongs = favoriteSongs,
                 onPlayFavoriteSongs = { onPlaySong(favoriteSongs, 0) },
@@ -426,16 +396,6 @@ fun LibraryScreen(
                     renameInput = playlist.name
                 },
                 onPlaylistClick = onPlaylistClick,
-                bottomPadding = bottomPadding
-            )
-            else -> MochyOverviewTab(
-                mochyState = mochyState,
-                downloadedCount = downloadedSongs.size,
-                favoriteCount = favoriteSongs.size,
-                onOpenCustomizeStyles = onOpenCustomizeStyles,
-                onOpenAudioLab = onOpenAudioLab,
-                onOpenAppearance = onOpenAppearance,
-                onOpenProfile = { showProfileSheet = true },
                 bottomPadding = bottomPadding
             )
         }
@@ -921,8 +881,8 @@ private fun formatDate(timestamp: Long): String {
 
 
 @Composable
-fun MochyOverviewTab(
-    mochyState: MochyUiStateHolder?,
+fun MyPlayerOverviewTab(
+    myplayerState: MyPlayerUiStateHolder?,
     downloadedCount: Int,
     favoriteCount: Int,
     onOpenCustomizeStyles: () -> Unit,
@@ -938,8 +898,8 @@ fun MochyOverviewTab(
     ) {
         // Metallic Profile ID Card
         item {
-            MochyProfileIdCard(
-                username = mochyState?.username ?: "MyPlayer Audiophile",
+            MyPlayerProfileIdCard(
+                username = myplayerState?.username ?: "MyPlayer Audiophile",
                 profileId = "MP-2026",
                 joinedDate = "MAR 2026",
                 onEditClick = onOpenProfile,
@@ -960,13 +920,13 @@ fun MochyOverviewTab(
             )
         }
         item {
-            MochyPlatformCountGrid(
+            MyPlayerPlatformCountGrid(
                 spotifyCount = favoriteCount,
                 youtubeCount = downloadedCount
             )
         }
 
-        // Mochy UI Actions
+        // MyPlayer UI Actions
         item {
             Text(
                 text = "PLAYER & AUDIO ENGINE",
@@ -1004,7 +964,7 @@ fun MochyOverviewTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Customize Player Styles", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Text(
-                            "Style: ${mochyState?.playerStyle?.title ?: "Radial (MyPlayer)"} • Tap to switch",
+                            "Style: ${myplayerState?.playerStyle?.title ?: "Radial (MyPlayer)"} • Tap to switch",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -1051,7 +1011,7 @@ fun MochyOverviewTab(
             }
         }
 
-        // 3. Mochy Appearance Settings
+        // 3. MyPlayer Appearance Settings
         item {
             Surface(
                 shape = RoundedCornerShape(20.dp),

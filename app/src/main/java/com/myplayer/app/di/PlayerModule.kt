@@ -197,15 +197,15 @@ object PlayerModule {
         lastWaveDspProcessor: LastWaveDspAudioProcessor,
         masterAudioDspProcessor: MasterAudioDspProcessor,
         spatialAudioProcessor: SpatialAudioProcessor,
-        audioFx: com.myplayer.app.mochyfx.AudioFxService
+        audioFx: com.myplayer.app.myplayerfx.AudioFxService
     ): ExoPlayer {
-        // Mochy Audio Lab chain (needs 16-bit PCM, so float output is off): spatial/surround/mono, reverb, loudness
-        val replayGain = com.myplayer.app.mochyfx.audio.ReplayGainTags()
-        com.myplayer.app.ui.mochy.MochyAudioFxDspBridge.attach(audioFx)
-        val mochyFx = arrayOf<androidx.media3.common.audio.AudioProcessor>(
-            com.myplayer.app.mochyfx.audio.SpatialAudioProcessor(audioFx),
-            com.myplayer.app.mochyfx.audio.ReverbAudioProcessor(audioFx),
-            com.myplayer.app.mochyfx.audio.LoudnessAudioProcessor(audioFx),
+        // MyPlayer Audio Lab chain (needs 16-bit PCM, so float output is off): spatial/surround/mono, reverb, loudness
+        val replayGain = com.myplayer.app.myplayerfx.audio.ReplayGainTags()
+        com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.attach(audioFx)
+        val myplayerFx = arrayOf<androidx.media3.common.audio.AudioProcessor>(
+            com.myplayer.app.myplayerfx.audio.SpatialAudioProcessor(audioFx),
+            com.myplayer.app.myplayerfx.audio.ReverbAudioProcessor(audioFx),
+            com.myplayer.app.myplayerfx.audio.LoudnessAudioProcessor(audioFx),
         )
         val prefs = context.getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
@@ -310,9 +310,9 @@ object PlayerModule {
                     .setEnableFloatOutput(false)
                     .setEnableAudioTrackPlaybackParams(false)
                     .setAudioCapabilities(AudioCapabilities.getCapabilities(context))
-                    .setAudioProcessors(arrayOf(spatialAudioProcessor, masterAudioDspProcessor, *mochyFx))
+                    .setAudioProcessors(arrayOf(spatialAudioProcessor, masterAudioDspProcessor, *myplayerFx))
                     .build()
-                return com.myplayer.app.mochyfx.audio.MochyVolumeSink(sink, audioFx, replayGain)
+                return com.myplayer.app.myplayerfx.audio.MyPlayerVolumeSink(sink, audioFx, replayGain)
             }
         }.apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)

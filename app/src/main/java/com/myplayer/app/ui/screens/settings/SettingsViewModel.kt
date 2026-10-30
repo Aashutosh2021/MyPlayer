@@ -105,7 +105,7 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val userName = settingsDataStore.userName
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     fun setAutoplayEnabled(enabled: Boolean) {
         viewModelScope.launch {

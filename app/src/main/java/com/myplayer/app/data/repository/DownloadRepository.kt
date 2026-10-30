@@ -3,6 +3,7 @@ package com.myplayer.app.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import com.myplayer.app.data.backup.RedownloadQueueWorker
 import com.myplayer.app.data.download.DownloadWorker
 import com.myplayer.app.data.local.dao.DownloadedSongDao
 import com.myplayer.app.data.local.dao.SongDao
@@ -190,6 +191,13 @@ class DownloadRepository @Inject constructor(
     }
 
     suspend fun performIntegrityCheck() {
+        // A restored backup's downloads are queued for background redownload —
+        // the integrity check would delete them for "missing files" before the
+        // queue ever finishes, so stay out of its way.
+        if (RedownloadQueueWorker.isQueuePending(context)) {
+            Log.i("DownloadRepository", "Integrity check skipped — redownload queue is active.")
+            return
+        }
         val downloads = withContext(Dispatchers.IO) {
             downloadedSongDao.getAllDownloadsSync()
         }

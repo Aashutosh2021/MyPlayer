@@ -214,8 +214,8 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        // Mochy Audio FX Speed & Pitch live bridge hook
-        com.myplayer.app.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
+        // MyPlayer Audio FX Speed & Pitch live bridge hook
+        com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
             player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
         }
 
@@ -246,7 +246,7 @@ class MusicService : MediaSessionService() {
             }
         }
 
-        com.myplayer.app.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
+        com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
             try {
                 player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
             } catch (e: Exception) {
@@ -341,7 +341,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        com.myplayer.app.ui.mochy.MochyAudioFxDspBridge.onUpdatePlaybackSpeedPitch = null
+        com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.onUpdatePlaybackSpeedPitch = null
         releaseLocks()
         try {
             loudnessEnhancer?.release()

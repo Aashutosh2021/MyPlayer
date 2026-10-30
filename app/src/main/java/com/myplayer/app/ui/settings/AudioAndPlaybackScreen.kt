@@ -55,7 +55,7 @@ fun AudioAndPlaybackScreen(
     store: AudioPlaybackStore,
     featureManagers: AudioFeatureManagers,
     onBack: () -> Unit,
-    mochyState: com.myplayer.app.ui.mochy.MochyUiStateHolder? = null
+    myplayerState: com.myplayer.app.ui.myplayer.MyPlayerUiStateHolder? = null
 ) {
     val state by store.stateFlow.collectAsState(initial = AudioPlaybackState())
     val scope = rememberCoroutineScope()
@@ -102,9 +102,9 @@ fun AudioAndPlaybackScreen(
             return
         }
         SubScreen.AUDIO_LAB -> {
-            val stateHolder = mochyState ?: com.myplayer.app.ui.mochy.rememberMochyUiStateHolder()
-            com.myplayer.app.ui.mochy.MochyAudioFxScreen(
-                mochyState = stateHolder,
+            val stateHolder = myplayerState ?: com.myplayer.app.ui.myplayer.rememberMyPlayerUiStateHolder()
+            com.myplayer.app.ui.myplayer.MyPlayerAudioFxScreen(
+                myplayerState = stateHolder,
                 onBack = { currentSubScreen = SubScreen.MAIN }
             )
             return

@@ -11,34 +11,34 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * App-wide Mochy theme with day/night support. Both schemes share the Mochy
+ * App-wide MyPlayer theme with day/night support. Both schemes share the MyPlayer
  * neutral philosophy (near-neutral grays + purple accent); night is the dark
  * palette, day is its light counterpart. Hex values are hardcoded here (not
- * imported from ui.mochy) to avoid a package cycle.
+ * imported from ui.myplayer) to avoid a package cycle.
  */
-private val MochyNightColorScheme = darkColorScheme(
+private val MyPlayerNightColorScheme = darkColorScheme(
     primary                 = PureWhite,                 // white accent on dark
     onPrimary               = CharcoalPrimary,           // dark text/icon on white
-    primaryContainer        = Color(0xFF3A3A42),         // Mochy primary pill
+    primaryContainer        = Color(0xFF3A3A42),         // MyPlayer primary pill
     onPrimaryContainer      = Color(0xFFFFFFFF),
-    secondary               = Color(0xFF9A9AA6),         // Mochy secondary text
+    secondary               = Color(0xFF9A9AA6),         // MyPlayer secondary text
     onSecondary             = CharcoalPrimary,
-    secondaryContainer      = Color(0xFF1B1B20),         // Mochy secondary pill
+    secondaryContainer      = Color(0xFF1B1B20),         // MyPlayer secondary pill
     onSecondaryContainer    = Color(0xFFFFFFFF),
-    tertiary                = Color(0xFF8B5CF6),         // Mochy accent purple
+    tertiary                = Color(0xFF8B5CF6),         // MyPlayer accent purple
     onTertiary              = Color(0xFFFFFFFF),
-    background              = Color(0xFF070709),         // MochyBlack
-    onBackground            = Color(0xFFF5F5F7),         // MochyTextPrimary
-    surface                 = Color(0xFF141418),         // MochySurface
+    background              = Color(0xFF070709),         // MyPlayerBlack
+    onBackground            = Color(0xFFF5F5F7),         // MyPlayerTextPrimary
+    surface                 = Color(0xFF141418),         // MyPlayerSurface
     onSurface               = Color(0xFFF5F5F7),
-    surfaceVariant          = Color(0xFF1E1E24),         // MochySurfaceHigh
-    onSurfaceVariant        = Color(0xFF9A9AA6),         // MochyTextSecondary
+    surfaceVariant          = Color(0xFF1E1E24),         // MyPlayerSurfaceHigh
+    onSurfaceVariant        = Color(0xFF9A9AA6),         // MyPlayerTextSecondary
     surfaceContainerLowest  = Color(0xFF070709),
     surfaceContainerLow     = Color(0xFF101014),
     surfaceContainer        = Color(0xFF141418),
     surfaceContainerHigh    = Color(0xFF1E1E24),
     surfaceContainerHighest = Color(0xFF282830),
-    outline                 = Color(0xFF282830),         // MochyCardBorder
+    outline                 = Color(0xFF282830),         // MyPlayerCardBorder
     outlineVariant          = Color(0xFF282830),
     error                   = Color(0xFFFF5252),
     onError                 = PureWhite,
@@ -46,7 +46,7 @@ private val MochyNightColorScheme = darkColorScheme(
     onErrorContainer        = Color(0xFFFFB4AB)
 )
 
-private val MochyDayColorScheme = lightColorScheme(
+private val MyPlayerDayColorScheme = lightColorScheme(
     primary                 = Color(0xFF17171C),         // near-black accent on light
     onPrimary               = Color(0xFFFFFFFF),
     primaryContainer        = Color(0xFFEDEDEF),         // light primary pill
@@ -92,7 +92,7 @@ fun MyPlayerTheme(
         }
     }
 
-    val colorScheme = if (darkTheme) MochyNightColorScheme else MochyDayColorScheme
+    val colorScheme = if (darkTheme) MyPlayerNightColorScheme else MyPlayerDayColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

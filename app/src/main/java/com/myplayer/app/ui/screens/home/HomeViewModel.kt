@@ -127,7 +127,7 @@ class HomeViewModel @Inject constructor(
     val isLoadingHotlist: StateFlow<Boolean> = _isLoadingHotlist.asStateFlow()
 
     val userName: StateFlow<String> = settingsDataStore.userName
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Alex Rivera")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     val isDarkMode: StateFlow<Boolean> = settingsDataStore.isDarkMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -186,6 +186,18 @@ class HomeViewModel @Inject constructor(
     val isPlaying = musicController.isPlaying
 
     init {
+        // Auto-sync username from legacy prefs or myplayer_ui_prefs if not yet in dataStore
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = settingsDataStore.userName.first()
+            if (current.isBlank()) {
+                val savedName = context.getSharedPreferences("myplayer_ui_prefs", Context.MODE_PRIVATE)
+                    .getString("username", "") ?: ""
+                if (savedName.isNotBlank()) {
+                    settingsDataStore.setUserName(savedName)
+                }
+            }
+        }
+
         // 1. Load initial Home recommendations & World Trending Hotlist in parallel
         viewModelScope.launch(Dispatchers.IO) {
             launch {

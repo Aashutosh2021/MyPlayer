@@ -1,4 +1,4 @@
-package com.myplayer.app.mochyfx.audio
+package com.myplayer.app.myplayerfx.audio
 
 import androidx.annotation.OptIn
 import androidx.media3.common.C

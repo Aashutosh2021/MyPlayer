@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
 
         // 1. Read saved theme synchronously before 1st frame (prevents white flash on startup)
         val prefs = getSharedPreferences("theme_sync_prefs", MODE_PRIVATE)
-        val initialDark = prefs.getBoolean("dark_mode_enabled", false)
+        val initialDark = prefs.getBoolean("dark_mode_enabled", true)
         ThemeState.isDarkMode = initialDark
 
         enableEdgeToEdge()
@@ -77,7 +77,11 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         checkForUpdatesOnLaunch()
 
-        if (WhatsNewRepository.shouldShow(this)) {
+        // Fresh users get What's New right after onboarding (MainScreen shows it),
+        // so skip the launch-time dialog until onboarding is done.
+        val onboardingDone = getSharedPreferences("myplayer_ui_prefs", MODE_PRIVATE)
+            .getBoolean("onboarding_done", false)
+        if (onboardingDone && WhatsNewRepository.shouldShow(this)) {
             showWhatsNew = true
         }
 

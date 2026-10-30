@@ -1,24 +1,24 @@
-package com.myplayer.app.ui.mochy
+package com.myplayer.app.ui.myplayer
 
 import android.content.Context
-import com.myplayer.app.mochyfx.AudioFxService
-import com.myplayer.app.mochyfx.audio.LoudnessParams
-import com.myplayer.app.mochyfx.audio.ReplayGainMode
-import com.myplayer.app.mochyfx.audio.ReplayGainParams
-import com.myplayer.app.mochyfx.audio.ReverbParams
-import com.myplayer.app.mochyfx.audio.VolumeCurve
-import com.myplayer.app.mochyfx.audio.SpatialMode
-import com.myplayer.app.mochyfx.audio.SpatialParams
+import com.myplayer.app.myplayerfx.AudioFxService
+import com.myplayer.app.myplayerfx.audio.LoudnessParams
+import com.myplayer.app.myplayerfx.audio.ReplayGainMode
+import com.myplayer.app.myplayerfx.audio.ReplayGainParams
+import com.myplayer.app.myplayerfx.audio.ReverbParams
+import com.myplayer.app.myplayerfx.audio.VolumeCurve
+import com.myplayer.app.myplayerfx.audio.SpatialMode
+import com.myplayer.app.myplayerfx.audio.SpatialParams
 import kotlin.math.pow
 
 /**
- * Audio Lab settings holder. The DSP itself is Mochy's own chain (package mochyfx), running inside
+ * Audio Lab settings holder. The DSP itself is MyPlayer's own chain (package myplayerfx), running inside
  * the ExoPlayer sink: spatial/surround/mono -> reverb -> loudness, plus the volume curve / ReplayGain.
  * The equalizer is MyPlayer's own (15-band, MasterAudioDspProcessor); setEq() only remembers the UI values.
- * This object turns the Compose UI state into Mochy's parameter objects and hands them to [AudioFxService];
+ * This object turns the Compose UI state into MyPlayer's parameter objects and hands them to [AudioFxService];
  * the audio processors read those at the start of every buffer, so every slider is live.
  */
-object MochyAudioFxDspBridge {
+object MyPlayerAudioFxDspBridge {
     // ---- 0. Equalizer (10 bands, +-12 dB) ----
     @Volatile var eqEnabled: Boolean = false
     @Volatile private var eqGainsDb: FloatArray = FloatArray(10)
@@ -53,7 +53,7 @@ object MochyAudioFxDspBridge {
     @Volatile var monoEnabled: Boolean = false
     @Volatile var dolbySurroundEnabled: Boolean = false
 
-    /** Mochy volume curve (power 2), applied by MochyVolumeSink. */
+    /** MyPlayer volume curve (power 2), applied by MyPlayerVolumeSink. */
     @Volatile var exponentialVolumeEnabled: Boolean = false
 
     // ---- Speed / pitch: applied through ExoPlayer PlaybackParameters ----
@@ -75,14 +75,14 @@ object MochyAudioFxDspBridge {
         pushFx()
     }
 
-    /** MyPlayer's own equalizer owns the EQ now; kept so the Mochy screens still compile. */
+    /** MyPlayer's own equalizer owns the EQ now; kept so the MyPlayer screens still compile. */
     fun setEq(enabled: Boolean, gains10: List<Float>, preampDb: Float) {
         eqGainsDb = FloatArray(10) { gains10.getOrElse(it) { 0f }.coerceIn(-12f, 12f) }
         eqPreampDb = preampDb
         eqEnabled = enabled
     }
 
-    fun syncFromUiState(state: MochyUiStateHolder, loudnessPreset: MochyLoudnessPreset = MochyLoudnessPreset.PUNCHY) {
+    fun syncFromUiState(state: MyPlayerUiStateHolder, loudnessPreset: MyPlayerLoudnessPreset = MyPlayerLoudnessPreset.PUNCHY) {
         eqAutoPreamp = state.autoPreamp
         setEq(state.eqEnabled, state.eqBands, state.preampDb)
 
@@ -122,7 +122,7 @@ object MochyAudioFxDspBridge {
 
     /** Fine-tune sliders that live only inside the Audio FX screen are remembered here. */
     fun saveFineTune(context: Context) {
-        context.getSharedPreferences("mochy_ui_prefs", Context.MODE_PRIVATE).edit()
+        context.getSharedPreferences("myplayer_ui_prefs", Context.MODE_PRIVATE).edit()
             .putFloat("fx_reverb_dry", reverbDry)
             .putFloat("fx_reverb_width", reverbWidth)
             .putFloat("fx_reverb_predelay", reverbPreDelayMs)
@@ -134,7 +134,7 @@ object MochyAudioFxDspBridge {
     }
 
     fun loadFineTune(context: Context) {
-        val p = context.getSharedPreferences("mochy_ui_prefs", Context.MODE_PRIVATE)
+        val p = context.getSharedPreferences("myplayer_ui_prefs", Context.MODE_PRIVATE)
         reverbDry = p.getFloat("fx_reverb_dry", reverbDry)
         reverbWidth = p.getFloat("fx_reverb_width", reverbWidth)
         reverbPreDelayMs = p.getFloat("fx_reverb_predelay", reverbPreDelayMs)

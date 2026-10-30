@@ -1,14 +1,14 @@
-package com.myplayer.app.mochyfx.audio
+package com.myplayer.app.myplayerfx.audio
 
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
-import com.myplayer.app.mochyfx.AudioFxService
+import com.myplayer.app.myplayerfx.AudioFxService
 import java.nio.ByteBuffer
 
-/** Mochy's volume stage: the exponential volume curve and the song's ReplayGain shape every volume the player sets. */
+/** MyPlayer's volume stage: the exponential volume curve and the song's ReplayGain shape every volume the player sets. */
 @UnstableApi
-class MochyVolumeSink(
+class MyPlayerVolumeSink(
     delegate: AudioSink,
     private val audioFx: AudioFxService,
     private val replayGain: ReplayGainTags,

@@ -153,11 +153,14 @@ class RedownloadQueueWorker @AssistedInject constructor(
             )
         }
 
+        /** True while a redownload queue file is waiting to be processed. */
+        fun isQueuePending(context: Context): Boolean =
+            File(context.filesDir, "redownload_queue.json").let { it.exists() && it.length() > 0 }
+
         /** Revives an interrupted queue on app start (KEEP — never restarts a live queue). */
         fun resumeIfPending(context: Context) {
             runCatching {
-                val file = File(context.filesDir, "redownload_queue.json")
-                if (!file.exists() || file.length() == 0L) return@runCatching
+                if (!isQueuePending(context)) return@runCatching
                 val request = OneTimeWorkRequestBuilder<RedownloadQueueWorker>()
                     .setConstraints(
                         Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()

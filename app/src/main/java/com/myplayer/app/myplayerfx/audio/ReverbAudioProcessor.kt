@@ -1,9 +1,9 @@
-package com.myplayer.app.mochyfx.audio
+package com.myplayer.app.myplayerfx.audio
 
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.myplayer.app.mochyfx.AudioFxService
+import com.myplayer.app.myplayerfx.AudioFxService
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI

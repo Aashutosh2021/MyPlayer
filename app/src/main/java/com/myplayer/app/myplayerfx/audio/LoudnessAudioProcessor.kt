@@ -1,9 +1,9 @@
-package com.myplayer.app.mochyfx.audio
+package com.myplayer.app.myplayerfx.audio
 
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.myplayer.app.mochyfx.AudioFxService
+import com.myplayer.app.myplayerfx.AudioFxService
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
@@ -56,6 +56,7 @@ class LoudnessAudioProcessor(private val service: AudioFxService) : AudioProcess
     override fun queueInput(inputBuffer: ByteBuffer) {
         val bytes = inputBuffer.remaining()
         if (bytes == 0) return
+        MyPlayerAudioTap.feed(inputBuffer, channels, sampleRate)
         if (channels == 0) {
             inputBuffer.position(inputBuffer.limit())
             return
@@ -65,6 +66,7 @@ class LoudnessAudioProcessor(private val service: AudioFxService) : AudioProcess
         val out = replaceOutputBuffer(bytes)
         if (target == 0f && amount == 0f) {
             service.loudnessReductionDb = 0f
+            MyPlayerAudioTap.loudnessReductionDb = 0f
             out.put(inputBuffer)
             out.flip()
             return
@@ -115,7 +117,9 @@ class LoudnessAudioProcessor(private val service: AudioFxService) : AudioProcess
             f += block
         }
         // compressor and limiter together, for the meter
-        service.loudnessReductionDb = (mostReduction + 20f * log10(max(deepest, 1e-6f))) * amount
+        val meterReduction = (mostReduction + 20f * log10(max(deepest, 1e-6f))) * amount
+        service.loudnessReductionDb = meterReduction
+        MyPlayerAudioTap.loudnessReductionDb = meterReduction
         out.flip()
     }
 

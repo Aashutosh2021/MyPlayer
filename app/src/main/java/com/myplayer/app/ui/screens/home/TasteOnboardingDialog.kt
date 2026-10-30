@@ -1,6 +1,17 @@
 package com.myplayer.app.ui.screens.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -72,7 +83,21 @@ private val SUGGESTED_ARTISTS = listOf(
     "Shubh",
     "Talha Anjum",
     "Nusrat Fateh Ali Khan",
-    "Anirudh Ravichander"
+    "Anirudh Ravichander",
+    "Neha Kakkar",
+    "Jubin Nautiyal",
+    "Darshan Raval",
+    "B Praak",
+    "Armaan Malik",
+    "Sonu Nigam",
+    "Kishore Kumar",
+    "Lata Mangeshkar",
+    "Mohammed Rafi",
+    "Ed Sheeran",
+    "Taylor Swift",
+    "Drake",
+    "Imagine Dragons",
+    "BTS"
 ).map { it.trim() }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -88,9 +113,21 @@ fun TasteOnboardingDialog(
     var genres by remember(initialGenres) { mutableStateOf(initialGenres.ifEmpty { setOf("Bollywood", "Romantic", "Punjabi Pop") }) }
     var artists by remember(initialArtists) { mutableStateOf(initialArtists) }
     var customArtistInput by remember { mutableStateOf("") }
+    val pickerViewModel: ArtistPickerViewModel = hiltViewModel()
+    val searchState by pickerViewModel.results.collectAsStateWithLifecycle()
+    val photos by pickerViewModel.photos.collectAsStateWithLifecycle()
 
     val allArtistOptions = remember(artists) {
         (SUGGESTED_ARTISTS + artists).distinct()
+    }
+
+    LaunchedEffect(allArtistOptions) { pickerViewModel.loadPhotos(allArtistOptions) }
+
+    // Add a searched artist (name is Deezer's real artist name); offline we can only take the typed text.
+    fun addArtist(name: String) {
+        artists = artists + name
+        customArtistInput = ""
+        pickerViewModel.clearSearch()
     }
 
     Dialog(
@@ -208,7 +245,7 @@ fun TasteOnboardingDialog(
                         }
                     }
 
-                    // 3. Favorite Artists Section + Custom Artist Input
+                    // 3. Favorite Artists: search the internet for real artists, pick from photos
                     Text(
                         text = "3. Choose Favorite Artists (${artists.size} selected)",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -222,9 +259,12 @@ fun TasteOnboardingDialog(
                     ) {
                         OutlinedTextField(
                             value = customArtistInput,
-                            onValueChange = { customArtistInput = it },
+                            onValueChange = {
+                                customArtistInput = it
+                                pickerViewModel.onQueryChange(it)
+                            },
                             singleLine = true,
-                            placeholder = { Text("Add any artist (e.g. Pritam, Shubh)...", color = TextMuted) },
+                            placeholder = { Text("Search any artist (e.g. Pritam, Shubh)...", color = TextMuted) },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -237,10 +277,12 @@ fun TasteOnboardingDialog(
                         )
                         FilledIconButton(
                             onClick = {
-                                val trimmed = customArtistInput.trim()
-                                if (trimmed.isNotBlank()) {
-                                    artists = artists + trimmed
-                                    customArtistInput = ""
+                                val typed = customArtistInput.trim()
+                                when (val st = searchState) {
+                                    is ArtistSearchState.Found ->
+                                        addArtist((st.artists.firstOrNull { it.name.equals(typed, true) } ?: st.artists.first()).name)
+                                    ArtistSearchState.Offline -> if (typed.isNotBlank()) addArtist(typed)
+                                    else -> Unit // not found / still searching: only real artists are added
                                 }
                             },
                             colors = IconButtonDefaults.filledIconButtonColors(
@@ -252,29 +294,92 @@ fun TasteOnboardingDialog(
                         }
                     }
 
+                    when (val st = searchState) {
+                        ArtistSearchState.Idle -> Unit
+                        ArtistSearchState.Loading -> CircularProgressIndicator(
+                            color = NeonLimePrimary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp)
+                        )
+                        ArtistSearchState.NotFound -> Text(
+                            "No artist found for \"${customArtistInput.trim()}\". Check the spelling.",
+                            style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant
+                        )
+                        ArtistSearchState.Offline -> Text(
+                            "Can't reach the internet to verify. Tap + to add the name as typed.",
+                            style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant
+                        )
+                        is ArtistSearchState.Found -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            st.artists.forEach { found ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { addArtist(found.name) }
+                                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    ArtistPhoto(found.name, found.imageUrl, size = 44.dp)
+                                    Text(
+                                        found.name,
+                                        modifier = Modifier.weight(1f),
+                                        color = OnSurface,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (found.name in artists) {
+                                        Icon(Icons.Filled.Check, contentDescription = null, tint = NeonLimePrimary, modifier = Modifier.size(18.dp))
+                                    } else {
+                                        Icon(Icons.Filled.Add, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         allArtistOptions.forEach { artist ->
                             val selected = artist in artists
-                            FilterChip(
-                                selected = selected,
-                                onClick = {
-                                    artists = if (selected) artists - artist else artists + artist
-                                },
-                                label = { Text(artist, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
-                                leadingIcon = if (selected) {
-                                    { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = NeonLimePrimary,
-                                    selectedLabelColor = OnNeonLime,
-                                    selectedLeadingIconColor = OnNeonLime,
-                                    containerColor = SurfaceLight,
-                                    labelColor = OnSurface
+                            Column(
+                                modifier = Modifier
+                                    .width(84.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { artists = if (selected) artists - artist else artists + artist }
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    ArtistPhoto(
+                                        name = artist,
+                                        imageUrl = photos[artist],
+                                        size = 68.dp,
+                                        ring = if (selected) NeonLimePrimary else null
+                                    )
+                                    if (selected) {
+                                        Box(
+                                            modifier = Modifier.size(22.dp).clip(CircleShape).background(NeonLimePrimary),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Filled.Check, contentDescription = null, tint = OnNeonLime, modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    text = artist,
+                                    fontSize = 11.sp,
+                                    lineHeight = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) NeonLimePrimary else OnSurface
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -308,6 +413,34 @@ fun TasteOnboardingDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Round artist photo; the first letter is shown until (or if) no picture is available. */
+@Composable
+private fun ArtistPhoto(name: String, imageUrl: String?, size: androidx.compose.ui.unit.Dp, ring: Color? = null) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(SurfaceLight)
+            .let { if (ring != null) it.border(3.dp, ring, CircleShape) else it },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = name.trim().firstOrNull()?.uppercase() ?: "?",
+            color = OnSurfaceVariant,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size.value / 2.6f).sp
+        )
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
         }
     }
 }

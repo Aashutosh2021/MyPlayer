@@ -1,10 +1,10 @@
-package com.myplayer.app.mochyfx
+package com.myplayer.app.myplayerfx
 
-import com.myplayer.app.mochyfx.audio.LoudnessParams
-import com.myplayer.app.mochyfx.audio.ReplayGainParams
-import com.myplayer.app.mochyfx.audio.ReverbParams
-import com.myplayer.app.mochyfx.audio.SpatialParams
-import com.myplayer.app.mochyfx.audio.VolumeCurve
+import com.myplayer.app.myplayerfx.audio.LoudnessParams
+import com.myplayer.app.myplayerfx.audio.ReplayGainParams
+import com.myplayer.app.myplayerfx.audio.ReverbParams
+import com.myplayer.app.myplayerfx.audio.SpatialParams
+import com.myplayer.app.myplayerfx.audio.VolumeCurve
 import javax.inject.Inject
 import javax.inject.Singleton
 

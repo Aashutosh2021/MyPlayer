@@ -41,8 +41,8 @@ open class SettingsDataStore internal constructor(
     }
 
     val userName: Flow<String> = dataStore?.data?.map { preferences ->
-        preferences[USER_NAME] ?: "Alex Rivera"
-    } ?: kotlinx.coroutines.flow.flowOf("Alex Rivera")
+        preferences[USER_NAME] ?: ""
+    } ?: kotlinx.coroutines.flow.flowOf("")
 
     suspend fun setUserName(name: String) {
         dataStore?.edit { preferences ->
@@ -51,8 +51,8 @@ open class SettingsDataStore internal constructor(
     }
 
     open val isDarkMode: Flow<Boolean> = dataStore?.data?.map { preferences ->
-        preferences[DARK_MODE] ?: false
-    } ?: kotlinx.coroutines.flow.flowOf(false)
+        preferences[DARK_MODE] ?: true
+    } ?: kotlinx.coroutines.flow.flowOf(true)
 
     suspend fun setDarkMode(enabled: Boolean) {
         dataStore?.edit { preferences ->

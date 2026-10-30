@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import com.myplayer.app.data.backup.BackupRestoreManager
 import com.myplayer.app.data.local.dao.DownloadedSongDao
 import com.myplayer.app.data.local.dao.SongDao
 import com.myplayer.app.data.local.entity.DownloadedSongEntity
@@ -117,8 +118,12 @@ class DownloadWorker @AssistedInject constructor(
             val finalFileName = "$safeTitle.m4a"
             val tmpFileName = "$safeTitle.tmp"
 
-            // Skip if already downloaded
-            if (downloadedSongDao.existsById(videoId)) {
+            // Skip only if the DB row exists AND the audio file is really on disk —
+            // rows restored from a JSON backup have no file and MUST re-download.
+            val existing = downloadedSongDao.getById(videoId)
+            if (existing != null &&
+                BackupRestoreManager.checkFileExists(applicationContext, existing.localPath)
+            ) {
                 return Result.success(workDataOf(KEY_PROGRESS to 100))
             }
 

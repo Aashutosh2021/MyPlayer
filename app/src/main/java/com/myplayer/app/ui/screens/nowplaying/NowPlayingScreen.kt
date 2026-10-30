@@ -39,7 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.myplayer.app.playback.AudioQualityInfo
 import com.myplayer.app.ui.common.AlbumArtImage
-import com.myplayer.app.ui.mochy.*
+import com.myplayer.app.ui.myplayer.*
 import com.myplayer.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,7 +75,7 @@ fun NowPlayingScreen(
     lyricsViewModel: LyricsViewModel = hiltViewModel(),
     queue: List<com.myplayer.app.data.local.entity.SongEntity> = emptyList(),
     onPlayQueueIndex: (Int) -> Unit = {},
-    mochyState: MochyUiStateHolder = rememberMochyUiStateHolder(),
+    myplayerState: MyPlayerUiStateHolder = rememberMyPlayerUiStateHolder(),
     onOpenCustomizeStyles: () -> Unit = {}
 ) {
     var showSleepTimer by remember { mutableStateOf(false) }
@@ -199,7 +199,7 @@ fun NowPlayingScreen(
         )
     }
 
-    val showTabletRadial = isTabletLayout && mochyState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER
+    val showTabletRadial = isTabletLayout && myplayerState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER
     Box(modifier = Modifier.fillMaxSize()) {
         if (showTabletRadial) {
             TabletPlayerScreen(
@@ -227,7 +227,7 @@ fun NowPlayingScreen(
                 onOptionsClick = { showMoreSheet = true },
                 onLyricsClick = { showLyricsDialog = true }
             )
-        } else if (mochyState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER) {
+        } else if (myplayerState.playerStyle == PlayerStyleMode.RADIAL_MYPLAYER) {
             NowPlayingVisual(
                 title = title,
                 artist = artist,
@@ -263,10 +263,10 @@ fun NowPlayingScreen(
                 }
             )
         } else {
-            // Saved Mochy style (Turntable/Poster/Timeline/Lyrics Stage/Default) —
+            // Saved MyPlayer style (Turntable/Poster/Timeline/Lyrics Stage/Default) —
             // switches live the moment "Set Style" is pressed in the picker.
-            MochyMultiStyleNowPlayingScreen(
-                mochyState = mochyState,
+            MyPlayerMultiStyleNowPlayingScreen(
+                myplayerState = myplayerState,
                 title = title,
                 artist = artist,
                 artUri = artUri,
