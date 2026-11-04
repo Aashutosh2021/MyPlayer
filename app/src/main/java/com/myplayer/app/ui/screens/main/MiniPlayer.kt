@@ -95,6 +95,18 @@ fun MiniPlayer(
         com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.startAutoPolling(context)
     }
 
+    // Funny mood / vibe-check streak tracker + its popup
+    LaunchedEffect(song.title, song.artist, song.album, livePositionMs, isPlaying) {
+        com.myplayer.app.ui.myplayer.MyPlayerVibeCheckManager.onPlaybackTick(song.title, song.artist, song.album, isPlaying)
+    }
+    com.myplayer.app.ui.myplayer.MyPlayerVibeCheckManager.activePopup?.let { event ->
+        com.myplayer.app.ui.myplayer.MyPlayerVibeCheckPopupDialog(
+            event = event,
+            onDismiss = { com.myplayer.app.ui.myplayer.MyPlayerVibeCheckManager.dismissPopup() },
+            onSwitchVibeClick = onNextClick
+        )
+    }
+
     var swipeOffsetX by remember { mutableFloatStateOf(0f) }
     val animatedOffsetX by animateFloatAsState(
         targetValue = swipeOffsetX,

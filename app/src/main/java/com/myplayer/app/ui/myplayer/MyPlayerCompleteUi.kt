@@ -727,6 +727,25 @@ class MyPlayerUiStateHolder(context: Context) {
 
     var smoothAnimations by mutableStateOf(prefs.getBoolean("smooth_animations", true))
 
+    // Funny Mood & Vibe-Check Pop-Up Settings
+    private var _vibePopupEnabled by mutableStateOf(prefs.getBoolean("vibe_popup_enabled", true))
+    var vibePopupEnabled: Boolean
+        get() = _vibePopupEnabled
+        set(value) {
+            _vibePopupEnabled = value
+            prefs.edit().putBoolean("vibe_popup_enabled", value).apply()
+            MyPlayerVibeCheckManager.enabled = value
+        }
+
+    private var _vibePopupIntervalMin by mutableIntStateOf(prefs.getInt("vibe_popup_interval_min", 15))
+    var vibePopupIntervalMin: Int
+        get() = _vibePopupIntervalMin
+        set(value) {
+            _vibePopupIntervalMin = value
+            prefs.edit().putInt("vibe_popup_interval_min", value).apply()
+            MyPlayerVibeCheckManager.thresholdMinutes = value
+        }
+
     private var _remoteNotificationsEnabled by mutableStateOf(prefs.getBoolean("remote_notifs_enabled", true))
 
     var remoteNotificationsEnabled: Boolean
@@ -795,11 +814,11 @@ class MyPlayerUiStateHolder(context: Context) {
 
 
 
-    var eqPreset by mutableStateOf(MyPlayerEqPreset.STUDIO_MASTER)
+    var eqPreset by mutableStateOf(MyPlayerEqPreset.FLAT)
 
 
 
-    var eqBands by mutableStateOf(MyPlayerEqPreset.STUDIO_MASTER.gains.toList())
+    var eqBands by mutableStateOf(MyPlayerEqPreset.FLAT.gains.toList())
 
 
 
@@ -965,6 +984,8 @@ class MyPlayerUiStateHolder(context: Context) {
 
         loadAudioLabFromPrefs()
 
+        MyPlayerVibeCheckManager.enabled = _vibePopupEnabled
+        MyPlayerVibeCheckManager.thresholdMinutes = _vibePopupIntervalMin
         MyPlayerRemoteNotificationManager.enabled = _remoteNotificationsEnabled
 
         MyPlayerRemoteNotificationManager.startAutoPolling(context.applicationContext)
@@ -19210,6 +19231,9 @@ fun MyPlayerSettingsHubScreen(
 
 
 
+        "playback", "general" -> {
+            MyPlayerPlaybackAndMoodSettingsScreen(myplayerState = myplayerState, onBack = { subScreen = "root" })
+        }
         "audio_lab" -> {
 
 

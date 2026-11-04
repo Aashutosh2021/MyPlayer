@@ -82,8 +82,8 @@ data class AudioPlaybackState(
     val softwareVolumeUsb: Boolean = false,
     val loudnessMode: LoudnessMode = LoudnessMode.OFF,
     val eqEnabled: Boolean = false,
-    val eqPreset: Eq15Preset = Eq15Preset.STUDIO_MASTER,
-    val eqBandGains: List<Float> = Eq15Preset.STUDIO_MASTER.gainsDb.toList(),
+    val eqPreset: Eq15Preset = Eq15Preset.DEFAULT,
+    val eqBandGains: List<Float> = Eq15Preset.DEFAULT.gainsDb.toList(),
     val systemAudioEffects: Boolean = false,
     val studioMasterClarity: Boolean = true,
     val clarityOutputPreset: ClarityOutputPreset = ClarityOutputPreset.REFERENCE,
@@ -172,7 +172,7 @@ class AudioPlaybackStore @Inject constructor(
     }
 
     val stateFlow: Flow<AudioPlaybackState> = context.audioPlaybackDataStore.data.map { prefs ->
-        val preset = runCatching { Eq15Preset.valueOf(prefs[Keys.EQ_PRESET] ?: "STUDIO_MASTER") }.getOrDefault(Eq15Preset.STUDIO_MASTER)
+        val preset = runCatching { Eq15Preset.valueOf(prefs[Keys.EQ_PRESET] ?: "DEFAULT") }.getOrDefault(Eq15Preset.DEFAULT)
         val savedBands = prefs[Keys.EQ_BANDS_CSV]?.split(",")?.mapNotNull { it.toFloatOrNull() }
             ?.takeIf { it.size == 15 } ?: preset.gainsDb.toList()
 
