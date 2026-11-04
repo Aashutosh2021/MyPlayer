@@ -48,7 +48,25 @@ class InnertubeApi @Inject constructor(
         // BASE_URL and API_KEY are no longer hardcoded constants.
         // They are retrieved at runtime from StringEncryptionManager (Phase 2/3).
         private val MEDIA_TYPE_JSON = "application/json; charset=utf-8".toMediaType()
+
+        /**
+         * Robust extractor for YouTube video IDs from URLs (youtube.com, youtu.be, music.youtube.com,
+         * shorts, embed, live) or raw 11-char video IDs.
+         */
+        fun extractYouTubeVideoId(input: String): String? {
+            val trimmed = input.trim()
+            if (trimmed.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+                return trimmed
+            }
+            val pattern = Regex(
+                """(?:https?://)?(?:www\.|m\.|music\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|v/|embed/|shorts/|live/)|youtu\.be/)([a-zA-Z0-9_-]{11})""",
+                RegexOption.IGNORE_CASE
+            )
+            return pattern.find(trimmed)?.groupValues?.getOrNull(1)
+        }
     }
+
+    fun extractYouTubeVideoId(input: String): String? = Companion.extractYouTubeVideoId(input)
 
     // Lazy-resolved via enc to avoid plaintext in DEX string table
     private val BASE_URL: String by lazy { enc.baseUrl }
@@ -88,6 +106,10 @@ class InnertubeApi @Inject constructor(
         continuationToken: String? = null,
         filtered: Boolean = true
     ): SearchPage = withContext(Dispatchers.IO) {
+        val directVideoId = extractYouTubeVideoId(query)
+        if (directVideoId != null && continuationToken == null) {
+            return@withContext searchByVideoId(directVideoId)
+        }
         try {
             val bodyJson = JSONObject(CLIENT_CONTEXT).apply {
                 if (continuationToken != null) {
@@ -126,6 +148,114 @@ class InnertubeApi @Inject constructor(
     suspend fun getUpNext(videoId: String): List<OnlineSong> = getNextRadioTracks(videoId)
     suspend fun getRecommendations(videoId: String): List<OnlineSong> = getUpNext(videoId)
 
+    /**
+     * Searches specifically by YouTube video ID or link.
+     * Places the exact song at position 0, followed by matching radio tracks.
+     */
+    suspend fun searchByVideoId(videoId: String): SearchPage = withContext(Dispatchers.IO) {
+        val cleanVideoId = extractYouTubeVideoId(videoId) ?: videoId.trim()
+        if (cleanVideoId.isBlank()) return@withContext SearchPage(emptyList(), null)
+
+        val foundSongs = mutableListOf<OnlineSong>()
+        try {
+            // 1. Fetch next queue with RDAMVM radio (seed video included when excludeVideoId == null)
+            val tracks = fetchNextEndpoint(cleanVideoId, playlistId = "RDAMVM$cleanVideoId", excludeVideoId = null)
+            val targetIndex = tracks.indexOfFirst { it.videoId == cleanVideoId }
+            if (targetIndex >= 0) {
+                foundSongs.add(tracks[targetIndex])
+                foundSongs.addAll(tracks.filterIndexed { index, _ -> index != targetIndex })
+            } else {
+                val directSong = getSongByVideoId(cleanVideoId)
+                if (directSong != null) {
+                    foundSongs.add(directSong)
+                }
+                foundSongs.addAll(tracks)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "searchByVideoId radio fetch failed for $cleanVideoId", e)
+        }
+
+        // 2. Fallback: if radio returned empty, resolve directly via oEmbed / NewPipe
+        if (foundSongs.isEmpty()) {
+            val directSong = getSongByVideoId(cleanVideoId)
+            if (directSong != null) {
+                foundSongs.add(directSong)
+            }
+        }
+
+        if (foundSongs.isNotEmpty()) {
+            prefetchVisibleStreams(foundSongs.take(3).map { it.videoId })
+        }
+
+        SearchPage(foundSongs, null)
+    }
+
+    /**
+     * Resolves metadata for a single YouTube track using official oEmbed (<50ms)
+     * with NewPipe extractor fallback.
+     */
+    suspend fun getSongByVideoId(videoId: String): OnlineSong? = withContext(Dispatchers.IO) {
+        val cleanId = extractYouTubeVideoId(videoId) ?: videoId.trim()
+        if (cleanId.length != 11) return@withContext null
+
+        // 1. YouTube official oEmbed (<50ms, open endpoint)
+        try {
+            val oembedUrl = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$cleanId&format=json"
+            val request = Request.Builder()
+                .url(oembedUrl)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val json = response.body?.string()
+                if (!json.isNullOrBlank()) {
+                    val obj = JSONObject(json)
+                    val rawTitle = obj.optString("title", "").ifBlank { "YouTube Track" }
+                    val author = obj.optString("author_name", "").ifBlank { "YouTube" }
+                    val thumb = obj.optString("thumbnail_url", "").ifBlank { "https://img.youtube.com/vi/$cleanId/hqdefault.jpg" }
+                    return@withContext OnlineSong(
+                        videoId = cleanId,
+                        title = rawTitle,
+                        artist = author,
+                        thumbnailUrl = thumb,
+                        durationMs = 0L
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "oEmbed failed for $cleanId", e)
+        }
+
+        // 2. Fallback to NewPipe extractor
+        try {
+            val url = "https://www.youtube.com/watch?v=$cleanId"
+            val extractor = org.schabi.newpipe.extractor.ServiceList.YouTube.getStreamExtractor(url)
+            extractor.fetchPage()
+            val title = extractor.name?.ifBlank { "YouTube Track" } ?: "YouTube Track"
+            val artist = extractor.uploaderName?.ifBlank { "YouTube" } ?: "YouTube"
+            val durationMs = extractor.length * 1000L
+            val thumb = extractor.thumbnails?.lastOrNull()?.url ?: "https://img.youtube.com/vi/$cleanId/hqdefault.jpg"
+            return@withContext OnlineSong(
+                videoId = cleanId,
+                title = title,
+                artist = artist,
+                thumbnailUrl = thumb,
+                durationMs = durationMs
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "NewPipe extractor failed for $cleanId", e)
+        }
+
+        // 3. Last fallback: minimal OnlineSong with thumbnail
+        OnlineSong(
+            videoId = cleanId,
+            title = "YouTube Track ($cleanId)",
+            artist = "YouTube",
+            thumbnailUrl = "https://img.youtube.com/vi/$cleanId/hqdefault.jpg",
+            durationMs = 0L
+        )
+    }
+
     suspend fun getNextRadioTracks(videoId: String): List<OnlineSong> = withContext(Dispatchers.IO) {
         val cleanVideoId = videoId.removePrefix("online://").trim()
         if (cleanVideoId.isBlank()) return@withContext emptyList()
@@ -133,7 +263,7 @@ class InnertubeApi @Inject constructor(
         try {
             Log.d(TAG, "YOUTUBE_RADIO_REQUEST: Requesting radio tracks for videoId: $cleanVideoId")
             // 1. Try with radio playlist ID RDAMVM{videoId}
-            val radioTracks = fetchNextEndpoint(cleanVideoId, playlistId = "RDAMVM$cleanVideoId")
+            val radioTracks = fetchNextEndpoint(cleanVideoId, playlistId = "RDAMVM$cleanVideoId", excludeVideoId = cleanVideoId)
             if (radioTracks.isNotEmpty()) {
                 Log.d(TAG, "YOUTUBE_RADIO_RESULT: Found ${radioTracks.size} radio tracks with RDAMVM for $cleanVideoId")
                 return@withContext radioTracks
@@ -141,7 +271,7 @@ class InnertubeApi @Inject constructor(
 
             // 2. Fallback without playlist ID (direct watch next)
             Log.d(TAG, "RDAMVM radio returned empty, attempting direct next for $cleanVideoId")
-            val nextTracks = fetchNextEndpoint(cleanVideoId, playlistId = null)
+            val nextTracks = fetchNextEndpoint(cleanVideoId, playlistId = null, excludeVideoId = cleanVideoId)
             Log.d(TAG, "YOUTUBE_RADIO_RESULT: Found ${nextTracks.size} tracks from direct next for $cleanVideoId")
             nextTracks
         } catch (e: Exception) {
@@ -150,7 +280,7 @@ class InnertubeApi @Inject constructor(
         }
     }
 
-    private fun fetchNextEndpoint(videoId: String, playlistId: String?): List<OnlineSong> {
+    private fun fetchNextEndpoint(videoId: String, playlistId: String?, excludeVideoId: String? = videoId): List<OnlineSong> {
         try {
             val bodyJson = JSONObject(CLIENT_CONTEXT).apply {
                 put("videoId", videoId)
@@ -176,14 +306,14 @@ class InnertubeApi @Inject constructor(
             }
 
             val body = response.body?.string() ?: return emptyList()
-            return parseNextResponse(body, excludeVideoId = videoId)
+            return parseNextResponse(body, excludeVideoId = excludeVideoId)
         } catch (e: Exception) {
             Log.w(TAG, "fetchNextEndpoint failed for $videoId (playlistId: $playlistId)", e)
             return emptyList()
         }
     }
 
-    private fun parseNextResponse(json: String, excludeVideoId: String): List<OnlineSong> {
+    private fun parseNextResponse(json: String, excludeVideoId: String?): List<OnlineSong> {
         val songs = mutableListOf<OnlineSong>()
         try {
             val root = JSONObject(json)
@@ -208,7 +338,7 @@ class InnertubeApi @Inject constructor(
                     val renderer = item.optJSONObject("playlistPanelVideoRenderer") ?: continue
 
                     val videoId = renderer.optString("videoId")
-                    if (videoId.isBlank() || videoId == excludeVideoId) continue
+                    if (videoId.isBlank() || (!excludeVideoId.isNullOrBlank() && videoId == excludeVideoId)) continue
 
                     val title = renderer.optJSONObject("title")
                         ?.optJSONArray("runs")

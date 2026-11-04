@@ -59,6 +59,7 @@ fun LibraryScreen(
     // previously a plain remember reset the section to Downloaded every time the
     // user opened a playlist / NowPlaying screen and came back.
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var sortAscending by rememberSaveable { mutableStateOf(true) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var songToAddToPlaylist by remember { mutableStateOf<PlayableSong?>(null) }
@@ -349,12 +350,19 @@ fun LibraryScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { /* Toggle sort */ }
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { sortAscending = !sortAscending }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Icon(Icons.Filled.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = if (selectedTab == 0) "Alphabetical" else "Recently Added",
+                        text = if (selectedTab == 0) {
+                            if (sortAscending) "Alphabetical (A–Z)" else "Alphabetical (Z–A)"
+                        } else {
+                            if (sortAscending) "Recently Added" else "Oldest First"
+                        },
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -379,14 +387,20 @@ fun LibraryScreen(
 
         when (selectedTab) {
             0 -> HybridSongsTab(
-                songs = remember(downloadedSongs) { downloadedSongs.sortedBy { it.title.lowercase() } },
+                songs = remember(downloadedSongs, sortAscending) {
+                    if (sortAscending) downloadedSongs.sortedBy { it.title.lowercase() }
+                    else downloadedSongs.sortedByDescending { it.title.lowercase() }
+                },
                 onPlaySong = onPlaySong,
                 onAddToPlaylist = { songToAddToPlaylist = it },
                 onRemoveDownload = { songToRemoveDownload = it },
                 bottomPadding = bottomPadding
             )
             else -> PlaylistsTab(
-                playlists = playlists,
+                playlists = remember(playlists, sortAscending) {
+                    if (sortAscending) playlists.sortedByDescending { it.createdAt }
+                    else playlists.sortedBy { it.createdAt }
+                },
                 favoriteSongs = favoriteSongs,
                 onPlayFavoriteSongs = { onPlaySong(favoriteSongs, 0) },
                 onCreatePlaylist = { showCreatePlaylistDialog = true },
@@ -659,7 +673,7 @@ fun PlaylistsTab(
                         .slidePopIn(0)
                         .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x10171C26))
                         .clip(RoundedCornerShape(16.dp))
-                        .background(SurfaceContainerLow)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
                         .bouncyPopClick(onClick = onPlayFavoriteSongs)
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -675,13 +689,13 @@ fun PlaylistsTab(
                                 .size(56.dp)
                                 .shadow(8.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33171C26))
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Brush.linearGradient(listOf(PrimaryContainer, Secondary, PrimaryContainer))),
+                                .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primaryContainer))),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Favorite,
                                 contentDescription = null,
-                                tint = OnPrimary,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -691,12 +705,12 @@ fun PlaylistsTab(
                                 Text(
                                     text = "Liked Songs",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = OnSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Icon(
                                     imageVector = Icons.Filled.PushPin,
                                     contentDescription = null,
-                                    tint = Primary,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -704,7 +718,7 @@ fun PlaylistsTab(
                             Text(
                                 text = "${favoriteSongs.size} tracks • Auto-synced",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Secondary
+                                color = MaterialTheme.colorScheme.secondary
                             )
                         }
                     }
@@ -714,13 +728,13 @@ fun PlaylistsTab(
                             .size(42.dp)
                             .shadow(2.dp, CircleShape, spotColor = Color(0x14000000))
                             .clip(CircleShape)
-                            .background(SurfaceContainerLowest),
+                            .background(MaterialTheme.colorScheme.surfaceContainerLowest),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.PlayArrow,
                             contentDescription = "Play",
-                            tint = Primary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -743,12 +757,12 @@ fun PlaylistsTab(
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 1.sp
                     ),
-                    color = Secondary
+                    color = MaterialTheme.colorScheme.secondary
                 )
                 Text(
                     text = "${playlists.size} Playlist${if (playlists.size != 1) "s" else ""}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Outline
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
         }
@@ -812,7 +826,7 @@ fun PlaylistsTab(
                         .slidePopIn(index + 1)
                         .shadow(2.dp, RoundedCornerShape(16.dp), spotColor = Color(0x0A000000))
                         .clip(RoundedCornerShape(16.dp))
-                        .background(SurfaceContainerLowest)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                         .bouncyPopClick { onPlaylistClick(playlist.id) }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -822,13 +836,13 @@ fun PlaylistsTab(
                             .size(56.dp)
                             .shadow(3.dp, RoundedCornerShape(12.dp), spotColor = Color(0x14171C26))
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SurfaceContainerHigh),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = null,
-                            tint = Primary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -839,7 +853,7 @@ fun PlaylistsTab(
                         Text(
                             text = playlist.name,
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                            color = OnSurface,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -847,17 +861,17 @@ fun PlaylistsTab(
                         Text(
                             text = "Created ${formatDate(playlist.createdAt)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Secondary,
+                            color = MaterialTheme.colorScheme.secondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     IconButton(onClick = { onRenamePlaylist(playlist) }) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = Secondary)
+                        Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = MaterialTheme.colorScheme.secondary)
                     }
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = Secondary)
+                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete", tint = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }

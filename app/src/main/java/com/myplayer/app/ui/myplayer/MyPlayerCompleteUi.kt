@@ -12764,7 +12764,7 @@ fun MyPlayerPlayerStylesPickerScreen(
 
 
 
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MyPlayerTextPrimary)
 
 
 
@@ -12792,7 +12792,7 @@ fun MyPlayerPlayerStylesPickerScreen(
 
 
 
-                Text("Styles", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Styles", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -13020,7 +13020,7 @@ fun MyPlayerPlayerStylesPickerScreen(
 
 
 
-                        .background(if (active) Color.White else Color.White.copy(alpha = 0.28f))
+                        .background(if (active) MyPlayerTextPrimary else MyPlayerTextPrimary.copy(alpha = 0.28f))
 
 
 
@@ -14724,7 +14724,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                            .background(if (myplayerState.eqEnabled) Color.White else Color.Gray)
+                            .background(if (myplayerState.eqEnabled) MyPlayerTextPrimary else Color.Gray)
 
 
 
@@ -14740,7 +14740,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                        Text("Equalizer", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Equalizer", fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -14992,7 +14992,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                        color = Color.White,
+                        color = MyPlayerTextPrimary,
 
 
 
@@ -15036,7 +15036,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                        color = Color.White
+                        color = MyPlayerTextPrimary
 
 
 
@@ -15088,7 +15088,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                        color = if (active) Color.White else MyPlayerSurface,
+                        color = if (active) MyPlayerTextPrimary else MyPlayerSurface,
 
 
 
@@ -15136,7 +15136,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                            color = if (active) Color.Black else Color.White,
+                            color = if (active) MyPlayerBlack else MyPlayerTextPrimary,
 
 
 
@@ -15548,7 +15548,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                            Text("Preamp", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Preamp", fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -15624,7 +15624,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                                Text("Auto preamp", fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("Auto preamp", fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -15796,7 +15796,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                            Text("Database", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Database", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -15916,7 +15916,7 @@ fun MyPlayerEqualizerScreen(
 
 
 
-                                    Text(name, fontWeight = FontWeight.Bold, color = Color.White)
+                                    Text(name, fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -16076,7 +16076,7 @@ fun MyPlayerSweepable10BandSliders(
 
 
 
-                    color = if (abs(db) > 0.1f) Color.White else MyPlayerTextSecondary,
+                    color = if (abs(db) > 0.1f) MyPlayerTextPrimary else MyPlayerTextSecondary,
 
 
 
@@ -19912,7 +19912,7 @@ fun MyPlayerAppearanceSettingsScreen(
 
 
 
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = MyPlayerTextPrimary)
 
 
 
@@ -19924,7 +19924,7 @@ fun MyPlayerAppearanceSettingsScreen(
 
 
 
-            Text("Appearance", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text("Appearance", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = MyPlayerTextPrimary)
 
 
 
@@ -20000,7 +20000,7 @@ fun MyPlayerAppearanceSettingsScreen(
 
 
 
-                    Icon(Icons.Default.Album, null, tint = Color.White)
+                    Icon(Icons.Default.Album, null, tint = MyPlayerTextPrimary)
 
 
 
@@ -20012,7 +20012,7 @@ fun MyPlayerAppearanceSettingsScreen(
 
 
 
-                        Text("Customize player", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Customize player", fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 
@@ -20336,7 +20336,7 @@ fun MyPlayerAppearanceSettingsScreen(
 
 
 
-                            Text("Blur strength", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Blur strength", fontWeight = FontWeight.Bold, color = MyPlayerTextPrimary)
 
 
 

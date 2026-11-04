@@ -67,6 +67,10 @@ fun AudioAndPlaybackScreen(
     var showSpatialDialog by remember { mutableStateOf(false) }
     var isBatteryUnrestricted by remember { mutableStateOf(featureManagers.isBatteryUnrestricted()) }
 
+    androidx.activity.compose.BackHandler(enabled = currentSubScreen != SubScreen.MAIN) {
+        currentSubScreen = SubScreen.MAIN
+    }
+
     when (currentSubScreen) {
         SubScreen.STREAMING_QUALITY -> {
             QualityPickerSubScreen(

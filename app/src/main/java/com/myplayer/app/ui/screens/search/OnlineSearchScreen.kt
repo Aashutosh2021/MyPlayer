@@ -221,7 +221,8 @@ fun OnlineSearchScreen(
                 onAddToPlaylistClick = { song -> songToAddToPlaylist = song },
                 onRemoveDownloadClick = { songToRemoveDownload = it },
                 onAddAllClick = { showAddAllDialog = true },
-                bottomPadding = bottomPadding
+                bottomPadding = bottomPadding,
+                isLinkSearch = remember(query) { com.myplayer.app.data.online.InnertubeApi.extractYouTubeVideoId(query) != null }
             )
         }
 
@@ -444,7 +445,7 @@ fun SearchHistorySection(
                             if (!song.isOnline) {
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = if (ThemeState.isDarkMode) Color(0xFF66BB6A) else Color(0xFF2E7D32).copy(alpha = 0.15f)
+                                    color = (if (ThemeState.isDarkMode) Color(0xFF66BB6A) else Color(0xFF2E7D32)).copy(alpha = 0.15f)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -613,7 +614,8 @@ fun OnlineResultsList(
     onAddToPlaylistClick: (OnlineSong) -> Unit,
     onRemoveDownloadClick: (OnlineSong) -> Unit,
     onAddAllClick: () -> Unit,
-    bottomPadding: Dp = 100.dp
+    bottomPadding: Dp = 100.dp,
+    isLinkSearch: Boolean = false
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -641,9 +643,11 @@ fun OnlineResultsList(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "${results.itemCount} online results",
+                        if (isLinkSearch) "Matched from YouTube link • ${results.itemCount} songs"
+                        else "${results.itemCount} online results",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isLinkSearch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isLinkSearch) FontWeight.SemiBold else FontWeight.Normal
                     )
                     TextButton(
                         onClick = onAddAllClick,
@@ -695,6 +699,7 @@ fun OnlineResultsList(
                 isDownloaded = isDownloaded,
                 isStreaming = isStreaming,
                 isDownloading = isDownloading,
+                isLinkMatch = isLinkSearch && index == 0,
                 onPlayClick = {
                     val contextSongs = mutableListOf<OnlineSong>()
                     for (i in 0 until results.itemCount) {
@@ -729,6 +734,7 @@ fun OnlineSongCard(
     isDownloaded: Boolean,
     isStreaming: Boolean,
     isDownloading: Boolean,
+    isLinkMatch: Boolean = false,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onAddToPlaylistClick: () -> Unit,
@@ -808,6 +814,27 @@ fun OnlineSongCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                if (isLinkMatch) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        modifier = Modifier.padding(start = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Icon(Icons.Filled.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(10.dp))
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = "Link Match",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

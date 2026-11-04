@@ -166,6 +166,7 @@ fun SettingsScreen(
     var showWhatsNewDialog by remember { mutableStateOf(false) }
 
     var showUserManualDialog by remember { mutableStateOf(false) }
+    var showDonateDialog by remember { mutableStateOf(false) }
 
 
 
@@ -382,6 +383,101 @@ fun SettingsScreen(
     }
 
 
+
+    if (showDonateDialog) {
+        val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+        AlertDialog(
+            onDismissRequest = { showDonateDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            shape = RoundedCornerShape(24.dp),
+            icon = {
+                Icon(
+                    Icons.Filled.LocalCafe,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Buy Me a Coffee",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "MyPlayer is 100% free and open with zero ads. If you enjoy using the app, consider supporting its development with a small contribution!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "UPI ID (GPay / PhonePe / Paytm)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    DEVELOPER_UPI_ID,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            IconButton(onClick = {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(DEVELOPER_UPI_ID))
+                                Toast.makeText(context, "UPI ID copied: $DEVELOPER_UPI_ID", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Icon(
+                                    Icons.Filled.ContentCopy,
+                                    contentDescription = "Copy UPI ID",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val upiUri = Uri.parse("upi://pay?pa=$DEVELOPER_UPI_ID&pn=Ashutosh%20Gupta&cu=INR&tn=Support%20MyPlayer")
+                        val upiIntent = Intent(Intent.ACTION_VIEW, upiUri)
+                        try {
+                            context.startActivity(Intent.createChooser(upiIntent, "Pay with UPI"))
+                        } catch (e: Exception) {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(DEVELOPER_UPI_ID))
+                            Toast.makeText(context, "No UPI app found. UPI ID copied to clipboard!", Toast.LENGTH_LONG).show()
+                        }
+                        showDonateDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Pay with UPI (GPay)")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDonateDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 
     if (showNameDialog) {
 
@@ -1425,6 +1521,21 @@ fun SettingsScreen(
 
 
 
+        // Section: Support Development
+
+        item { MyPlayerSectionHeader(title = "Support Development") }
+
+        item {
+            MyPlayerSettingsCard {
+                MyPlayerSettingsNavigationRow(
+                    icon = Icons.Filled.LocalCafe,
+                    title = "Buy Me a Coffee",
+                    subtitle = "Support MyPlayer development via GPay, PhonePe, or UPI (0% fees)",
+                    onClick = { showDonateDialog = true }
+                )
+            }
+        }
+
         // Section: Contact Developer
 
         item { MyPlayerSectionHeader(title = "Contact Developer") }
@@ -1924,6 +2035,7 @@ private fun MyPlayerSettingsDivider() {
 
 
 private const val DEVELOPER_EMAIL = "flexflycompany.in@gmail.com"
+private const val DEVELOPER_UPI_ID = "gaashutoshgupta52-2@okaxis"
 
 
 

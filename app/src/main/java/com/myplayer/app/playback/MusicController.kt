@@ -839,19 +839,35 @@ class MusicController @Inject constructor(
         _songQueue.clear()
         _songQueue.addAll(songs)
         _playbackQueue.value = _songQueue.toList()
-        playbackStateManager.updateCurrentOnlineSong(null)
+        currentQueueIndex = clampedIndex
 
         val targetSong = songs[clampedIndex]
+        val isTargetLocal = targetSong.path.startsWith("/") || targetSong.path.startsWith("content://") || targetSong.path.startsWith("file://")
+        if (isTargetLocal) {
+            playbackStateManager.updateCurrentOnlineSong(null)
+        } else {
+            val resolvedVideoId = targetSong.videoId ?: targetSong.path.removePrefix("online://").takeIf { it.isNotBlank() } ?: targetSong.id
+            playbackStateManager.updateCurrentOnlineSong(
+                OnlineSong(
+                    videoId = resolvedVideoId,
+                    title = targetSong.title,
+                    artist = targetSong.artist,
+                    thumbnailUrl = targetSong.albumArt ?: "https://img.youtube.com/vi/$resolvedVideoId/hqdefault.jpg",
+                    durationMs = targetSong.duration
+                )
+            )
+        }
         playbackStateManager.updateCurrentSong(targetSong)
         playbackStateManager.updatePosition(0L)
 
         val requests = songs.map { song ->
+            val isLocalFile = song.path.startsWith("/") || song.path.startsWith("content://") || song.path.startsWith("file://")
             PlayRequest(
                 songId = song.id,
                 title = song.title,
                 artist = song.artist,
-                playbackSource = PlaybackSourceType.LOCAL,
-                localUri = song.path,
+                playbackSource = if (isLocalFile) PlaybackSourceType.LOCAL else PlaybackSourceType.ONLINE,
+                localUri = if (isLocalFile) song.path else null,
                 albumArt = song.albumArt
             )
         }

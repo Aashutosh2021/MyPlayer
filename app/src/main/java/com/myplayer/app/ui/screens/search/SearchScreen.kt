@@ -2,10 +2,20 @@ package com.myplayer.app.ui.screens.search
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.style.TextOverflow
+import com.myplayer.app.data.online.InnertubeApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +44,17 @@ fun SearchScreen(
     onlineViewModel: OnlineSearchViewModel = hiltViewModel()
 ) {
     val query by onlineViewModel.query.collectAsStateWithLifecycle()
+    val clipboardManager = LocalClipboardManager.current
+    var clipboardLink by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val clipText = clipboardManager.getText()?.text?.trim()
+            if (!clipText.isNullOrBlank() && InnertubeApi.extractYouTubeVideoId(clipText) != null) {
+                clipboardLink = clipText
+            }
+        } catch (_: Exception) {}
+    }
 
     Column(
         modifier = Modifier
@@ -92,8 +113,10 @@ fun SearchScreen(
                         .padding(horizontal = 3.dp, vertical = 1.5.dp),
                     placeholder = {
                         Text(
-                            "Search....",
-                            color = MaterialTheme.colorScheme.secondary
+                            "Search songs or paste YouTube link...",
+                            color = MaterialTheme.colorScheme.secondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     leadingIcon = { Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)) },
@@ -101,6 +124,22 @@ fun SearchScreen(
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { onlineViewModel.onQueryChange("") }) {
                                 Icon(Icons.Filled.Close, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
+                            }
+                        } else {
+                            IconButton(onClick = {
+                                val clipText = clipboardManager.getText()?.text?.trim()
+                                if (!clipText.isNullOrBlank()) {
+                                    onlineViewModel.onQueryChange(clipText)
+                                    onlineViewModel.onSearch(clipText)
+                                    clipboardLink = null
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Filled.Link,
+                                    contentDescription = "Paste YouTube link",
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     },
@@ -115,6 +154,63 @@ fun SearchScreen(
                     ),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary)
                 )
+            }
+
+            // Quick banner if a YouTube link is currently in user's clipboard
+            AnimatedVisibility(
+                visible = clipboardLink != null && query.isEmpty(),
+                enter = slideInVertically() + fadeIn(),
+                exit = slideOutVertically() + fadeOut()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            clipboardLink?.let { link ->
+                                onlineViewModel.onQueryChange(link)
+                                onlineViewModel.onSearch(link)
+                            }
+                            clipboardLink = null
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Link,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "YouTube link in clipboard",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = clipboardLink ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Search",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
 

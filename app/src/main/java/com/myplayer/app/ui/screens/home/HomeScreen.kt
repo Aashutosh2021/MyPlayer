@@ -75,6 +75,9 @@ fun HomeScreen(
     var nameInput by remember { mutableStateOf("") }
 
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    androidx.activity.compose.BackHandler(enabled = selectedCategory != "All") {
+        viewModel.selectCategory("All")
+    }
     val displayedDownloadedSongs by viewModel.displayedDownloadedSongs.collectAsStateWithLifecycle()
     val categories = remember {
         listOf("All", "Deep Focus", "Acoustic Chill", "Late Night", "Discoveries", "Party", "Blues", "Sad", "Hip Hop", "Chill", "Workout", "Pop")

@@ -61,6 +61,7 @@ class MusicService : MediaSessionService() {
     @Volatile private var currentAudioPlaybackState = AudioPlaybackState()
 
     private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
+    private var loudnessSessionId: Int = C.AUDIO_SESSION_ID_UNSET
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var mediaSession: MediaSession? = null
@@ -190,6 +191,10 @@ class MusicService : MediaSessionService() {
 
             override fun onRepeatModeChanged(repeatMode: Int) {
                 super.onRepeatModeChanged(repeatMode)
+                // Guard against 1-item online queue setting ExoPlayer to REPEAT_MODE_OFF while user selected REPEAT_MODE_ALL
+                if (repeatMode == Player.REPEAT_MODE_OFF && playbackStateManager.repeatMode.value == Player.REPEAT_MODE_ALL) {
+                    return
+                }
                 getSharedPreferences("playback_preferences", Context.MODE_PRIVATE)
                     .edit().putInt("playback_repeat_mode", repeatMode).apply()
             }
@@ -214,10 +219,7 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        // MyPlayer Audio FX Speed & Pitch live bridge hook
-        com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
-            player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
-        }
+        // MyPlayer Audio FX Speed & Pitch live bridge hook (dispatched safely on Main thread)
 
         // Master Audio & Playback Feature Integration:
         // 1. Crossfade engine monitor
@@ -247,10 +249,12 @@ class MusicService : MediaSessionService() {
         }
 
         com.myplayer.app.ui.myplayer.MyPlayerAudioFxDspBridge.onUpdatePlaybackSpeedPitch = { speed, pitch ->
-            try {
-                player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
-            } catch (e: Exception) {
-                android.util.Log.w("MusicService", "Failed to set playbackParameters", e)
+            serviceScope.launch(Dispatchers.Main.immediate) {
+                try {
+                    player.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitch)
+                } catch (e: Exception) {
+                    android.util.Log.w("MusicService", "Failed to set playbackParameters", e)
+                }
             }
         }
 
@@ -278,8 +282,10 @@ class MusicService : MediaSessionService() {
         val sessionId = player.audioSessionId
         if (sessionId != C.AUDIO_SESSION_ID_UNSET && sessionId != 0) {
             try {
-                if (loudnessEnhancer == null) {
+                if (loudnessEnhancer == null || loudnessSessionId != sessionId) {
+                    try { loudnessEnhancer?.release() } catch (_: Exception) {}
                     loudnessEnhancer = android.media.audiofx.LoudnessEnhancer(sessionId)
+                    loudnessSessionId = sessionId
                 }
                 loudnessEnhancer?.setTargetGain(if (enabled) gainMb else 0)
                 loudnessEnhancer?.enabled = enabled

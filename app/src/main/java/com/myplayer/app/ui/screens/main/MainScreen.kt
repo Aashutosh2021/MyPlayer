@@ -94,8 +94,39 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.MyPlayerAudioLab.route, Screen.MyPlayerEqualizer.route, Screen.MyPlayerAppearance.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.AudioPlayback.route, Screen.MyPlayerAudioLab.route, Screen.MyPlayerEqualizer.route, Screen.MyPlayerAppearance.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
+
+    // Unified top-level tab navigation without saveState/restoreState sub-stack hijacking
+    // (fixes clicking Library redirecting to Settings when Settings was opened from Library).
+    val navigateToBottomTab: (String) -> Unit = remember(navController) {
+        { route ->
+            val activeRoute = navController.currentBackStackEntry?.destination?.route
+            if (route != activeRoute) {
+                if (route == Screen.Home.route) {
+                    if (!navController.popBackStack(Screen.Home.route, inclusive = false)) {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                                saveState = false
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    }
+                } else {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = false
+                            saveState = false
+                        }
+                        launchSingleTop = true
+                        restoreState = false
+                    }
+                }
+            }
+        }
+    }
 
     if (!myplayerState.onboardingDone) {
         MyPlayerOnboardingFlow(
@@ -205,20 +236,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
 
                     FloatingNavBar(
                         currentRoute = currentRoute,
-                        onNavigate = { route ->
-                            if (route == currentRoute) return@FloatingNavBar
-                            // Home is the start destination: pop everything above it (Settings and its sub-screens included).
-                            if (route == Screen.Home.route && navController.popBackStack(Screen.Home.route, inclusive = false)) {
-                                return@FloatingNavBar
-                            }
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
+                        onNavigate = navigateToBottomTab
                     )
                 }
             }
@@ -269,7 +287,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
                     onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route) { launchSingleTop = true }
+                        navigateToBottomTab(Screen.Settings.route)
                     },
                     bottomPadding = barHeight,
                     // Reuse the instance created above: a second hiltViewModel() here would run
@@ -290,7 +308,8 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToNowPlaying = {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
-                    bottomPadding = barHeight
+                    bottomPadding = barHeight,
+                    viewModel = homeViewModel
                 )
             }
             composable(Screen.Downloads.route) {
@@ -311,7 +330,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                         navController.navigate(Screen.NowPlaying.route) { launchSingleTop = true }
                     },
                     onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route) { launchSingleTop = true }
+                        navigateToBottomTab(Screen.Settings.route)
                     },
                     myplayerState = myplayerState,
                     onOpenCustomizeStyles = { showStylePicker = true },
@@ -397,7 +416,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onToggleShuffle = { viewModel.toggleShuffle() },
                     repeatMode = repeatMode,
                     onCycleRepeatMode = { viewModel.cycleRepeatMode() },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                    onNavigateToSettings = { navigateToBottomTab(Screen.Settings.route) },
                     queue = queue,
                     onPlayQueueIndex = { viewModel.playQueueIndex(it) },
                     onOpenCustomizeStyles = { showStylePicker = true }

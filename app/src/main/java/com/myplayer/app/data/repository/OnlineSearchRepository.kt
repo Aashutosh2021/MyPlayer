@@ -52,6 +52,18 @@ class InnertubeSearchPagingSource(
         return try {
             val key = params.key
             if (key == null) {
+                // YouTube link / ID direct search
+                val ytVideoId = innertubeApi.extractYouTubeVideoId(query)
+                if (ytVideoId != null) {
+                    val page = innertubeApi.searchByVideoId(ytVideoId)
+                    val distinct = page.songs.filter { seenVideoIds.add(it.videoId) }
+                    return LoadResult.Page(
+                        data = distinct,
+                        prevKey = null,
+                        nextKey = null
+                    )
+                }
+
                 // First page load:
                 val (songs, nextKey) = if (broadSearch) {
                     val page = innertubeApi.search(query, continuationToken = null, filtered = false)
