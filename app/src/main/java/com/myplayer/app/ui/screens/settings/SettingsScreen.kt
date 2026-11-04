@@ -102,6 +102,7 @@ fun SettingsScreen(
     onNavigateToMyPlayerAppearance: () -> Unit = {},
 
     onNavigateToMyPlayerAudioLab: () -> Unit = {},
+    onNavigateToRemoteNotifications: () -> Unit = {},
 
     bottomPadding: androidx.compose.ui.unit.Dp = 120.dp,
 
@@ -1101,7 +1102,33 @@ fun SettingsScreen(
 
                 }
 
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .clickable(onClick = onNavigateToRemoteNotifications),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Notifications,
+                        contentDescription = "Notifications",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    if (com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.unreadCount > 0 || com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.notificationHistory.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 9.dp, end = 9.dp)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(com.myplayer.app.ui.myplayer.MyPlayerAccentGreen)
+                        )
+                    }
+                }
 
+                Spacer(Modifier.width(8.dp))
 
                 // Floating Status Card (Screenshot Matching)
 
@@ -1520,6 +1547,20 @@ fun SettingsScreen(
         }
 
 
+
+        // Section: Remote Push Notifications
+        item { MyPlayerSectionHeader(title = "App Notifications") }
+
+        item {
+            MyPlayerSettingsCard {
+                MyPlayerSettingsNavigationRow(
+                    icon = Icons.Filled.NotificationsActive,
+                    title = "Remote Notifications (Firebase)",
+                    subtitle = "View announcements & alerts pushed from admin dashboard",
+                    onClick = onNavigateToRemoteNotifications
+                )
+            }
+        }
 
         // Section: Support Development
 

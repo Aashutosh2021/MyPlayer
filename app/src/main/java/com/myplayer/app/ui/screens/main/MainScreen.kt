@@ -94,7 +94,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
     val isOnNowPlaying = currentRoute == Screen.NowPlaying.route
 
     // Routes where the nav bar should be hidden
-    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.AudioPlayback.route, Screen.MyPlayerAudioLab.route, Screen.MyPlayerEqualizer.route, Screen.MyPlayerAppearance.route, "playlist_detail/{playlistId}")
+    val hideNavRoutes = setOf(Screen.NowPlaying.route, Screen.DualBud.route, Screen.SyncPlay.route, Screen.AudioPlayback.route, Screen.MyPlayerAudioLab.route, Screen.MyPlayerEqualizer.route, Screen.MyPlayerAppearance.route, Screen.RemoteNotifications.route, "playlist_detail/{playlistId}")
     val showNav = currentRoute != null && !hideNavRoutes.any { currentRoute.startsWith(it.split("{")[0]) }
 
     // Unified top-level tab navigation without saveState/restoreState sub-stack hijacking
@@ -440,6 +440,7 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     onNavigateToPlayerStyles = { showStylePicker = true },
                     onNavigateToMyPlayerAppearance = { navController.navigate(Screen.MyPlayerAppearance.route) { launchSingleTop = true } },
                     onNavigateToMyPlayerAudioLab = { navController.navigate(Screen.MyPlayerAudioLab.route) { launchSingleTop = true } },
+                    onNavigateToRemoteNotifications = { navController.navigate(Screen.RemoteNotifications.route) { launchSingleTop = true } },
                     bottomPadding = barHeight
                 )
             }
@@ -482,6 +483,12 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
                     featureManagers = settingsVm.audioFeatureManagers,
                     onBack = { navController.popBackStack() },
                     myplayerState = myplayerState
+                )
+            }
+            composable(Screen.RemoteNotifications.route) {
+                com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationsCenterScreen(
+                    myplayerState = myplayerState,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

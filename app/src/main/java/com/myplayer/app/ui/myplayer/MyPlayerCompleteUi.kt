@@ -727,6 +727,16 @@ class MyPlayerUiStateHolder(context: Context) {
 
     var smoothAnimations by mutableStateOf(prefs.getBoolean("smooth_animations", true))
 
+    private var _remoteNotificationsEnabled by mutableStateOf(prefs.getBoolean("remote_notifs_enabled", true))
+
+    var remoteNotificationsEnabled: Boolean
+        get() = _remoteNotificationsEnabled
+        set(value) {
+            _remoteNotificationsEnabled = value
+            prefs.edit().putBoolean("remote_notifs_enabled", value).apply()
+            MyPlayerRemoteNotificationManager.enabled = value
+        }
+
 
 
 
@@ -954,6 +964,10 @@ class MyPlayerUiStateHolder(context: Context) {
 
 
         loadAudioLabFromPrefs()
+
+        MyPlayerRemoteNotificationManager.enabled = _remoteNotificationsEnabled
+
+        MyPlayerRemoteNotificationManager.startAutoPolling(context.applicationContext)
 
 
 
@@ -19154,6 +19168,18 @@ fun MyPlayerSettingsHubScreen(
 
         }
 
+        "notifications" -> {
+
+            MyPlayerRemoteNotificationsCenterScreen(
+
+                myplayerState = myplayerState,
+
+                onBack = { subScreen = "root" }
+
+            )
+
+        }
+
 
 
         "appearance" -> {
@@ -19278,31 +19304,43 @@ fun MyPlayerSettingsHubScreen(
 
                         MyPlayerPlayLogo(modifier = Modifier.size(32.dp))
 
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .clickable { subScreen = "notifications" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White, modifier = Modifier.size(20.dp))
+                                if (MyPlayerRemoteNotificationManager.unreadCount > 0 || MyPlayerRemoteNotificationManager.notificationHistory.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 9.dp, end = 9.dp)
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(MyPlayerAccentGreen)
+                                    )
+                                }
+                            }
 
+                            MyPlayerCircleIconButton(
 
-                        MyPlayerCircleIconButton(
+                                icon = Icons.Default.PersonOutline,
 
+                                onClick = onBack,
 
+                                tint = Color.White,
 
-                            icon = Icons.Default.PersonOutline,
+                                circleBg = Color.White.copy(alpha = 0.12f)
 
-
-
-                            onClick = onBack,
-
-
-
-                            tint = Color.White,
-
-
-
-                            circleBg = Color.White.copy(alpha = 0.12f)
-
-
-
-                        )
-
-
+                            )
+                        }
 
                     }
 
@@ -19670,7 +19708,7 @@ fun MyPlayerSettingsHubScreen(
 
                 val categories = listOf(
 
-
+                    Triple("App Notifications (Firebase)", Icons.Default.NotificationsActive, "notifications"),
 
                     Triple("General", Icons.Default.Settings, "general"),
 

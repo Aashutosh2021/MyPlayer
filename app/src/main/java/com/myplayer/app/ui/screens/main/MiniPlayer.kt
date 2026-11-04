@@ -87,6 +87,21 @@ fun MiniPlayer(
         }
     }
     val progress = (livePositionMs.toFloat() / effectiveDurationMs.toFloat()).coerceIn(0f, 1f)
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Firebase Remote Notifications auto-polling & runtime permission request
+    LaunchedEffect(Unit) {
+        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.requestNotificationPermissionIfNeeded(context as? android.app.Activity)
+        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.startAutoPolling(context)
+    }
+
+    // Live In-App Remote Notification Popup pushed from admin.html
+    com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.activeRemotePopup?.let { remoteNotif ->
+        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationPopupDialog(
+            notification = remoteNotif,
+            onDismiss = { com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.dismissActivePopup() }
+        )
+    }
 
     var swipeOffsetX by remember { mutableFloatStateOf(0f) }
     val animatedOffsetX by animateFloatAsState(

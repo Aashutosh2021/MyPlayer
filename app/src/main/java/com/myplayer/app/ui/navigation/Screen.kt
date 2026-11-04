@@ -14,6 +14,7 @@ sealed class Screen(val route: String) {
     object MyPlayerAudioLab : Screen("myplayer_audio_lab")
     object MyPlayerEqualizer : Screen("myplayer_equalizer")
     object MyPlayerAppearance : Screen("myplayer_appearance")
+    object RemoteNotifications : Screen("remote_notifications")
 }
 
 

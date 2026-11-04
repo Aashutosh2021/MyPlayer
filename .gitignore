@@ -104,6 +104,7 @@ docs/js/
 .firebaserc
 firebase.json
 .firebase/
+firestore.rules
 
 # GitHub Pages redirect pages (forward to the live Firebase site)
 !docs/index.md
