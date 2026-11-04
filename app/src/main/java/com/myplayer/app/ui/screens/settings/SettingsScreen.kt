@@ -21,6 +21,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 
 import androidx.compose.foundation.background
 
@@ -996,18 +997,23 @@ fun SettingsScreen(
 
 
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val isDonateHighlighted = com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.highlightDonateSection
+
+    LaunchedEffect(isDonateHighlighted) {
+        if (isDonateHighlighted) {
+            kotlinx.coroutines.delay(200)
+            listState.animateScrollToItem(15)
+        }
+    }
+
     LazyColumn(
-
+        state = listState,
         modifier = Modifier
-
             .fillMaxSize()
-
             .background(MaterialTheme.colorScheme.background)
-
             .statusBarsPadding(),
-
         contentPadding = PaddingValues(bottom = bottomPadding + 32.dp)
-
     ) {
 
         // MyPlayer Style Top Header
@@ -1548,31 +1554,74 @@ fun SettingsScreen(
 
 
 
-        // Section: Remote Push Notifications
-        item { MyPlayerSectionHeader(title = "App Notifications") }
-
-        item {
-            MyPlayerSettingsCard {
-                MyPlayerSettingsNavigationRow(
-                    icon = Icons.Filled.NotificationsActive,
-                    title = "Remote Notifications (Firebase)",
-                    subtitle = "View announcements & alerts pushed from admin dashboard",
-                    onClick = onNavigateToRemoteNotifications
-                )
-            }
-        }
-
         // Section: Support Development
 
         item { MyPlayerSectionHeader(title = "Support Development") }
 
+        if (isDonateHighlighted) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = com.myplayer.app.ui.theme.NeonLimePrimary.copy(alpha = 0.16f),
+                    border = BorderStroke(1.5.dp, com.myplayer.app.ui.theme.NeonLimePrimary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text("☕", fontSize = 24.sp)
+                            Column {
+                                Text(
+                                    text = "Support MyPlayer Here!",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "100% free app • Zero ads • Donate via UPI",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.highlightDonateSection = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = com.myplayer.app.ui.theme.NeonLimePrimary,
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("Got It 👍", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
         item {
-            MyPlayerSettingsCard {
+            MyPlayerSettingsCard(
+                border = if (isDonateHighlighted) BorderStroke(2.dp, com.myplayer.app.ui.theme.NeonLimePrimary) else null
+            ) {
                 MyPlayerSettingsNavigationRow(
                     icon = Icons.Filled.LocalCafe,
                     title = "Buy Me a Coffee",
                     subtitle = "Support MyPlayer development via GPay, PhonePe, or UPI (0% fees)",
-                    onClick = { showDonateDialog = true }
+                    onClick = {
+                        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.highlightDonateSection = false
+                        showDonateDialog = true
+                    }
                 )
             }
         }
@@ -1749,13 +1798,18 @@ private fun MyPlayerSectionHeader(title: String) {
 
 @Composable
 
-private fun MyPlayerSettingsCard(content: @Composable ColumnScope.() -> Unit) {
+private fun MyPlayerSettingsCard(
+    border: BorderStroke? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
 
     Surface(
 
         shape = RoundedCornerShape(24.dp),
 
         color = MaterialTheme.colorScheme.surface,
+
+        border = border,
 
         modifier = Modifier
 

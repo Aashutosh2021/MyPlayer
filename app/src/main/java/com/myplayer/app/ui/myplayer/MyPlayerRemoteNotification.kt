@@ -71,6 +71,8 @@ object MyPlayerRemoteNotificationManager {
     @Volatile private var pollingStarted = false
 
     var enabled by mutableStateOf(true)
+    var highlightDonateSection by mutableStateOf(false)
+    var pendingNavigateToSettings by mutableStateOf(false)
     var activeRemotePopup by mutableStateOf<MyPlayerRemoteNotification?>(null)
     var notificationHistory by mutableStateOf<List<MyPlayerRemoteNotification>>(emptyList())
     var unreadCount by mutableIntStateOf(0)
@@ -236,13 +238,22 @@ object MyPlayerRemoteNotificationManager {
                 if (!hasPerm) return
             }
 
-            val intent = if (notif.actionUrl.isNotBlank()) {
+            val isDonate = notif.actionUrl.contains("donate", ignoreCase = true) ||
+                    notif.actionUrl.contains("coffee", ignoreCase = true) ||
+                    notif.category.contains("COFFEE", ignoreCase = true) ||
+                    notif.category.contains("SUPPORT", ignoreCase = true) ||
+                    notif.title.contains("coffee", ignoreCase = true)
+
+            val intent = if (notif.actionUrl.startsWith("http://", ignoreCase = true) || notif.actionUrl.startsWith("https://", ignoreCase = true)) {
                 Intent(Intent.ACTION_VIEW, Uri.parse(notif.actionUrl)).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
             } else {
                 context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    if (isDonate) {
+                        putExtra("open_donate", true)
+                    }
                 } ?: Intent()
             }
 
@@ -278,13 +289,19 @@ typealias MochyRemoteNotificationManager = MyPlayerRemoteNotificationManager
 @Composable
 fun MyPlayerRemoteNotificationPopupDialog(
     notification: MyPlayerRemoteNotification,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
+    // Force user to read: Cannot dismiss by clicking outside or pressing back button!
     Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        onDismissRequest = { /* Forced read: cannot dismiss outside without tapping action button */ },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false
+        )
     ) {
         Surface(
             modifier = Modifier
@@ -309,6 +326,7 @@ fun MyPlayerRemoteNotificationPopupDialog(
                             )
                         )
                     )
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -352,8 +370,19 @@ fun MyPlayerRemoteNotificationPopupDialog(
                 Button(
                     onClick = {
                         val url = notification.actionUrl.trim()
+                        val isDonate = url.contains("donate", ignoreCase = true) ||
+                                url.contains("coffee", ignoreCase = true) ||
+                                url.contains("setting", ignoreCase = true) ||
+                                notification.category.contains("COFFEE", ignoreCase = true) ||
+                                notification.category.contains("SUPPORT", ignoreCase = true) ||
+                                notification.title.contains("coffee", ignoreCase = true)
+
                         onDismiss()
-                        if (url.isNotBlank()) {
+
+                        if (isDonate) {
+                            MyPlayerRemoteNotificationManager.highlightDonateSection = true
+                            onNavigateToSettings()
+                        } else if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
                             runCatching {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -372,17 +401,10 @@ fun MyPlayerRemoteNotificationPopupDialog(
                         .height(50.dp)
                 ) {
                     Text(
-                        text = notification.buttonText.ifBlank { "Got It! 🔥" },
+                        text = notification.buttonText.ifBlank { "OK, Got It! 👍" },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
-                }
-
-                if (notification.actionUrl.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = onDismiss) {
-                        Text("Dismiss", color = MyPlayerTextSecondary, fontSize = 13.sp)
-                    }
                 }
             }
         }
@@ -392,8 +414,9 @@ fun MyPlayerRemoteNotificationPopupDialog(
 @Composable
 fun MochyRemoteNotificationPopupDialog(
     notification: MochyRemoteNotification,
-    onDismiss: () -> Unit
-) = MyPlayerRemoteNotificationPopupDialog(notification, onDismiss)
+    onDismiss: () -> Unit,
+    onNavigateToSettings: () -> Unit = {}
+) = MyPlayerRemoteNotificationPopupDialog(notification, onDismiss, onNavigateToSettings)
 
 @Composable
 fun MyPlayerRemoteNotificationsCenterScreen(

@@ -3417,9 +3417,9 @@ fun MyPlayerOnboardingFlow(
 
                                 text = "Next",
 
+                                enabled = nameInput.isNotBlank(),
 
-
-                                onClick = { step = 3 }
+                                onClick = { if (nameInput.isNotBlank()) step = 3 }
 
 
 
@@ -19707,8 +19707,6 @@ fun MyPlayerSettingsHubScreen(
 
 
                 val categories = listOf(
-
-                    Triple("App Notifications (Firebase)", Icons.Default.NotificationsActive, "notifications"),
 
                     Triple("General", Icons.Default.Settings, "general"),
 

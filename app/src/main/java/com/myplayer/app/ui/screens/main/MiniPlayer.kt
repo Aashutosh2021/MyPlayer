@@ -95,14 +95,6 @@ fun MiniPlayer(
         com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.startAutoPolling(context)
     }
 
-    // Live In-App Remote Notification Popup pushed from admin.html
-    com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.activeRemotePopup?.let { remoteNotif ->
-        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationPopupDialog(
-            notification = remoteNotif,
-            onDismiss = { com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.dismissActivePopup() }
-        )
-    }
-
     var swipeOffsetX by remember { mutableFloatStateOf(0f) }
     val animatedOffsetX by animateFloatAsState(
         targetValue = swipeOffsetX,

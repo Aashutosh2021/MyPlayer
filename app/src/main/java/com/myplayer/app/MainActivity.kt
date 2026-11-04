@@ -74,6 +74,8 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        handleNotificationIntent(intent)
+
         requestNotificationPermissionIfNeeded()
         checkForUpdatesOnLaunch()
 
@@ -212,6 +214,20 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) {
                 Log.w("MainActivity", "Launch update check failed: ${e.message}")
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("open_donate", false) == true ||
+            intent?.getStringExtra("action_url")?.contains("donate", ignoreCase = true) == true) {
+            com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.highlightDonateSection = true
+            com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.pendingNavigateToSettings = true
         }
     }
 }

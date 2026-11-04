@@ -171,6 +171,27 @@ fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
         }
     }
 
+    // Remote push notification handling & deep redirect to settings
+    LaunchedEffect(com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.pendingNavigateToSettings) {
+        if (com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.pendingNavigateToSettings) {
+            com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.pendingNavigateToSettings = false
+            navigateToBottomTab(Screen.Settings.route)
+        }
+    }
+
+    com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.activeRemotePopup?.let { remoteNotif ->
+        com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationPopupDialog(
+            notification = remoteNotif,
+            onDismiss = {
+                com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.dismissActivePopup()
+            },
+            onNavigateToSettings = {
+                com.myplayer.app.ui.myplayer.MyPlayerRemoteNotificationManager.dismissActivePopup()
+                navigateToBottomTab(Screen.Settings.route)
+            }
+        )
+    }
+
     // Content draws behind the transparent miniplayer + navbar; screens get the bar height as list padding.
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barHeight by remember { mutableStateOf(0.dp) }
