@@ -42,20 +42,31 @@ import javax.inject.Singleton
 import kotlin.math.min
 
 /**
- * Splits large audio stream requests into 160 KB (~9-second) HTTP Range chunks
- * just like Spotify/YouTube Music, bypassing CDN throttling and saving mobile data.
- * Restored from commit 957446e for ultra-fast instant playback start.
+ * Spotify-style 9-Second Rolling Chunk DataSource:
+ * 1. Requests audio in 160 KB (~9 seconds of Opus/AAC audio) HTTP Range chunks.
+ * 2. Parses total stream length from HTTP `Content-Range: bytes start-end/total` so
+ *    ExoPlayer knows the exact file boundary even when `dataSpec.length == LENGTH_UNSET`.
+ * 3. Retries transient chunk failures up to 4 times with backoff on slow 2G/3G networks.
+ * 4. NEVER returns false EOF (`RESULT_END_OF_INPUT`) on network drops — throws `IOException`
+ *    so ExoPlayer cleanly pauses to rebuffer and resumes from the exact byte!
  */
 @OptIn(UnstableApi::class)
 class NineSecondChunkDataSource(
     private val upstream: DataSource,
-    private val chunkSizeBytes: Long = 160 * 1024L // ~9 seconds of Opus audio per chunk
+    private val chunkSizeBytes: Long = 160 * 1024L // ~9 seconds of audio per chunk
 ) : DataSource {
     private var currentDataSpec: DataSpec? = null
     private var currentPosition: Long = 0L
-    private var bytesRemainingInStream: Long = C.LENGTH_UNSET.toLong()
+    private var totalStreamEndPosition: Long = C.LENGTH_UNSET.toLong()
     private var bytesRemainingInChunk: Long = 0L
     private var isChunkedStream: Boolean = false
+    private var isChunkOpen: Boolean = false
+
+    companion object {
+        private const val TAG = "NineSecChunkDS"
+        private const val MAX_CHUNK_RETRIES = 4
+        private val CONTENT_RANGE_REGEX = Regex("""bytes\s+\d+-\d+/(\d+)""", RegexOption.IGNORE_CASE)
+    }
 
     override fun addTransferListener(transferListener: TransferListener) {
         upstream.addTransferListener(transferListener)
@@ -64,37 +75,133 @@ class NineSecondChunkDataSource(
     override fun open(dataSpec: DataSpec): Long {
         currentDataSpec = dataSpec
         currentPosition = dataSpec.position
-        bytesRemainingInStream = dataSpec.length
+        totalStreamEndPosition = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
+            dataSpec.position + dataSpec.length
+        } else {
+            C.LENGTH_UNSET.toLong()
+        }
+
+        val scheme = dataSpec.uri.scheme ?: ""
         val host = dataSpec.uri.host ?: ""
-        // Apply 9-second HTTP Range chunking to online audio streams
-        isChunkedStream = (dataSpec.uri.scheme == "http" || dataSpec.uri.scheme == "https") &&
-                (host.contains("googlevideo.com") || dataSpec.length == C.LENGTH_UNSET.toLong() || dataSpec.length > chunkSizeBytes)
+        isChunkedStream = (scheme == "http" || scheme == "https") &&
+            (host.contains("googlevideo.com") ||
+                dataSpec.length == C.LENGTH_UNSET.toLong() ||
+                dataSpec.length > chunkSizeBytes)
 
         if (!isChunkedStream) {
+            isChunkOpen = true
             return upstream.open(dataSpec)
         }
 
-        openNextNineSecondChunk()
-        return dataSpec.length
+        openNextNineSecondChunkWithRetry(isInitialOpen = true)
+
+        return if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
+            dataSpec.length
+        } else if (totalStreamEndPosition != C.LENGTH_UNSET.toLong()) {
+            (totalStreamEndPosition - dataSpec.position).coerceAtLeast(0L)
+        } else {
+            C.LENGTH_UNSET.toLong()
+        }
     }
 
-    private fun openNextNineSecondChunk(): Boolean {
+    private fun openNextNineSecondChunkWithRetry(isInitialOpen: Boolean): Boolean {
         val baseSpec = currentDataSpec ?: return false
-        val targetLength = if (bytesRemainingInStream != C.LENGTH_UNSET.toLong()) {
-            min(chunkSizeBytes, bytesRemainingInStream)
+
+        if (totalStreamEndPosition != C.LENGTH_UNSET.toLong() && currentPosition >= totalStreamEndPosition) {
+            return false // True end of audio stream reached
+        }
+
+        val remainingInStream = if (totalStreamEndPosition != C.LENGTH_UNSET.toLong()) {
+            totalStreamEndPosition - currentPosition
+        } else {
+            C.LENGTH_UNSET.toLong()
+        }
+
+        val targetChunkLength = if (remainingInStream != C.LENGTH_UNSET.toLong()) {
+            min(chunkSizeBytes, remainingInStream)
         } else {
             chunkSizeBytes
         }
-        if (targetLength <= 0L) return false
 
-        val chunkSpec = baseSpec.buildUpon()
-            .setPosition(currentPosition)
-            .setLength(targetLength)
-            .build()
+        if (targetChunkLength <= 0L) return false
 
-        val opened = upstream.open(chunkSpec)
-        bytesRemainingInChunk = if (opened != C.LENGTH_UNSET.toLong()) opened else targetLength
-        return true
+        var lastException: Exception? = null
+
+        for (attempt in 1..MAX_CHUNK_RETRIES) {
+            try {
+                if (isChunkOpen) {
+                    try { upstream.close() } catch (_: Exception) {}
+                    isChunkOpen = false
+                }
+
+                val chunkSpec = baseSpec.buildUpon()
+                    .setPosition(currentPosition)
+                    .setLength(targetChunkLength)
+                    .build()
+
+                val openedBytes = upstream.open(chunkSpec)
+                isChunkOpen = true
+
+                // Extract total stream size from Content-Range header (e.g., "bytes 0-163839/3845120")
+                if (totalStreamEndPosition == C.LENGTH_UNSET.toLong()) {
+                    val headers = upstream.responseHeaders
+                    val contentRange = headers["Content-Range"]?.firstOrNull()
+                        ?: headers["content-range"]?.firstOrNull()
+                    if (!contentRange.isNullOrBlank()) {
+                        val totalSize = CONTENT_RANGE_REGEX.find(contentRange)
+                            ?.groupValues?.getOrNull(1)?.toLongOrNull()
+                        if (totalSize != null && totalSize > 0L) {
+                            totalStreamEndPosition = if (baseSpec.length != C.LENGTH_UNSET.toLong()) {
+                                min(totalSize, baseSpec.position + baseSpec.length)
+                            } else {
+                                totalSize
+                            }
+                        }
+                    }
+                }
+
+                val actualRemaining = if (totalStreamEndPosition != C.LENGTH_UNSET.toLong()) {
+                    (totalStreamEndPosition - currentPosition).coerceAtLeast(0L)
+                } else {
+                    targetChunkLength
+                }
+
+                bytesRemainingInChunk = when {
+                    openedBytes != C.LENGTH_UNSET.toLong() -> min(openedBytes, actualRemaining)
+                    else -> min(targetChunkLength, actualRemaining)
+                }
+
+                return bytesRemainingInChunk > 0L
+            } catch (e: androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+                // HTTP 416 Range Not Satisfiable means we reached exact EOF
+                if (e.responseCode == 416) {
+                    totalStreamEndPosition = currentPosition
+                    bytesRemainingInChunk = 0L
+                    return false
+                }
+                lastException = e
+                android.util.Log.w(TAG, "Chunk HTTP ${e.responseCode} at pos=$currentPosition (attempt $attempt/$MAX_CHUNK_RETRIES)")
+            } catch (e: Exception) {
+                lastException = e
+                android.util.Log.w(TAG, "Slow network chunk retry $attempt/$MAX_CHUNK_RETRIES at pos=$currentPosition: ${e.message}")
+            }
+
+            if (attempt < MAX_CHUNK_RETRIES) {
+                try {
+                    Thread.sleep(350L * attempt)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
+                }
+            }
+        }
+
+        // Throw IOException instead of returning false so ExoPlayer triggers rebuffering/retry
+        // rather than falsely ending the song at 9 seconds!
+        throw java.io.IOException(
+            "Unable to load 9s audio chunk at byte $currentPosition (initial=$isInitialOpen)",
+            lastException
+        )
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
@@ -103,36 +210,56 @@ class NineSecondChunkDataSource(
         }
         if (length == 0) return 0
 
-        if (bytesRemainingInChunk == 0L) {
-            upstream.close()
-            if (bytesRemainingInStream != C.LENGTH_UNSET.toLong() && bytesRemainingInStream <= 0L) {
+        if (bytesRemainingInChunk <= 0L) {
+            if (isChunkOpen) {
+                try { upstream.close() } catch (_: Exception) {}
+                isChunkOpen = false
+            }
+            if (totalStreamEndPosition != C.LENGTH_UNSET.toLong() && currentPosition >= totalStreamEndPosition) {
                 return C.RESULT_END_OF_INPUT
             }
-            val opened = try {
-                openNextNineSecondChunk()
-            } catch (_: Exception) {
-                false
-            }
+            val opened = openNextNineSecondChunkWithRetry(isInitialOpen = false)
             if (!opened || bytesRemainingInChunk <= 0L) {
                 return C.RESULT_END_OF_INPUT
             }
         }
 
-        val toRead = min(length.toLong(), bytesRemainingInChunk).toInt()
-        val bytesRead = upstream.read(buffer, offset, toRead)
+        val bytesToRead = min(length.toLong(), bytesRemainingInChunk).toInt()
+        val bytesRead = try {
+            upstream.read(buffer, offset, bytesToRead)
+        } catch (e: java.io.IOException) {
+            // Mid-chunk socket drop on slow network: close current chunk and retry seamlessly
+            android.util.Log.w(TAG, "Mid-chunk read interrupted at $currentPosition, re-opening chunk: ${e.message}")
+            if (isChunkOpen) {
+                try { upstream.close() } catch (_: Exception) {}
+                isChunkOpen = false
+            }
+            val reopened = openNextNineSecondChunkWithRetry(isInitialOpen = false)
+            if (!reopened || bytesRemainingInChunk <= 0L) return C.RESULT_END_OF_INPUT
+            upstream.read(buffer, offset, min(length.toLong(), bytesRemainingInChunk).toInt())
+        }
+
         if (bytesRead == C.RESULT_END_OF_INPUT) {
+            if (isChunkOpen) {
+                try { upstream.close() } catch (_: Exception) {}
+                isChunkOpen = false
+            }
+            bytesRemainingInChunk = 0L
+            if (totalStreamEndPosition != C.LENGTH_UNSET.toLong() && currentPosition < totalStreamEndPosition) {
+                val opened = openNextNineSecondChunkWithRetry(isInitialOpen = false)
+                if (opened && bytesRemainingInChunk > 0L) {
+                    return read(buffer, offset, length)
+                }
+            }
             return C.RESULT_END_OF_INPUT
         }
 
         currentPosition += bytesRead
         bytesRemainingInChunk -= bytesRead
-        if (bytesRemainingInStream != C.LENGTH_UNSET.toLong()) {
-            bytesRemainingInStream -= bytesRead
-        }
         return bytesRead
     }
 
-    override fun getUri(): Uri? = upstream.uri
+    override fun getUri(): Uri? = upstream.uri ?: currentDataSpec?.uri
 
     override fun getResponseHeaders(): Map<String, List<String>> = upstream.responseHeaders
 
@@ -140,7 +267,10 @@ class NineSecondChunkDataSource(
         currentDataSpec = null
         bytesRemainingInChunk = 0L
         isChunkedStream = false
-        upstream.close()
+        if (isChunkOpen) {
+            isChunkOpen = false
+            try { upstream.close() } catch (_: Exception) {}
+        }
     }
 
     class Factory(private val upstreamFactory: DataSource.Factory) : DataSource.Factory {
@@ -173,11 +303,12 @@ object PlayerModule {
     ): CacheDataSource.Factory {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(8_000)
-            .setReadTimeoutMs(10_000)
+            .setConnectTimeoutMs(30_000) // 30s timeout for slow 2G/3G networks
+            .setReadTimeoutMs(30_000)
+            .setKeepPostFor302Redirects(true)
             .setUserAgent("com.google.android.youtube/19.29.37 (Linux; U; Android 14) gzip")
 
-        // Wrap HTTP DataSource in 9-Second Chunked Range DataSource (restored from 957446e)
+        // Wrap HTTP DataSource in 9-Second Chunked Range DataSource
         val chunkedHttpFactory = NineSecondChunkDataSource.Factory(httpDataSourceFactory)
         val upstreamFactory = DefaultDataSource.Factory(context, chunkedHttpFactory)
 
@@ -211,23 +342,24 @@ object PlayerModule {
         val initialRepeat = prefs.getInt("playback_repeat_mode", Player.REPEAT_MODE_OFF)
         val initialShuffle = prefs.getBoolean("playback_shuffle_mode", false)
 
-        // Spotify-style 9-Second Rolling Buffer LoadControl (from 957446e):
-        // - Starts playing after just 0.5s of audio arrives!
-        // - Buffers strictly 9 seconds ahead, pauses download, and fetches next 9s as you listen!
+        // Spotify-Style 9-Second Progressive Chunk LoadControl:
+        // - Starts playback after just 500ms of audio arrives (~8 KB)
+        // - Loads 9s chunks progressively up to a 27s (3-chunk) rolling window
+        // - Prevents minBuffer == maxBuffer thrashing on slow connections
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ 9_000,                     // Maintain 9s rolling buffer
-                /* maxBufferMs = */ 9_000,                     // Never pre-download more than 9s ahead!
-                /* bufferForPlaybackMs = */ 500,               // Instant start after 0.5s (~8 KB)!
-                /* bufferForPlaybackAfterRebufferMs = */ 1_000 // Fast 1.0s recovery on weak network
+                /* minBufferMs = */ 9_000,                      // Trigger next 9s chunk fetch when buffer < 9s
+                /* maxBufferMs = */ 27_000,                     // Buffer up to 3x 9-second chunks ahead
+                /* bufferForPlaybackMs = */ 500,                // Ultra-fast start after 0.5s
+                /* bufferForPlaybackAfterRebufferMs = */ 1_500  // Smooth 1.5s resume after weak network stall
             )
-            .setTargetBufferBytes(256 * 1024)                 // Cap in-RAM buffer to 256 KB
+            .setTargetBufferBytes(C.LENGTH_UNSET)
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setBackBuffer(9_000, false)                      // Keep last 9s in memory for instant rewind
+            .setBackBuffer(18_000, false)                       // Keep last 18s (2 chunks) in RAM for instant seek-back
             .build()
 
         val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
-            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 5))
+            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(/* minLoadableRetryCount = */ 6))
 
         // Deprioritize buggy vendor decoders (Samsung One UI / Exynos hardware decoders)
         // across audio MIME types to avoid misreported sample rates or digital boundary distortion.

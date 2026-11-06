@@ -137,14 +137,7 @@ class RecommendationSourceRouterTest {
         var stubbedSongs = emptyList<OnlineSong>()
 
         fun asSource(): LastFmRecommendationSource {
-            val okHttp = okhttp3.OkHttpClient()
-            val enc = com.myplayer.app.security.StringEncryptionManager()
-            val cfg = com.myplayer.app.data.recommendation.lastfm.LastFmConfig(enc)
-            val cache = com.myplayer.app.data.recommendation.lastfm.LastFmCache()
-            val chartSource = com.myplayer.app.data.recommendation.lastfm.LastFmChartSource(okHttp, cfg, cache)
-            val matcher = com.myplayer.app.data.recommendation.lastfm.LastFmTrackMatcher(com.myplayer.app.data.online.InnertubeApi(okHttp, enc))
-
-            return object : LastFmRecommendationSource(chartSource, matcher, com.myplayer.app.data.online.InnertubeApi(okHttp, enc)) {
+            return object : LastFmRecommendationSource() {
                 override suspend fun fetchRawRecommendations(seed: RecommendationSeed): List<OnlineSong> {
                     called = true
                     return stubbedSongs

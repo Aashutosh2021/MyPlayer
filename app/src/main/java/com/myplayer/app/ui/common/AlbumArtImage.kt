@@ -1,5 +1,6 @@
 package com.myplayer.app.ui.common
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,7 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Precision
 import com.myplayer.app.data.artwork.model.ArtworkModel
+import java.io.File
 
 @Composable
 fun AlbumArtImage(
@@ -44,30 +46,39 @@ fun AlbumArtImage(
     val context = LocalContext.current
     val density = LocalDensity.current
 
-    // Downsample list thumbnails to exact pixel size (saves 90% RAM & GPU bandwidth)
     val targetPx = remember(size, density) {
         with(density) { (size * 1.75f).roundToPx().coerceIn(120, 900) }
     }
 
-    // For small thumbnails (<100dp), convert YouTube w800-h800 URLs to lightweight w226-h226
-    val optimizedUrl = remember(effectiveUri, size) {
+    // Resolve local downloaded artwork file if effectiveUri is a YouTube URL or local file path
+    val resolvedUri = remember(effectiveUri, context) {
         if (effectiveUri.isNullOrBlank()) {
             ""
-        } else if (size < 100.dp) {
-            effectiveUri
-                .replace("=w800-h800-l90-rj", "=w226-h226-l90-rj")
-                .replace("w800-h800", "w226-h226")
+        } else if (effectiveUri.startsWith("/")) {
+            Uri.fromFile(File(effectiveUri)).toString()
         } else {
-            effectiveUri
+            val ytId = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(effectiveUri)?.groupValues?.getOrNull(1)
+            if (ytId != null) {
+                val localFile = File(File(context.filesDir, "artwork"), "$ytId.jpg")
+                if (localFile.exists() && localFile.length() > 512L) {
+                    Uri.fromFile(localFile).toString()
+                } else {
+                    effectiveUri
+                }
+            } else {
+                effectiveUri
+            }
         }
     }
 
-    // Support both direct URLs and ArtworkModel for songs needing artwork resolution
-    val requestModel: Any? = remember(optimizedUrl, effectiveUri, title, artist, album) {
-        if (optimizedUrl.isNotBlank()) {
-            optimizedUrl
-        } else if (!title.isNullOrBlank() && !artist.isNullOrBlank()) {
-            ArtworkModel(title = title, artist = artist, album = album, localUri = effectiveUri)
+    // Keep consistent URL so Coil disk cache hits both in list view and NowPlaying screen offline!
+    val requestModel: Any? = remember(resolvedUri, title, artist, album) {
+        if (resolvedUri.isNotBlank() && (resolvedUri.startsWith("file://") || resolvedUri.startsWith("content://"))) {
+            Uri.parse(resolvedUri)
+        } else if (!title.isNullOrBlank() || !artist.isNullOrBlank()) {
+            ArtworkModel(title = title, artist = artist, album = album, localUri = resolvedUri.ifBlank { null })
+        } else if (resolvedUri.isNotBlank()) {
+            resolvedUri
         } else {
             null
         }
@@ -85,14 +96,18 @@ fun AlbumArtImage(
     ) {
         if (requestModel != null) {
             val isLarge = size >= 120.dp
-            val request = remember(context, requestModel, targetPx, isLarge) {
+            val stableCacheKey = remember(resolvedUri, title, artist) {
+                resolvedUri.ifBlank { "${artist.orEmpty()}_${title.orEmpty()}" }
+            }
+            val request = remember(context, requestModel, targetPx, isLarge, stableCacheKey) {
                 ImageRequest.Builder(context)
                     .data(requestModel)
                     .size(targetPx, targetPx)
                     .precision(Precision.INEXACT)
                     .allowHardware(true)
-                    .crossfade(if (isLarge) 180 else 0) // Never crossfade inside fast-scrolling lists!
-                    .memoryCacheKey("${requestModel}_$targetPx")
+                    .crossfade(if (isLarge) 180 else 0)
+                    .diskCacheKey(stableCacheKey)
+                    .memoryCacheKey("${stableCacheKey}_$targetPx")
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .build()

@@ -7,17 +7,26 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-open class LastFmRecommendationSource @Inject constructor(
-    private val aiModel: OnDeviceMusicAiModel
-) : RecommendationSource {
+open class LastFmRecommendationSource : RecommendationSource {
+    private val aiModel: OnDeviceMusicAiModel?
+
+    @Inject
+    constructor(aiModel: OnDeviceMusicAiModel) {
+        this.aiModel = aiModel
+    }
+
+    constructor() {
+        this.aiModel = null
+    }
 
     override val sourceName: String = "OnDeviceAiSource"
 
     override suspend fun fetchRawRecommendations(seed: RecommendationSeed): List<OnlineSong> {
+        val model = aiModel ?: return emptyList()
         if (seed.songId.isNotBlank() && seed.title.isNotBlank()) {
-            aiModel.onSongTransition(seed.songId, seed.title, seed.artist)
+            model.onSongTransition(seed.songId, seed.title, seed.artist)
         }
-        return aiModel.generateRecommendations(limit = 40).map { reco ->
+        return model.generateRecommendations(limit = 40).map { reco ->
             OnlineSong(
                 videoId = reco.videoId,
                 title = reco.title,
@@ -30,4 +39,3 @@ open class LastFmRecommendationSource @Inject constructor(
         }
     }
 }
-

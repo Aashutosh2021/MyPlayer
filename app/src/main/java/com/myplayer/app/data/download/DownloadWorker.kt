@@ -22,7 +22,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 
 @HiltWorker
@@ -52,7 +51,6 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        // Ensure the channel exists before posting the notification (Android 8+)
         val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
@@ -74,30 +72,80 @@ class DownloadWorker @AssistedInject constructor(
         )
     }
 
+    /**
+     * Downloads the song's poster/thumbnail image to permanent local storage
+     * (`filesDir/artwork/<videoId>.jpg` + companion `<songFile>.jpg`) so artwork
+     * is 100% available when internet is OFF.
+     */
+    private suspend fun downloadThumbnailLocally(
+        videoId: String,
+        remoteThumbnailUrl: String,
+        audioSavedPath: String
+    ): String = withContext(Dispatchers.IO) {
+        val candidateUrls = buildList {
+            if (remoteThumbnailUrl.isNotBlank()) {
+                add(remoteThumbnailUrl)
+            }
+            if (videoId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+                add("https://i.ytimg.com/vi/$videoId/hq720.jpg")
+                add("https://i.ytimg.com/vi/$videoId/hqdefault.jpg")
+            }
+        }.distinct()
+
+        val artDir = File(context.filesDir, "artwork").apply { mkdirs() }
+        val localArtFile = File(artDir, "$videoId.jpg")
+
+        for (url in candidateUrls) {
+            if (!url.startsWith("http://") && !url.startsWith("https://")) continue
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile)")
+                    .build()
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val bytes = resp.body?.bytes()
+                        if (bytes != null && bytes.size > 512) {
+                            localArtFile.writeBytes(bytes)
+                            // Also save companion .jpg next to the audio file if stored on FileSystem
+                            if (!audioSavedPath.startsWith("content://")) {
+                                val audioFile = File(audioSavedPath)
+                                audioFile.parentFile?.let { parent ->
+                                    val companionJpg = File(parent, "${audioFile.nameWithoutExtension}.jpg")
+                                    runCatching { companionJpg.writeBytes(bytes) }
+                                }
+                            }
+                            Log.i("DownloadWorker", "Saved offline poster for $videoId at ${localArtFile.absolutePath}")
+                            return@withContext Uri.fromFile(localArtFile).toString()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("DownloadWorker", "Failed downloading thumbnail from $url: ${e.message}")
+            }
+        }
+
+        if (localArtFile.exists() && localArtFile.length() > 512L) {
+            return@withContext Uri.fromFile(localArtFile).toString()
+        }
+        return@withContext remoteThumbnailUrl
+    }
+
     override suspend fun doWork(): Result {
         try {
             setForeground(getForegroundInfo())
         } catch (e: Exception) {
             Log.e("DownloadWorker", "Failed to set foreground", e)
         }
-        
-        Log.i("DOWNLOAD_DEBUG", "=== WORKER STARTED === runAttemptCount=$runAttemptCount id=$id")
-        val videoId = inputData.getString(KEY_VIDEO_ID)
-        if (videoId == null) {
-            Log.e("DOWNLOAD_DEBUG", "WORKER FAILED: videoId is null")
-            return Result.failure()
-        }
+
+        val videoId = inputData.getString(KEY_VIDEO_ID) ?: return Result.failure()
         val title = inputData.getString(KEY_TITLE) ?: "Unknown"
         val artist = inputData.getString(KEY_ARTIST) ?: "Unknown"
         val thumbnailUrl = inputData.getString(KEY_THUMBNAIL_URL) ?: ""
         val durationMs = inputData.getLong(KEY_DURATION_MS, 0L)
         val streamUrl = inputData.getString(KEY_STREAM_URL)
-        if (streamUrl == null) {
-            Log.e("DOWNLOAD_DEBUG", "WORKER FAILED: streamUrl is null")
-            return Result.failure(workDataOf(KEY_ERROR to "No stream URL provided"))
-        }
-        Log.i("DOWNLOAD_DEBUG", "WORKER INPUT: title=$title, videoId=$videoId, url=${streamUrl.take(80)}...")
-        Log.i("DownloadWorker", "Starting download: $title ($videoId)")
+            ?: return Result.failure(workDataOf(KEY_ERROR to "No stream URL provided"))
+
         setProgress(workDataOf(KEY_PROGRESS to 0))
 
         var tempFileToClean: File? = null
@@ -110,7 +158,7 @@ class DownloadWorker @AssistedInject constructor(
 
             val safeTitle = title
                 .replace(Regex("[^a-zA-Z0-9 _\\-]"), "")
-                .replace(Regex(" {2,}"), " ")   // collapse double-spaces left by stripped chars like '|'
+                .replace(Regex(" {2,}"), " ")
                 .trim()
                 .take(60)
                 .ifBlank { videoId }
@@ -118,8 +166,6 @@ class DownloadWorker @AssistedInject constructor(
             val finalFileName = "$safeTitle.m4a"
             val tmpFileName = "$safeTitle.tmp"
 
-            // Skip only if the DB row exists AND the audio file is really on disk —
-            // rows restored from a JSON backup have no file and MUST re-download.
             val existing = downloadedSongDao.getById(videoId)
             if (existing != null &&
                 BackupRestoreManager.checkFileExists(applicationContext, existing.localPath)
@@ -132,10 +178,9 @@ class DownloadWorker @AssistedInject constructor(
             var savedPath = ""
             var fileSize = 0L
 
-            // Bypass YouTube throttling using chunked requests and Android User-Agent
-            val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            val CHUNK_SIZE = 10L * 1024 * 1024 // 10MB chunks
-            
+            val userAgent = "com.google.android.youtube/19.29.37 (Linux; U; Android 14) gzip"
+            val CHUNK_SIZE = 512L * 1024L // 512 KB chunks for reliable download on slow internet
+
             var totalSize = -1L
             try {
                 val headReq = Request.Builder()
@@ -151,8 +196,8 @@ class DownloadWorker @AssistedInject constructor(
                         totalSize = response.body?.contentLength() ?: -1L
                     }
                 }
-            } catch(e: Exception) {
-                Log.e("DOWNLOAD_DEBUG", "Failed to fetch file size", e)
+            } catch (e: Exception) {
+                Log.e("DownloadWorker", "Failed to fetch file size", e)
             }
 
             suspend fun downloadToStream(out: java.io.OutputStream, startOffset: Long): Long {
@@ -160,29 +205,42 @@ class DownloadWorker @AssistedInject constructor(
                 while (true) {
                     if (isStopped) throw IOException("Stopped by user")
                     val endOffset = if (totalSize > 0) minOf(downloaded + CHUNK_SIZE - 1, totalSize - 1) else downloaded + CHUNK_SIZE - 1
-                    val req = Request.Builder()
-                        .url(streamUrl)
-                        .addHeader("User-Agent", userAgent)
-                        .addHeader("Range", "bytes=$downloaded-$endOffset")
-                        .build()
 
-                    val bytesReadThisChunk = withContext(Dispatchers.IO) {
-                        okHttpClient.newCall(req).execute().use { response ->
-                            if (response.code == 416) return@withContext -1L // Reached end of stream
-                            if (!response.isSuccessful && response.code != 206) throw IOException("HTTP ${response.code}")
-                            val body = response.body ?: throw IOException("Empty body")
-                            val stream = body.byteStream()
-                            val buf = ByteArray(8192)
-                            var readThisChunk = 0L
-                            while (true) {
-                                val r = stream.read(buf)
-                                if (r == -1) break
-                                out.write(buf, 0, r)
-                                readThisChunk += r
+                    var bytesReadThisChunk = -1L
+                    var lastErr: Exception? = null
+                    for (attempt in 1..4) {
+                        try {
+                            val req = Request.Builder()
+                                .url(streamUrl)
+                                .addHeader("User-Agent", userAgent)
+                                .addHeader("Range", "bytes=$downloaded-$endOffset")
+                                .build()
+
+                            bytesReadThisChunk = withContext(Dispatchers.IO) {
+                                okHttpClient.newCall(req).execute().use { response ->
+                                    if (response.code == 416) return@withContext -1L
+                                    if (!response.isSuccessful && response.code != 206) throw IOException("HTTP ${response.code}")
+                                    val body = response.body ?: throw IOException("Empty body")
+                                    val stream = body.byteStream()
+                                    val buf = ByteArray(8192)
+                                    var readThisChunk = 0L
+                                    while (true) {
+                                        val r = stream.read(buf)
+                                        if (r == -1) break
+                                        out.write(buf, 0, r)
+                                        readThisChunk += r
+                                    }
+                                    readThisChunk
+                                }
                             }
-                            readThisChunk
+                            lastErr = null
+                            break
+                        } catch (e: Exception) {
+                            lastErr = e
+                            if (attempt < 4) kotlinx.coroutines.delay(500L * attempt)
                         }
                     }
+                    if (lastErr != null) throw lastErr
 
                     if (bytesReadThisChunk <= 0L) break
                     downloaded += bytesReadThisChunk
@@ -192,7 +250,7 @@ class DownloadWorker @AssistedInject constructor(
                     } else {
                         setProgress(workDataOf(KEY_PROGRESS to 50))
                     }
-                    
+
                     if (totalSize > 0 && downloaded >= totalSize) break
                     if (bytesReadThisChunk < CHUNK_SIZE && totalSize == -1L) break
                 }
@@ -210,8 +268,8 @@ class DownloadWorker @AssistedInject constructor(
                 tmpDocToClean = tmpDoc
 
                 withContext(Dispatchers.IO) {
-                    context.contentResolver.openOutputStream(tmpDoc.uri)?.use { out -> 
-                        downloadToStream(out, 0L) 
+                    context.contentResolver.openOutputStream(tmpDoc.uri)?.use { out ->
+                        downloadToStream(out, 0L)
                     }
                 }
 
@@ -246,19 +304,22 @@ class DownloadWorker @AssistedInject constructor(
                 fileSize = destFile.length()
             }
 
-            // Durability guard: never record a "download" that didn't produce a real file.
-            // A phantom row (file missing/empty) makes a song show as downloaded but fail to
-            // play offline with ENOENT — the actual root cause of "downloaded songs don't play offline".
             if (fileSize <= 0L) {
-                Log.e("DownloadWorker", "Download produced empty/missing file for $videoId at $savedPath")
                 return Result.failure(workDataOf(KEY_ERROR to "Downloaded file is empty or missing"))
             }
+
+            // Download & save poster locally for offline display!
+            val localThumbnailUri = downloadThumbnailLocally(
+                videoId = videoId,
+                remoteThumbnailUrl = thumbnailUrl,
+                audioSavedPath = savedPath
+            )
 
             val entity = DownloadedSongEntity(
                 id = videoId,
                 title = title,
                 artist = artist,
-                thumbnailUrl = thumbnailUrl,
+                thumbnailUrl = localThumbnailUri,
                 durationMs = durationMs,
                 localPath = savedPath,
                 fileSizeBytes = fileSize,
@@ -266,28 +327,27 @@ class DownloadWorker @AssistedInject constructor(
             )
             downloadedSongDao.insert(entity)
 
-            // MediaStore & Scanner Indexing (LastWave-inspired system discovery)
             audioTagHelper.scanDownloadedFile(context, savedPath, title, artist)
 
-            // Playback & Playlist Synchronization:
-            // Update the path in the local SongEntity database record if it exists
+            // Synchronize local path & offline poster in SongDao
             try {
-                val existingSong = songDao.getSongById(videoId)
+                val existingSong = songDao.getSongById(videoId) ?: songDao.getSongByVideoId(videoId)
                 if (existingSong != null) {
-                    songDao.updateSongPath(videoId, savedPath)
-                    Log.i("DownloadWorker", "Synchronized playlist/favorites song path for $videoId to local: $savedPath")
+                    songDao.updateSongPath(existingSong.id, savedPath)
+                    songDao.updateSongArtwork(existingSong.id, localThumbnailUri)
                 }
             } catch (e: Exception) {
-                Log.e("DownloadWorker", "Failed to synchronize local song path in SongDao", e)
+                Log.e("DownloadWorker", "Failed to synchronize local song path/artwork in SongDao", e)
             }
 
-            // Automatically download and cache lyrics upon successful download + save companion .lrc file
+            // Automatically download & cache lyrics + save companion .lrc file
             try {
                 val lyricsResult = lyricsRepository.fetchLyrics(
                     songId = videoId,
                     trackName = title,
                     artistName = artist,
-                    durationSeconds = (durationMs / 1000).toInt()
+                    durationSeconds = (durationMs / 1000).toInt(),
+                    localPath = savedPath
                 )
                 val targetFile = File(savedPath)
                 if (targetFile.exists() && lyricsResult != null) {
@@ -296,7 +356,6 @@ class DownloadWorker @AssistedInject constructor(
                     if (!lrcText.isNullOrBlank()) {
                         val lrcFile = File(targetFile.parentFile, "${targetFile.nameWithoutExtension}.lrc")
                         lrcFile.writeText(lrcText)
-                        Log.i("DownloadWorker", "Saved .lrc companion file for $videoId to ${lrcFile.absolutePath}")
                     }
                 }
             } catch (e: Exception) {
@@ -306,28 +365,15 @@ class DownloadWorker @AssistedInject constructor(
             setProgress(workDataOf(KEY_PROGRESS to 100))
             isSuccess = true
             Result.success(workDataOf(KEY_PROGRESS to 100))
-
         } catch (e: Exception) {
             Log.e("DownloadWorker", "Download failed for $videoId", e)
             Result.failure(workDataOf(KEY_ERROR to (e.message ?: "Unknown error")))
         } finally {
             if (!isSuccess) {
                 try {
-                    tempFileToClean?.let {
-                        if (it.exists()) {
-                            it.delete()
-                            Log.i("DownloadWorker", "Cleaned up partial temp file: ${it.absolutePath}")
-                        }
-                    }
-                    tmpDocToClean?.let {
-                        if (it.exists()) {
-                            it.delete()
-                            Log.i("DownloadWorker", "Cleaned up partial temp doc: ${it.uri}")
-                        }
-                    }
-                } catch (ex: Exception) {
-                    Log.e("DownloadWorker", "Error cleaning up temp files on stop/cancel", ex)
-                }
+                    tempFileToClean?.let { if (it.exists()) it.delete() }
+                    tmpDocToClean?.let { if (it.exists()) it.delete() }
+                } catch (_: Exception) {}
             }
         }
     }

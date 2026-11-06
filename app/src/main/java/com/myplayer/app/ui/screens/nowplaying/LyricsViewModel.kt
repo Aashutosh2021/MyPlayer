@@ -2,8 +2,8 @@ package com.myplayer.app.ui.screens.nowplaying
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myplayer.app.data.lyrics.LyricsRepository
 import com.myplayer.app.data.lyrics.DetectedScript
+import com.myplayer.app.data.lyrics.LyricsRepository
 import com.myplayer.app.data.lyrics.LyricsResult
 import com.myplayer.app.data.lyrics.LyricsScript
 import com.myplayer.app.data.lyrics.LyricsScriptConverter
@@ -26,7 +26,8 @@ data class LyricsMetadata(
     val title: String,
     val artist: String,
     val album: String?,
-    val durationMs: Long
+    val durationMs: Long,
+    val localPath: String? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,7 +41,6 @@ class LyricsViewModel @Inject constructor(
 
     private val rawState = MutableStateFlow<LyricsUiState>(LyricsUiState.Idle)
 
-    // Script picker: Original / Hinglish / Hindi / Urdu. English lyrics are never converted.
     private val _scriptMode = MutableStateFlow(LyricsScript.ORIGINAL)
     val scriptMode: StateFlow<LyricsScript> = _scriptMode.asStateFlow()
     private val _detectedScript = MutableStateFlow(DetectedScript.UNKNOWN)
@@ -50,7 +50,6 @@ class LyricsViewModel @Inject constructor(
 
     fun setScriptMode(mode: LyricsScript) { _scriptMode.value = mode }
 
-    /** What the screens show: the fetched lyrics, converted to the picked script. */
     val lyricsState: StateFlow<LyricsUiState> = combine(rawState, _scriptMode) { raw, mode -> raw to mode }
         .mapLatest { (raw, mode) -> applyScript(raw, mode) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, LyricsUiState.Idle)
@@ -84,24 +83,25 @@ class LyricsViewModel @Inject constructor(
         .map { it.keepScreenAwakeLyrics }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // Auto-fetch whenever the playing song changes
     init {
         viewModelScope.launch {
             combine(musicController.currentSong, musicController.currentOnlineSong) { local, online ->
                 when {
                     local != null -> LyricsMetadata(
-                        songId = local.id,
+                        songId = local.videoId?.takeIf { it.isNotBlank() } ?: local.id,
                         title = local.title,
                         artist = local.artist,
                         album = local.album,
-                        durationMs = local.duration
+                        durationMs = local.duration,
+                        localPath = local.path
                     )
                     online != null -> LyricsMetadata(
                         songId = online.videoId,
                         title = online.title,
                         artist = online.artist,
                         album = null,
-                        durationMs = online.durationMs
+                        durationMs = online.durationMs,
+                        localPath = null
                     )
                     else -> null
                 }
@@ -125,18 +125,20 @@ class LyricsViewModel @Inject constructor(
         val fallback = lastMetadata
         val meta = when {
             local != null -> LyricsMetadata(
-                songId = local.id,
+                songId = local.videoId?.takeIf { it.isNotBlank() } ?: local.id,
                 title = local.title,
                 artist = local.artist,
                 album = local.album,
-                durationMs = if (local.duration > 0L) local.duration else musicController.currentDuration.value
+                durationMs = if (local.duration > 0L) local.duration else musicController.currentDuration.value,
+                localPath = local.path
             )
             online != null -> LyricsMetadata(
                 songId = online.videoId,
                 title = online.title,
                 artist = online.artist,
                 album = null,
-                durationMs = if (online.durationMs > 0L) online.durationMs else musicController.currentDuration.value
+                durationMs = if (online.durationMs > 0L) online.durationMs else musicController.currentDuration.value,
+                localPath = null
             )
             fallback != null -> {
                 val dur = if (fallback.durationMs > 0L) fallback.durationMs else musicController.currentDuration.value
@@ -191,7 +193,8 @@ class LyricsViewModel @Inject constructor(
                 trackName = metadata.title,
                 artistName = metadata.artist,
                 durationSeconds = durationSec,
-                albumName = metadata.album
+                albumName = metadata.album,
+                localPath = metadata.localPath
             )
             rawState.value = if (result != null) {
                 val synced = result.syncedLyrics?.let { lyricsRepository.parseSyncedLyrics(it) } ?: emptyList()
@@ -202,5 +205,3 @@ class LyricsViewModel @Inject constructor(
         }
     }
 }
-
-

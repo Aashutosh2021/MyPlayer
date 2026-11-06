@@ -37,6 +37,7 @@ class ArtworkRepositoryTest {
     @Test
     fun getArtwork_returnsLocalUriWhenTitleAndArtistEmpty() = runBlocking {
         val repo = ArtworkRepository(
+            context = mockContext,
             cache = artworkCache,
             matcher = matcher,
             deezerProvider = createFailingDeezer(),
@@ -52,7 +53,7 @@ class ArtworkRepositoryTest {
 
         assertNotNull(result)
         assertEquals("content://media/external/audio/albumart/1", result?.url)
-        assertEquals("Local", result?.provider)
+        assertEquals("LocalFile", result?.provider)
     }
 
     @Test
@@ -62,6 +63,7 @@ class ArtworkRepositoryTest {
         artworkCache.put(cacheKey, cached, "Yellow", "Coldplay")
 
         val repo = ArtworkRepository(
+            context = mockContext,
             cache = artworkCache,
             matcher = matcher,
             deezerProvider = createFailingDeezer(),
@@ -77,6 +79,7 @@ class ArtworkRepositoryTest {
     @Test
     fun getArtwork_returnsLocalUriImmediatelyWhenPresent() = runBlocking {
         val repo = ArtworkRepository(
+            context = mockContext,
             cache = artworkCache,
             matcher = matcher,
             deezerProvider = createFailingDeezer(),
@@ -92,7 +95,7 @@ class ArtworkRepositoryTest {
 
         assertNotNull(result)
         assertEquals("https://lh3.googleusercontent.com/thumbnail", result?.url)
-        assertEquals("Local", result?.provider)
+        assertEquals("Direct", result?.provider)
     }
 
     private fun createFailingDeezer(): DeezerArtworkProvider {
@@ -111,6 +114,8 @@ class ArtworkRepositoryTest {
 
     private class FakeContext(private val baseDir: File) : android.content.ContextWrapper(null) {
         override fun getCacheDir(): File = baseDir
+        override fun getFilesDir(): File = baseDir
         override fun getApplicationContext(): Context = this
+        override fun getSystemService(name: String): Any? = null
     }
 }

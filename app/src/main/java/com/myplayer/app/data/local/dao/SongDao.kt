@@ -38,6 +38,9 @@ interface SongDao {
 
     @Query("UPDATE songs SET path = :path WHERE id = :id")
     fun updateSongPath(id: String, path: String): Unit
+
+    @Query("UPDATE songs SET albumArt = :albumArt WHERE id = :id")
+    suspend fun updateSongArtwork(id: String, albumArt: String): Unit
     
     @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' OR artist LIKE '%' || :query || '%' OR album LIKE '%' || :query || '%'")
     fun searchSongs(query: String): Flow<List<SongEntity>>

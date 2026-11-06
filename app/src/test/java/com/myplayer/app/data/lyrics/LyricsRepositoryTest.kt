@@ -12,11 +12,14 @@ class LyricsRepositoryTest {
 
     private lateinit var fakeDao: FakeCachedLyricsDao
     private lateinit var repository: LyricsRepository
+    private lateinit var mockContext: FakeContext
 
     @Before
     fun setup() {
         fakeDao = FakeCachedLyricsDao()
+        mockContext = FakeContext(java.io.File(System.getProperty("java.io.tmpdir"), "lyrics_test"))
         repository = LyricsRepository(
+            context = mockContext,
             okHttpClient = OkHttpClient(),
             cachedLyricsDao = fakeDao
         )
@@ -252,6 +255,17 @@ class LyricsRepositoryTest {
             return cache[songId]
         }
 
+        override suspend fun getLyricsForSongOrMetadata(
+            songId: String,
+            trackName: String,
+            artistName: String
+        ): CachedLyricsEntity? {
+            return cache[songId] ?: cache.values.firstOrNull {
+                it.trackName.equals(trackName, ignoreCase = true) &&
+                    it.artistName.equals(artistName, ignoreCase = true)
+            }
+        }
+
         override suspend fun insertLyrics(lyrics: CachedLyricsEntity) {
             cache[lyrics.songId] = lyrics
         }
@@ -267,5 +281,12 @@ class LyricsRepositoryTest {
         override fun insertCachedLyrics(lyrics: List<CachedLyricsEntity>) {
             lyrics.forEach { cache[it.songId] = it }
         }
+    }
+
+    private class FakeContext(private val baseDir: java.io.File) : android.content.ContextWrapper(null) {
+        override fun getCacheDir(): java.io.File = baseDir
+        override fun getFilesDir(): java.io.File = baseDir
+        override fun getExternalFilesDir(type: String?): java.io.File = baseDir
+        override fun getApplicationContext(): android.content.Context = this
     }
 }

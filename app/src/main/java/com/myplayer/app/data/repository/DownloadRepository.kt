@@ -146,7 +146,18 @@ class DownloadRepository @Inject constructor(
                 doc?.delete()
             } else {
                 val file = File(entity.localPath)
-                file.delete()
+                if (file.exists()) {
+                    file.delete()
+                }
+                file.parentFile?.let { parent ->
+                    File(parent, "${file.nameWithoutExtension}.lrc").takeIf { it.exists() }?.delete()
+                    File(parent, "${file.nameWithoutExtension}.jpg").takeIf { it.exists() }?.delete()
+                }
+            }
+            // Also clean filesDir/artwork/<entity.id>.jpg
+            val localArt = File(File(context.filesDir, "artwork"), "${entity.id}.jpg")
+            if (localArt.exists()) {
+                localArt.delete()
             }
         } catch (e: Exception) {
             Log.e("DownloadRepository", "Could not delete file", e)

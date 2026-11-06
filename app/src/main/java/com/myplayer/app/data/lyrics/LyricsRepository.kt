@@ -1,14 +1,19 @@
 package com.myplayer.app.data.lyrics
 
+import android.content.Context
+import android.media.MediaMetadataRetriever
+import android.os.Environment
 import android.util.Log
 import com.myplayer.app.data.local.dao.CachedLyricsDao
 import com.myplayer.app.data.local.entity.CachedLyricsEntity
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,13 +32,9 @@ sealed class LyricsState {
     data class NotFound(val reason: String) : LyricsState()
 }
 
-/**
- * Fetches lyrics from LRCLIB (https://lrclib.net) — an open-source, community-driven lyrics API.
- * Uses both https://lrclib.net/api/get and https://lrclib.net/api/search with intelligent
- * title cleaning, multi-tier fallback, and local SQLite caching via Room.
- */
 @Singleton
 class LyricsRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
     private val cachedLyricsDao: CachedLyricsDao
 ) {
@@ -42,9 +43,7 @@ class LyricsRepository @Inject constructor(
         private const val BASE_URL = "https://lrclib.net/api"
         private const val USER_AGENT = "MyPlayer/1.0.0 (https://github.com/example/myplayer)"
 
-        // Robust LRC line regex handling [mm:ss], [mm:ss.xx], [mm:ss.xxx]
         private val LRC_LINE_REGEX = Regex("""^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)$""")
-
         private val BRACKET_NOISE_REGEX = Regex("""[\(\[].*?[\)\]]""")
         private val KEYWORD_NOISE_REGEX = Regex(
             """(?i)\b(official|video|audio|lyrics?|lyrical|full song|song|hd|4k|mv|m/v|remix|reprise|cover|live|version|visualizer|color coded)\b"""
@@ -54,21 +53,32 @@ class LyricsRepository @Inject constructor(
     }
 
     /**
-     * Primary entry point: Retrieves lyrics for a song, checking local Room cache
-     * first, then querying the LRCLIB API (/get and /search) and caching the result.
+     * Primary entry point:
+     * 1. Checks Room SQLite cache (by exact songId OR cleaned Title + Artist).
+     * 2. Checks local companion `.lrc` files on disk and embedded ID3/MP4 lyrics (works 100% offline!).
+     * 3. Queries LRCLIB API when online and caches the result in Room + companion `.lrc`.
      */
     suspend fun fetchLyrics(
         songId: String,
         trackName: String,
         artistName: String,
         durationSeconds: Int = 0,
-        albumName: String? = null
+        albumName: String? = null,
+        localPath: String? = null
     ): LyricsResult? = withContext(Dispatchers.IO) {
-        // 1. Check local SQLite cache first
+        val cleanId = songId.removePrefix("online://").removePrefix("spotify:track:").trim()
+        val cleanArtist = cleanArtistName(artistName)
+        val cleanTrack = cleanTrackTitle(trackName, cleanArtist)
+
+        // 1. Check local SQLite cache first (Exact ID -> Clean ID -> Track + Artist metadata)
         try {
             val cached = cachedLyricsDao.getLyricsForSong(songId)
-            if (cached != null) {
-                Log.d(TAG, "Loaded cached lyrics for: $trackName ($songId)")
+                ?: cachedLyricsDao.getLyricsForSong(cleanId)
+                ?: cachedLyricsDao.getLyricsForSongOrMetadata(cleanId, trackName, artistName)
+                ?: cachedLyricsDao.getLyricsForSongOrMetadata(cleanId, cleanTrack, cleanArtist)
+
+            if (cached != null && (!cached.syncedLyrics.isNullOrBlank() || !cached.plainLyrics.isNullOrBlank())) {
+                Log.d(TAG, "Loaded cached offline lyrics for: $trackName ($songId)")
                 return@withContext LyricsResult(
                     plainLyrics = cached.plainLyrics,
                     syncedLyrics = cached.syncedLyrics,
@@ -80,7 +90,12 @@ class LyricsRepository @Inject constructor(
             Log.e(TAG, "Failed to read cached lyrics for $songId", e)
         }
 
-        // 2. Cache miss: Fetch from LRCLIB API (/get & /search)
+        // 2. Offline Fallback: Check companion .lrc files & embedded audio tags
+        readLocalOfflineLyrics(songId, trackName, artistName, localPath)?.let { localResult ->
+            return@withContext localResult
+        }
+
+        // 3. Online Fetch from LRCLIB API
         val result = fetchLyricsFromLrcLib(trackName, artistName, durationSeconds, albumName)
         if (result != null) {
             try {
@@ -89,11 +104,21 @@ class LyricsRepository @Inject constructor(
                         songId = songId,
                         plainLyrics = result.plainLyrics,
                         syncedLyrics = result.syncedLyrics,
-                        trackName = result.trackName,
-                        artistName = result.artistName
+                        trackName = trackName.ifBlank { result.trackName },
+                        artistName = artistName.ifBlank { result.artistName }
                     )
                 )
-                Log.d(TAG, "Cached lyrics locally for: $trackName ($songId)")
+                if (cleanId.isNotBlank() && cleanId != songId) {
+                    cachedLyricsDao.insertLyrics(
+                        CachedLyricsEntity(
+                            songId = cleanId,
+                            plainLyrics = result.plainLyrics,
+                            syncedLyrics = result.syncedLyrics,
+                            trackName = trackName.ifBlank { result.trackName },
+                            artistName = artistName.ifBlank { result.artistName }
+                        )
+                    )
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to cache lyrics for $songId", e)
             }
@@ -102,9 +127,79 @@ class LyricsRepository @Inject constructor(
         return@withContext result
     }
 
-    /**
-     * Fetches and caches lyrics directly. Used during background music downloading.
-     */
+    private suspend fun readLocalOfflineLyrics(
+        songId: String,
+        trackName: String,
+        artistName: String,
+        localPath: String?
+    ): LyricsResult? {
+        try {
+            val candidateLrcFiles = mutableListOf<File>()
+
+            if (!localPath.isNullOrBlank() && !localPath.startsWith("http")) {
+                val cleanFilePath = if (localPath.startsWith("file://")) {
+                    android.net.Uri.parse(localPath).path ?: localPath
+                } else {
+                    localPath
+                }
+                val audioFile = File(cleanFilePath)
+                if (audioFile.exists()) {
+                    audioFile.parentFile?.let { parent ->
+                        candidateLrcFiles.add(File(parent, "${audioFile.nameWithoutExtension}.lrc"))
+                    }
+                }
+            }
+
+            // Also check app's Music download directory by safe title
+            val musicDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+            val safeTitle = trackName
+                .replace(Regex("[^a-zA-Z0-9 _\\-]"), "")
+                .replace(Regex(" {2,}"), " ")
+                .trim()
+                .take(60)
+            if (safeTitle.isNotBlank()) {
+                candidateLrcFiles.add(File(musicDir, "$safeTitle.lrc"))
+            }
+
+            for (lrcFile in candidateLrcFiles) {
+                if (lrcFile.exists() && lrcFile.length() > 0L) {
+                    val lrcText = lrcFile.readText()
+                    if (lrcText.isNotBlank()) {
+                        Log.d(TAG, "Loaded offline companion .lrc file: ${lrcFile.absolutePath}")
+                        return saveCustomLyrics(songId, trackName, artistName, lrcText)
+                    }
+                }
+            }
+
+            // Check embedded ID3/MP4 lyrics inside local audio file
+            if (!localPath.isNullOrBlank() && !localPath.startsWith("http") && !localPath.startsWith("content://")) {
+                val cleanFilePath = if (localPath.startsWith("file://")) {
+                    android.net.Uri.parse(localPath).path ?: localPath
+                } else {
+                    localPath
+                }
+                val audioFile = File(cleanFilePath)
+                if (audioFile.exists()) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(audioFile.absolutePath)
+                        val embedded = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LYRICS)
+                        if (!embedded.isNullOrBlank()) {
+                            Log.d(TAG, "Extracted embedded ID3 lyrics from ${audioFile.name}")
+                            return saveCustomLyrics(songId, trackName, artistName, embedded)
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        try { retriever.release() } catch (_: Exception) {}
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed reading local offline lyrics", e)
+        }
+        return null
+    }
+
     suspend fun fetchAndCacheLyrics(
         songId: String,
         trackName: String,
@@ -116,10 +211,6 @@ class LyricsRepository @Inject constructor(
         return result != null
     }
 
-    /**
-     * Saves user-provided custom lyrics directly to the Room cache for [songId].
-     * Supports both plain text and timestamped LRC format.
-     */
     suspend fun saveCustomLyrics(
         songId: String,
         trackName: String,
@@ -151,7 +242,6 @@ class LyricsRepository @Inject constructor(
 
         try {
             cachedLyricsDao.insertLyrics(entity)
-            Log.d(TAG, "Saved custom lyrics locally for: $trackName ($songId, synced=$hasSynced)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save custom lyrics for $songId", e)
         }
@@ -164,26 +254,14 @@ class LyricsRepository @Inject constructor(
         )
     }
 
-    /**
-     * Deletes cached lyrics for [songId] so they can be re-fetched.
-     */
     suspend fun deleteLyrics(songId: String) = withContext(Dispatchers.IO) {
         try {
             cachedLyricsDao.deleteLyricsForSong(songId)
-            Log.d(TAG, "Deleted cached lyrics for $songId")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete lyrics for $songId", e)
         }
     }
 
-    /**
-     * Multi-tier LRCLIB fetching:
-     * Tier 1: /api/get (clean track & artist + duration)
-     * Tier 2: /api/get (clean track & artist, no duration)
-     * Tier 3: /api/search?track_name=...&artist_name=...
-     * Tier 4: /api/search?q=cleanArtist cleanTrack
-     * Tier 5: /api/search?q=rawTitle
-     */
     private suspend fun fetchLyricsFromLrcLib(
         trackName: String,
         artistName: String,
@@ -195,53 +273,35 @@ class LyricsRepository @Inject constructor(
         val coreTrack = cleanTrack.split(" - ", " – ", " — ", ":").first().trim().ifBlank { cleanTrack }
         val validAlbum = albumName?.takeIf {
             !it.equals("YouTube Music", ignoreCase = true) &&
-            !it.equals("Online", ignoreCase = true) &&
-            !it.equals("Recommended", ignoreCase = true) &&
-            !it.equals("Downloads", ignoreCase = true) &&
-            !it.equals("Unknown Album", ignoreCase = true)
+                !it.equals("Online", ignoreCase = true) &&
+                !it.equals("Recommended", ignoreCase = true) &&
+                !it.equals("Downloads", ignoreCase = true) &&
+                !it.equals("Unknown Album", ignoreCase = true)
         }
 
-        Log.d(TAG, "Fetching lyrics for track='$cleanTrack' (core='$coreTrack'), artist='$cleanArtist', dur=${durationSeconds}s")
-
-        // Tier 1: /api/get with duration (exact lookup)
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank() && durationSeconds > 0) {
             executeGetRequest(cleanTrack, cleanArtist, validAlbum, durationSeconds)?.let { return it }
         }
-
-        // Tier 2: /api/get without duration constraint
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank()) {
             executeGetRequest(cleanTrack, cleanArtist, validAlbum, 0)?.let { return it }
         }
-
-        // Tier 3: /api/search with specific track_name and artist_name
         if (cleanTrack.isNotBlank() && cleanArtist.isNotBlank()) {
             executeSearchWithParams(cleanTrack, cleanArtist, durationSeconds)?.let { return it }
         }
-
-        // Tier 4: /api/search with query "artist track"
         val query = listOf(cleanArtist, coreTrack).filter { it.isNotBlank() }.joinToString(" ")
         if (query.isNotBlank()) {
             executeSearchQuery(query, coreTrack, cleanArtist, durationSeconds)?.let { return it }
         }
-
-        // Tier 5: Title-only search (critical when YouTube artist is a label like T-Series / Zee Music)
         if (coreTrack.isNotBlank()) {
             executeSearchQuery(coreTrack, coreTrack, "", durationSeconds)?.let { return it }
         }
-
-        // Tier 6: Raw trackName fallback
         if (trackName.isNotBlank() && trackName != coreTrack) {
             val rawClean = trackName.replace(BRACKET_NOISE_REGEX, " ").trim()
             executeSearchQuery(rawClean, coreTrack.ifBlank { trackName }, cleanArtist, durationSeconds)?.let { return it }
         }
-
-        Log.d(TAG, "No lyrics found on LRCLIB for '$trackName'")
         return null
     }
 
-    /**
-     * Executes GET request against https://lrclib.net/api/get
-     */
     private fun executeGetRequest(
         trackName: String,
         artistName: String,
@@ -276,7 +336,6 @@ class LyricsRepository @Inject constructor(
                     if (plain != null || synced != null) {
                         val respTrack = json.optString("trackName", trackName)
                         val respArtist = json.optString("artistName", artistName)
-                        Log.d(TAG, "LRCLIB /get matched: '$respTrack' by '$respArtist' (synced=${synced != null})")
                         return LyricsResult(
                             plainLyrics = plain,
                             syncedLyrics = synced,
@@ -292,9 +351,6 @@ class LyricsRepository @Inject constructor(
         return null
     }
 
-    /**
-     * Executes SEARCH request against https://lrclib.net/api/search?track_name=...&artist_name=...
-     */
     private fun executeSearchWithParams(
         trackName: String,
         artistName: String,
@@ -320,9 +376,6 @@ class LyricsRepository @Inject constructor(
         return null
     }
 
-    /**
-     * Executes SEARCH request against https://lrclib.net/api/search?q=...
-     */
     private fun executeSearchQuery(
         query: String,
         targetTrack: String,
@@ -349,9 +402,6 @@ class LyricsRepository @Inject constructor(
         return null
     }
 
-    /**
-     * Evaluates LRCLIB candidate array and selects the highest-scoring candidate.
-     */
     private fun pickBestCandidate(
         array: JSONArray,
         targetTrack: String,
@@ -391,12 +441,10 @@ class LyricsRepository @Inject constructor(
 
             score += (titleSim * 0.5) + (artistSim * 0.3)
 
-            // Bonus for synced lyrics
             if (synced != null) {
                 score += 0.15
             }
 
-            // Duration match bonus
             if (targetDurationSec > 0 && candDuration > 0) {
                 val diff = Math.abs(targetDurationSec - candDuration)
                 if (diff <= 5) score += 0.10
@@ -413,16 +461,9 @@ class LyricsRepository @Inject constructor(
                 )
             }
         }
-
-        if (bestCandidate != null) {
-            Log.d(TAG, "Selected best LRCLIB candidate: '${bestCandidate.trackName}' by '${bestCandidate.artistName}' (score=$highestScore, synced=${bestCandidate.syncedLyrics != null})")
-        }
         return bestCandidate
     }
 
-    /**
-     * Cleans common YouTube channel noise from artist names.
-     */
     fun cleanArtistName(raw: String): String {
         if (raw.isBlank()) return ""
         val labelRegex = Regex(
@@ -440,19 +481,12 @@ class LyricsRepository @Inject constructor(
         return if (labelRegex.matches(primary)) "" else primary
     }
 
-    /**
-     * Cleans common video title noise from YouTube-style track titles.
-     */
     fun cleanTrackTitle(raw: String, cleanArtist: String): String {
         if (raw.isBlank()) return ""
         var title = raw
-        // Strip parenthetical/bracketed descriptors
         title = title.replace(BRACKET_NOISE_REGEX, " ")
-        // Strip delimiter suffixes
         title = title.split('|', '•', '/').first()
-        // Strip common keywords
         title = title.replace(KEYWORD_NOISE_REGEX, " ")
-        // Strip "Artist - Title" prefix if present
         val dashSeparators = listOf(" - ", " – ", " — ")
         for (sep in dashSeparators) {
             if (title.contains(sep)) {
@@ -465,17 +499,12 @@ class LyricsRepository @Inject constructor(
                 }
             }
         }
-        // Strip trailing featured artist clauses
         title = title.replace(FEAT_REGEX, " ")
         return title.replace(WHITESPACE_REGEX, " ").trim()
     }
 
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
-    /**
-     * Parse LRC synced lyrics into a sorted list of (timestamp ms, line text) pairs.
-     * Supports [mm:ss], [mm:ss.xx], [mm:ss.xxx] formats.
-     */
     fun parseSyncedLyrics(lrc: String): List<Pair<Long, String>> {
         return lrc.lines()
             .mapNotNull { line ->

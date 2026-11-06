@@ -139,10 +139,46 @@ fun NowPlayingVisual(
                 .fillMaxWidth()
                 .height(screenHeight)
         ) {
-            // Album Art Background (Fills top ~62% of initial viewport)
-            if (!artUri.isNullOrBlank()) {
+            // Album Art Background (Fills top ~62% of initial viewport, works 100% offline!)
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val resolvedArtModel = remember(artUri, title, artist, context) {
+                val cleanArt = artUri?.trim().orEmpty()
+                when {
+                    cleanArt.startsWith("/") -> android.net.Uri.fromFile(java.io.File(cleanArt))
+                    cleanArt.startsWith("file://") || cleanArt.startsWith("content://") -> android.net.Uri.parse(cleanArt)
+                    else -> {
+                        val ytId = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(cleanArt)?.groupValues?.getOrNull(1)
+                        val localArtFile = ytId?.let { java.io.File(java.io.File(context.filesDir, "artwork"), "$it.jpg") }
+                        if (localArtFile != null && localArtFile.exists() && localArtFile.length() > 512L) {
+                            android.net.Uri.fromFile(localArtFile)
+                        } else if (!title.isNullOrBlank() || !artist.isNullOrBlank()) {
+                            com.myplayer.app.data.artwork.model.ArtworkModel(
+                                title = title,
+                                artist = artist,
+                                localUri = cleanArt.ifBlank { null }
+                            )
+                        } else {
+                            cleanArt.ifBlank { null }
+                        }
+                    }
+                }
+            }
+
+            if (resolvedArtModel != null) {
+                val stableKey = remember(artUri, title, artist) {
+                    artUri?.takeIf { it.isNotBlank() } ?: "${artist.orEmpty()}_${title.orEmpty()}"
+                }
+                val imgReq = remember(context, resolvedArtModel, stableKey) {
+                    coil.request.ImageRequest.Builder(context)
+                        .data(resolvedArtModel)
+                        .diskCacheKey(stableKey)
+                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                        .crossfade(true)
+                        .build()
+                }
                 AsyncImage(
-                    model = artUri,
+                    model = imgReq,
                     contentDescription = title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
